@@ -17,12 +17,25 @@ _current_pos_ptr = POINT()
 
 
 def get_cursor_pos() -> POINT:
+    """Retrieves the position of the mouse cursor, in screen coordinates.
+
+    :return: mouse position
+    :rtype: POINT
+    """
     if not user32.GetCursorPos(pointer(_current_pos_ptr)):
         raise Exception("failed to get cursor position")
     return _current_pos_ptr
 
 
 def open_process_for_limited_query(pid: int) -> HANDLE:
+    """Opens an existing local process object with permission to query limited information
+
+    Ref: https://learn.microsoft.com/en-us/windows/win32/procthread/process-security-and-access-rights
+
+    :param pid: int
+    :return:  process handle
+    :rtype: HANDLE
+    """
     PROCESS_QUERY_LIMITED_INFORMATION = DWORD(0x1000)
     hprc = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
     if not hprc:
@@ -31,6 +44,12 @@ def open_process_for_limited_query(pid: int) -> HANDLE:
 
 
 def is_process_elevated(pid: int) -> bool:
+    """Check if specified process is elevated (run in Administrator Role)
+
+    :param pid: int
+    :return: `True` if elevated, `False` otherwise
+    :rtype: bool
+    """
     hprc = open_process_for_limited_query(pid)
     TOKEN_QUERY = DWORD(8)
     htoken = PHANDLE()
@@ -54,6 +73,12 @@ def is_process_elevated(pid: int) -> bool:
 
 
 def get_process_exepath(pid: int) -> str:
+    """Retrieves the full name of the executable image for the specified process.
+
+    :param pid: int
+    :return: the full path of the executable
+    :rtype: str
+    """
     hprc = open_process_for_limited_query(pid)
     buff = create_string_buffer(512)
     size = DWORD(sizeof(buff))
@@ -65,6 +90,11 @@ def get_process_exepath(pid: int) -> str:
 
 
 def enum_windows() -> List[HWND]:
+    """Returns a List of all top-level windows on the screen.
+
+    :return: list of window handles
+    :rtype: List[HWND]
+    """
     hwnds = []
 
     @WINFUNCTYPE(BOOL, HWND, LPARAM)
@@ -78,6 +108,14 @@ def enum_windows() -> List[HWND]:
 
 
 def enum_desktop_windows(hdst: Optional[HDESK] = None) -> List[HWND]:
+    """Returns a List of all top-level windows associated with the specified desktop.
+
+    Ref: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-enumdesktopwindows
+
+    :param hdst: HDESK, optional. If this parameter is NULL, the current desktop is used.
+    :return: list of window handles
+    :rtype: List[HWND]
+    """
     hwnds = []
 
     @WINFUNCTYPE(BOOL, HWND, LPARAM)
@@ -93,9 +131,7 @@ def enum_desktop_windows(hdst: Optional[HDESK] = None) -> List[HWND]:
 class WindowStyle(enum.IntFlag):
     """The object that holds the window styles.
 
-    For more information on styles refer to `Window Styles
-    <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-styles>`_ on
-    Microsoft Docs.
+    Ref: https://docs.microsoft.com/en-us/windows/win32/winmsg/window-styles
     """
 
     BORDER = 0x00800000
@@ -135,9 +171,7 @@ class WindowStyle(enum.IntFlag):
 class ExWindowStyle(enum.IntFlag):
     """The object that holds the extended window styles.
 
-    For more information on styles refer to `Extended Window Styles
-    <https://docs.microsoft.com/en-us/windows/win32/winmsg/extended-window-styles>`_
-    on Microsoft Docs.
+    Ref: https://docs.microsoft.com/en-us/windows/win32/winmsg/extended-window-styles>
     """
 
     ACCEPTFILES = 0x00000010
@@ -170,6 +204,11 @@ class ExWindowStyle(enum.IntFlag):
 
 
 class ShowWindowCmd(enum.IntFlag):
+    """The object that holds the CmdShow for ShowWindow api
+
+    Ref: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow
+    """
+
     SW_HIDE = 0
     SW_MAXIMIZE = 3
     SW_MINIMIZE = 6
@@ -184,6 +223,11 @@ class ShowWindowCmd(enum.IntFlag):
 
 
 class DwmWindowAttribute(enum.IntEnum):
+    """Options used by the DwmGetWindowAttribute and DwmSetWindowAttribute functions.
+
+    Ref: https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/ne-dwmapi-dwmwindowattribute
+    """
+
     DWMWA_NCRENDERING_ENABLED = 1
     DWMWA_NCRENDERING_POLICY = 2
     DWMWA_TRANSITIONS_FORCEDISABLED = 3
@@ -213,66 +257,106 @@ class DwmWindowAttribute(enum.IntEnum):
 
 @dataclass
 class Window:
+    """Represents a top-level window
+
+    :param hwnd: HWND the window handle
+    """
+
     _hwnd: HWND
-    _rect: RECT
+    _rect = None
+    _exepath = None
+    _pid = None
+    _elevated = None
+    _title = None
+    _class_name = None
+    _cloaked = None
 
     def __init__(self, hwnd: HWND):
         self._hwnd = hwnd
-        self._rect = RECT()
 
     def __eq__(self, other):
         return isinstance(other, Window) and self._hwnd == other._hwnd
 
     @property
     def title(self) -> str:
+        """Retrieves the text of the specified window's title bar (if it has one)
+
+        Ref: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowtexta
+
+        :return: text of the title bar
+        :rtype: str
+        """
         # length = user32.GetWindowTextLengthW(self.hwnd)
-        buff = create_string_buffer(255)
-        user32.GetWindowTextA(self._hwnd, buff, sizeof(buff))
-        return buff.value.decode(encoding)
+        if self._title is None:
+            self._title = create_string_buffer(255)
+        user32.GetWindowTextA(self._hwnd, self._title, 255)
+        return self._title.value.decode(encoding)
 
     @property
     def class_name(self):
-        buff = create_string_buffer(100)
-        user32.GetClassNameA(self._hwnd, buff, sizeof(buff))
-        return buff.value.decode(encoding)
+        """Retrieves the name of the class to which the specified window belongs.
+
+        Ref: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getclassnamea
+
+        :return: class name
+        :rtype: str
+        """
+        if self._class_name is None:  # class_name would never change
+            buff = create_string_buffer(100)
+            user32.GetClassNameA(self._hwnd, buff, 100)
+            self._class_name = buff.value.decode(encoding)
+        return self._class_name
 
     @property
     def exe(self):
-        return get_process_exepath(self.pid)
+        """Retrieves the full path of the executable
+
+        :return: full path of the executable
+        :rtype: str
+        """
+        if self._exepath is None:
+            self._exepath = get_process_exepath(self.pid)
+        return self._exepath
 
     @property
     def pid(self) -> int:
-        process_id = DWORD()
-        user32.GetWindowThreadProcessId(self._hwnd, pointer(process_id))
-        return process_id.value
+        """Retrieves the process id
+
+        :return: process id
+        :rtype: int
+        """
+        if self._pid is None:  # pid would never change
+            pid = DWORD()
+            user32.GetWindowThreadProcessId(self._hwnd, pointer(pid))
+            self._pid = pid.value
+        return self._pid
 
     @property
     def is_visible(self) -> bool:
+        """Determines the visibility state of the specified window.
+
+        :return: If the specified window, its parent window, its parent's parent window,
+            and so forth, have the WS_VISIBLE style, the return value is `True`.
+            Otherwise, the return value is `False`.
+        :rtype: bool
+        """
         return bool(user32.IsWindowVisible(self._hwnd))
 
-    @property
-    def style(self) -> WindowStyle:
+    def get_style(self) -> WindowStyle:
+        """Retrieves style
+
+        :return: window style
+        :rtype: WindowStyle
+        """
         return WindowStyle(user32.GetWindowLongA(self._hwnd, -16))
 
-    @property
-    def ex_style(self) -> int:
+    def get_exstyle(self) -> int:
+        """Retrieves ex-style
+
+        :return: window ex-style
+        :rtype: ExWindowStyle
+        """
         return ExWindowStyle(user32.GetWindowLongA(self._hwnd, -20))
-
-    @property
-    def is_minimized(self) -> bool:
-        return WindowStyle.MINIMIZE in self.style
-
-    @property
-    def is_minimizable(self) -> bool:
-        return WindowStyle.MINIMIZEBOX in self.style
-
-    @property
-    def is_maximized(self) -> bool:
-        return WindowStyle.MAXIMIZE in self.style
-
-    @property
-    def is_maximizable(self) -> bool:
-        return WindowStyle.MAXIMIZEBOX in self.style
 
     def minimize(self):
         """Minimizes the specified window and activates the next top-level window in the Z order."""
@@ -296,31 +380,56 @@ class Window:
 
     @property
     def is_evelated(self):
-        return is_process_elevated(self.pid)
-
-    @property
-    def is_disabled(self):
-        return WindowStyle.DISABLED in self.style
+        """Check if window is elevated (Administrator)"""
+        if self._elevated is None:  # would never change
+            self._elevated = is_process_elevated(self.pid)
+        return self._elevated
 
     @property
     def is_cloaked(self) -> any:
-        val = INT(0)
+        """Check if window is cloaked (DWM)
+
+        Ref: https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/ne-dwmapi-dwmwindowattribute
+        """
+        if self._cloaked is None:
+            self._cloaked = INT()
         windll.dwmapi.DwmGetWindowAttribute(
-            self._hwnd, DwmWindowAttribute.DWMWA_CLOAKED, pointer(val), sizeof(val)
+            self._hwnd,
+            DwmWindowAttribute.DWMWA_CLOAKED,
+            pointer(self._cloaked),
+            sizeof(self._cloaked),
         )
-        return val.value
+        return bool(self._cloaked.value)
 
     def get_rect(self) -> RECT:
+        """Retrieves the dimensions of the bounding rectangle of the specified window.
+        The dimensions are given in screen coordinates that are relative to the upper-left
+        corner of the screen
+
+        Ref: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowrect
+
+        :return: a RECT with top/left/bottom/right properties
+        :rtype: RECT
+        """
+        if self._rect is None:
+            self._rect = RECT()
         if not user32.GetWindowRect(self._hwnd, pointer(self._rect)):
             raise WinError(get_last_error())
         return self._rect
 
     def set_rect(self, rect: RECT):
+        """Sets the dimensions of the bounding rectangle (Call SetWindowPos with RECT)
+
+        Ref: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowpos
+
+        :param rect: RECT with top/left/bottom/right properties
+        """
         x, y, w, h = rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top
         if not user32.SetWindowPos(self._hwnd, None, x, y, w, h, 0):
             raise WinError(get_last_error())
 
     def activate(self):
+        """Brings the thread that created current window into the foreground and activates the window"""
         set_active_window(self)
 
 
@@ -335,7 +444,7 @@ def get_normal_windows(hdst: Optional[HDESK] = None) -> Iterator[Window]:
     normal windows would not include cloaked / invisible / unmaximizeable / unminimizable windows
     """
     for window in get_windows(hdst):
-        style = window.style
+        style = window.get_style()
         if (
             window.title
             and not window.is_cloaked
@@ -348,12 +457,14 @@ def get_normal_windows(hdst: Optional[HDESK] = None) -> Iterator[Window]:
 
 
 def get_active_window() -> Optional[Window]:
+    """Retrieves current activated window"""
     hwnd = user32.GetForegroundWindow()
     if hwnd:
         return Window(hwnd)
 
 
 def set_active_window(window: Window):
+    """Brings the thread that created the specified window into the foreground and activates the window"""
     user32.SetForgroundWindow(window._hwnd)
 
 
@@ -374,18 +485,15 @@ if __name__ == "__main__":
     active_window = get_active_window()
     for window in get_normal_windows():
         print()
+        style = window.get_style()
+        exstyle = window.get_exstyle()
         print(window.title)
         print("pid          :", window.pid)
-        print("is_elevated  :", window.is_evelated)
-        print("exe path     :", window.exe)
         print("class name   :", window.class_name)
-        print("is_disabled  :", window.is_disabled)
-        print("border       :", WindowStyle.BORDER in window.style)
-        print("caption      :", WindowStyle.CAPTION in window.style)
-        print("ws_child     :", WindowStyle.CHILD in window.style)
-        print("is_visible   :", WindowStyle.VISIBLE in window.style)
-        print("APPWINDOW    :", ExWindowStyle.APPWINDOW in window.ex_style)
-        print("NOACTIVATE   :", ExWindowStyle.NOACTIVATE in window.ex_style)
+        print("exe path     :", window.exe)
+        print("is_elevated  :", window.is_evelated)
+        print("is_visible   :", WindowStyle.VISIBLE in style)
+        print("is_minimized :", WindowStyle.MINIMIZE in style)
         print("is_cloaked   :", window.is_cloaked)
         print("is_active    :", active_window == window)
         rect = window.get_rect()

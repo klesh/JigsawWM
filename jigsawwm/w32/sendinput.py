@@ -1,19 +1,24 @@
 from ctypes import *
 from ctypes.wintypes import *
 from typing import List
+import enum
 
 user32 = WinDLL("user32", use_last_error=True)
 
 ULONG_PTR = LPARAM
 
-INPUT_MOUSE = 0
-INPUT_KEYBOARD = 1
-INPUT_HARDWARE = 2
 
-KEYEVENTF_EXTENDEDKEY = 0x0001
-KEYEVENTF_KEYUP = 0x0002
-KEYEVENTF_SCANCODE = 0x0008
-KEYEVENTF_UNICODE = 0x0004
+class INPUTTYPE(enum.IntEnum):
+    MOUSE = 0
+    KEYBOARD = 1
+    HARDWARE = 2
+
+
+class KEYEVENTF(enum.IntFlag):
+    EXTENDEDKEY = 0x0001
+    KEYUP = 0x0002
+    SCANCODE = 0x0008
+    UNICODE = 0x0004
 
 
 class KEYBDINPUT(Structure):
@@ -62,6 +67,23 @@ class INPUT(Structure):
 
 
 def send_input(*inputs: List[INPUT]):
+    """Synthesizes keystrokes, mouse motions, and button clicks.
+
+    Usage:
+    ```
+    send_input(
+        INPUT(
+            type=INPUTTYPE.KEYBOARD,
+            ki=KEYBDINPUT(wVk=VirtualKey.VK_KEY_A, dwExtraInfo=123),
+        ),
+        INPUT(
+            type=INPUTTYPE.KEYBOARD,
+            ki=KEYBDINPUT(wVk=VirtualKey.VK_KEY_A, dwFlags=KEYEVENTF.KEYUP),
+        ),
+    )
+    ```
+
+    """
     length = len(inputs)
     array = INPUT * length
     if not user32.SendInput(length, array(*inputs), sizeof(INPUT)):
@@ -69,7 +91,15 @@ def send_input(*inputs: List[INPUT]):
 
 
 if __name__ == "__main__":
+    from vk import VirtualKey
+
     send_input(
-        INPUT(type=INPUT_KEYBOARD, ki=KEYBDINPUT(wVk=0x41, dwExtraInfo=123)),
-        INPUT(type=INPUT_KEYBOARD, ki=KEYBDINPUT(wVk=0x41, dwFlags=KEYEVENTF_KEYUP)),
+        INPUT(
+            type=INPUTTYPE.KEYBOARD,
+            ki=KEYBDINPUT(wVk=VirtualKey.VK_KEY_A, dwExtraInfo=123),
+        ),
+        INPUT(
+            type=INPUTTYPE.KEYBOARD,
+            ki=KEYBDINPUT(wVk=VirtualKey.VK_KEY_A, dwFlags=KEYEVENTF.KEYUP),
+        ),
     )

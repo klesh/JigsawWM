@@ -55,38 +55,65 @@ class IDesktopWallpaper(IUnknown):
         self.__com_SetWallpaper(LPCWSTR(monitorId), LPCWSTR(wallpaper))
 
     def GetWallpaper(self, monitorId: Optional[str] = None) -> str:
+        """Gets the current desktop wallpaper.
+
+        Ref: https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-idesktopwallpaper-getwallpaper
+        """
         wallpaper = LPWSTR()
         self.__com_GetWallpaper(LPCWSTR(monitorId), pointer(wallpaper))
         return wallpaper.value
 
     def GetMonitorDevicePathAt(self, monitorIndex: int) -> str:
+        """Retrieves the unique ID of one of the system's monitors.
+
+        Ref: https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-idesktopwallpaper-getmonitordevicepathat
+        """
         monitorId = LPWSTR()
         self.__com_GetMonitorDevicePathAt(UINT(monitorIndex), pointer(monitorId))
         return monitorId.value
 
     def GetMonitorDevicePathCount(self) -> int:
+        """Retrieves the number of monitors that are associated with the system.
+
+        Ref: https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-idesktopwallpaper-getmonitordevicepathcount
+        """
         count = UINT()
         self.__com_GetMonitorDevicePathCount(pointer(count))
         return count.value
 
     def GetMonitorRECT(self, monitorId: str) -> RECT:
+        """Retrieves the display rectangle of the specified monitor.
+
+        Ref: https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-idesktopwallpaper-getmonitorrect
+        """
         rect = RECT()
         self.__com_GetMonitorRECT(LPCWSTR(monitorId), pointer(rect))
         return rect
 
 
 def NewDesktopWallpaperCom() -> IDesktopWallpaper:
+    """Create new DesktopWallpaper instance"""
     # Search `Desktop Wallpaper` in `\HKEY_CLASSES_ROOT\CLSID` to obtain the magic string
     class_id = GUID("{C2CF3110-460E-4fc1-B9D0-8A1C0C9CC4BD}")
     return comtypes.CoCreateInstance(class_id, interface=IDesktopWallpaper)
 
 
 def set_wallpaper(wallpaper_path: str, monitor_id: Optional[str] = None):
+    """Set wallpaper for monitor
+
+    :param wallpaper_path: str, path to the wallpaper image
+    :param monitor_id: str, optional, defaults to All Monitors
+    """
     desktop_wallpaper = NewDesktopWallpaperCom()
     desktop_wallpaper.SetWallpaper(monitor_id, wallpaper_path)
 
 
 def get_wallpaper(monitor_id: Optional[str] = None) -> str:
+    """Get wallpaper for monitor
+
+    :param monitor_id: str, optional, defaults to All Monitors, may return None if they are using
+        different wallpapers
+    """
     desktop_wallpaper = NewDesktopWallpaperCom()
     return desktop_wallpaper.GetWallpaper(monitor_id)
 
