@@ -1,7 +1,11 @@
-from typing import Iterator, Tuple
+from typing import Iterator, Tuple, Callable, Union
 from functools import partial
 
+# FloatRect holds relative coordinate for rectangle (left/top/right/bottom)
 FloatRect = Tuple[float, float, float, float]
+
+# Layout accepts an integer (total number of windows) and return a FloatRect generator
+Layout = Callable[[int], Iterator[FloatRect]]
 
 
 def dwindle(n: int) -> Iterator[FloatRect]:
@@ -20,20 +24,20 @@ def dwindle(n: int) -> Iterator[FloatRect]:
     :return: dwindle generator
     :rtype: Iterator[FloatRect]
     """
-    t, l, b, r = 0.0, 0.0, 1.0, 1.0
+    l, t, r, b = 0.0, 0.0, 1.0, 1.0
     last_index = n - 1
     for i in range(n):
         # last window would occupy the whole area
         if i == last_index:
-            yield t, l, b, r
+            yield l, t, r, b
         # or it should leave out half space for the other windows
         elif i % 2 == 0:
             nl = r - (r - l) / 2
-            yield t, l, b, nl
+            yield l, t, nl, b
             l = nl
         else:
             nb = b - (b - t) / 2
-            yield t, l, nb, r
+            yield l, t, r, nb
             t = nb
 
 
@@ -59,25 +63,27 @@ def widescreen_dwindle(n: int, master_ratio: float = 0.4) -> Iterator[FloatRect]
         return
     # master window on the left
     yield 0.0, 0.0, 1, master_ratio
-    l = master_ratio
-    r = 1 - l
     # other windows on the right with dwindle layout, just map the coordinate and we are good
     yield from map(
-        partial(plug_rect, target=(0.0, 1.0 - master_ratio, 1.0, 1.0)), dwindle(n - 1)
+        partial(plug_rect, target=(1.0 - master_ratio, 0.0, 1.0, 1.0)), dwindle(n - 1)
     )
 
 
-def plug_rect(source: FloatRect, target: FloatRect) -> FloatRect:
+Number = Union[int, float]
+NumberRect = Tuple[Number, Number, Number, Number]
+
+
+def plug_rect(source: NumberRect, target: NumberRect) -> NumberRect:
     """Plug the source rect inside the target rect and compute the new dimensions for the target rect"""
-    st, sl, sb, sr = source
-    tt, tl, tb, tr = target
+    sl, st, sr, sb = source
+    tl, tt, tr, tb = target
     tw = tr - tl
     th = tb - tt
     return (
-        tt + st * th,  # top = target top + scaled source top
         tl + sl * tw,  # left = target left + scaled source left
-        tt + sb * th,
-        tl + sr * tw,
+        tt + st * th,  # top = target top + scaled source top
+        tl + sr * tw,  # right
+        tt + sb * th,  # bottom
     )
 
 
@@ -85,19 +91,7 @@ if __name__ == "__main__":
     print("dwindle")
     for n in range(1, 5):
         print(list(dwindle(n)))
-    """ expected: top/left/bottom/right
-    [(0.0, 0.0, 1.0, 1.0)]
-    [(0.0, 0.0, 1.0, 0.5), (0.0, 0.5, 1.0, 1.0)]
-    [(0.0, 0.0, 1.0, 0.5), (0.0, 0.5, 0.5, 1.0), (0.5, 0.5, 1.0, 1.0)]
-    [(0.0, 0.0, 1.0, 0.5), (0.0, 0.5, 0.5, 1.0), (0.5, 0.5, 1.0, 0.75), (0.5, 0.75, 1.0, 1.0)]
-    """
     print()
     print("widescreen_dwindle")
     for n in range(1, 5):
         print(list(widescreen_dwindle(n)))
-    """ expected: top/left/bottom/right
-    [(0.0, 0.0, 1.0, 1.0)]
-    [(0.0, 0.0, 1, 0.4), (0.0, 0.6, 1.0, 1.0)]
-    [(0.0, 0.0, 1, 0.4), (0.0, 0.6, 1.0, 0.8), (0.0, 0.8, 1.0, 1.0)]
-    [(0.0, 0.0, 1, 0.4), (0.0, 0.6, 1.0, 0.8), (0.0, 0.8, 0.5, 1.0), (0.5, 0.8, 1.0, 1.0)] 
-    """
