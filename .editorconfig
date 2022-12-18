@@ -1,0 +1,14 @@
+# 4 space indentation
+[*.{py,java,r,R}]
+indent_style = space
+indent_size = 4
+
+# 2 space indentation
+[*.{js,json,y{a,}ml,html,cwl}]
+indent_style = space
+indent_size = 2
+
+[*.{md,Rmd,rst}]
+trim_trailing_whitespace = false
+indent_style = space
+indent_size = 2

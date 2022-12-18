@@ -12,32 +12,42 @@ class IDesktopWallpaper(IUnknown):
     # Ref: https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nn-shobjidl_core-idesktopwallpaper
 
     # Search `IDesktopWallpaper` in `\HKEY_CLASSES_ROOT\Interface` to obtain the magic string
-    _iid_ = GUID('{B92B56A9-8B55-4E14-9A89-0199BBB6F93B}')
+    _iid_ = GUID("{B92B56A9-8B55-4E14-9A89-0199BBB6F93B}")
 
     _methods_ = [
         COMMETHOD(
-            [], HRESULT, 'SetWallpaper',
-            (['in'], LPCWSTR, 'monitorID'),
-            (['in'], LPCWSTR, 'wallpaper'),
+            [],
+            HRESULT,
+            "SetWallpaper",
+            (["in"], LPCWSTR, "monitorID"),
+            (["in"], LPCWSTR, "wallpaper"),
         ),
         COMMETHOD(
-            [], HRESULT, 'GetWallpaper',
-            (['in'], LPCWSTR, 'monitorID'),
-            (['out'], POINTER(LPWSTR), 'wallpaper'),
+            [],
+            HRESULT,
+            "GetWallpaper",
+            (["in"], LPCWSTR, "monitorID"),
+            (["out"], POINTER(LPWSTR), "wallpaper"),
         ),
         COMMETHOD(
-            [], HRESULT, 'GetMonitorDevicePathAt',
-            (['in'], UINT, 'monitorIndex'),
-            (['out'], POINTER(LPWSTR), 'monitorID'),
+            [],
+            HRESULT,
+            "GetMonitorDevicePathAt",
+            (["in"], UINT, "monitorIndex"),
+            (["out"], POINTER(LPWSTR), "monitorID"),
         ),
         COMMETHOD(
-            [], HRESULT, 'GetMonitorDevicePathCount',
-            (['out'], POINTER(UINT), 'count'),
+            [],
+            HRESULT,
+            "GetMonitorDevicePathCount",
+            (["out"], POINTER(UINT), "count"),
         ),
         COMMETHOD(
-            [], HRESULT, 'GetMonitorRECT',
-            (['in'], LPCWSTR, 'monitorID'),
-            (['out'], POINTER(RECT), 'displayRect'),
+            [],
+            HRESULT,
+            "GetMonitorRECT",
+            (["in"], LPCWSTR, "monitorID"),
+            (["out"], POINTER(RECT), "displayRect"),
         ),
     ]
 
@@ -64,14 +74,17 @@ class IDesktopWallpaper(IUnknown):
         self.__com_GetMonitorRECT(LPCWSTR(monitorId), pointer(rect))
         return rect
 
+
 def NewDesktopWallpaperCom() -> IDesktopWallpaper:
     # Search `Desktop Wallpaper` in `\HKEY_CLASSES_ROOT\CLSID` to obtain the magic string
-    class_id = GUID('{C2CF3110-460E-4fc1-B9D0-8A1C0C9CC4BD}')
+    class_id = GUID("{C2CF3110-460E-4fc1-B9D0-8A1C0C9CC4BD}")
     return comtypes.CoCreateInstance(class_id, interface=IDesktopWallpaper)
+
 
 def set_wallpaper(wallpaper_path: str, monitor_id: Optional[str] = None):
     desktop_wallpaper = NewDesktopWallpaperCom()
     desktop_wallpaper.SetWallpaper(monitor_id, wallpaper_path)
+
 
 def get_wallpaper(monitor_id: Optional[str] = None) -> str:
     desktop_wallpaper = NewDesktopWallpaperCom()
@@ -89,5 +102,10 @@ if __name__ == "__main__":
     monitor0_path = desktop_wallpaper.GetMonitorDevicePathAt(0)
     # print(monitor0_path)
     monitor0_rect = desktop_wallpaper.GetMonitorRECT(monitor0_path)
-    print(monitor0_path, monitor0_rect.top, monitor0_rect.bottom, monitor0_rect.left, monitor0_rect.right)
-
+    print(
+        monitor0_path,
+        monitor0_rect.top,
+        monitor0_rect.bottom,
+        monitor0_rect.left,
+        monitor0_rect.right,
+    )
