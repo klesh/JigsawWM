@@ -66,6 +66,9 @@ class INPUT(Structure):
     )
 
 
+SYNTHESIZED_ID = 123123123
+
+
 def send_input(*inputs: List[INPUT]):
     """Synthesizes keystrokes, mouse motions, and button clicks.
 
@@ -84,19 +87,25 @@ def send_input(*inputs: List[INPUT]):
     ```
 
     """
+    for input in inputs:
+        input.dwExtraInfo = SYNTHESIZED_ID
     length = len(inputs)
     array = INPUT * length
     if not user32.SendInput(length, array(*inputs), sizeof(INPUT)):
         raise WinError(get_last_error())
 
 
+def is_synthesized(msg: KEYBDINPUT | MOUSEINPUT) -> bool:
+    return msg.dwExtraInfo == SYNTHESIZED_ID
+
+
 if __name__ == "__main__":
-    from vk import VirtualKey
+    from .vk import VirtualKey
 
     send_input(
         INPUT(
             type=INPUTTYPE.KEYBOARD,
-            ki=KEYBDINPUT(wVk=VirtualKey.VK_KEY_A, dwExtraInfo=123),
+            ki=KEYBDINPUT(wVk=VirtualKey.VK_KEY_A),
         ),
         INPUT(
             type=INPUTTYPE.KEYBOARD,
