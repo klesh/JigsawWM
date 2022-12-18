@@ -59,7 +59,7 @@ user32.DispatchMessageW.argtypes = (LPMSG,)
 
 
 class KBDLLHOOKMSGID(enum.IntEnum):
-    """Keyboard even msgid"""
+    """Keyboard event msgid"""
 
     WM_KEYDOWN = 0x0100
     WM_KEYUP = 0x0101
@@ -68,7 +68,13 @@ class KBDLLHOOKMSGID(enum.IntEnum):
 
 
 class KBDLLHOOKDATA(Structure):
-    """Keyboard even data"""
+    """Keyboard event data"""
+
+    vkCode: int
+    scanCode: int
+    flags: int
+    time: int
+    dwExtraInfo: int
 
     _fields_ = (
         ("vkCode", DWORD),
@@ -98,6 +104,12 @@ class MSLLHOOKMSGID(enum.IntEnum):
 
 class MSLLHOOKDATA(Structure):
     """Mouse event data"""
+
+    pt: POINT
+    mouseData: int
+    flags: int
+    time: int
+    dwExtraInfo: int
 
     _fields_ = (
         ("pt", POINT),
@@ -185,9 +197,12 @@ class Hook(threading.Thread):
             user32.TranslateMessage(byref(msg))
             user32.DispatchMessageW(byref(msg))
 
+    def stop(self):
+        user32.PostThreadMessageW(self.ident, WM_QUIT, 0, 0)
+
 
 if __name__ == "__main__":
-    from vk import VirtualKey
+    from .vk import VirtualKey
 
     def keyboard(msgid: KBDLLHOOKMSGID, msg: KBDLLHOOKDATA) -> bool:
         print(
@@ -222,5 +237,5 @@ if __name__ == "__main__":
         try:
             time.sleep(1)
         except KeyboardInterrupt:
-            user32.PostThreadMessageW(hook.ident, WM_QUIT, 0, 0)
+            hook.stop()
             break
