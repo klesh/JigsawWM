@@ -1,54 +1,21 @@
 from ctypes import *
 from ctypes.wintypes import *
+import enum
 import time
 import threading
 
 user32 = WinDLL("user32", use_last_error=True)
 
-# incoming action: the hook should process when code == HC_ACTION
-
 HC_ACTION = 0
 # incoming message
 WM_QUIT = 0x0012
-# keyboard messages
-WM_KEYDOWN = 0x0100
-WM_KEYUP = 0x0101
-WM_SYSKEYDOWN = 0x0104
-WM_SYSKEYUP = 0x0105
-# mouse messages
-WM_MOUSEMOVE = 0x0200
-WM_LBUTTONDOWN = 0x0201
-WM_LBUTTONUP = 0x0202
-WM_RBUTTONDOWN = 0x0204
-WM_RBUTTONUP = 0x0205
-WM_MBUTTONDOWN = 0x0207
-WM_MBUTTONUP = 0x0208
-WM_MOUSEWHEEL = 0x020A
-WM_MOUSEHWHEEL = 0x020E
 
-MSG_TEXT = {
-    # keyboard
-    WM_KEYDOWN: "WM_KEYDOWN",
-    WM_KEYUP: "WM_KEYUP",
-    WM_SYSKEYDOWN: "WM_SYSKEYDOWN",
-    WM_SYSKEYUP: "WM_SYSKEYUP",
-    # mouse
-    WM_MOUSEMOVE: "WM_MOUSEMOVE",
-    WM_LBUTTONDOWN: "WM_LBUTTONDOWN",
-    WM_LBUTTONUP: "WM_LBUTTONUP",
-    WM_RBUTTONDOWN: "WM_RBUTTONDOWN",
-    WM_RBUTTONUP: "WM_RBUTTONUP",
-    WM_MBUTTONDOWN: "WM_MBUTTONDOWN",
-    WM_MBUTTONUP: "WM_MBUTTONUP",
-    WM_MOUSEWHEEL: "WM_MOUSEWHEEL",
-    WM_MOUSEHWHEEL: "WM_MOUSEHWHEEL",
-}
 
 # types for the hook including input parameter and return result
 
 ULONG_PTR = WPARAM
 LRESULT = LPARAM
-LPMSG = POINTER(MSG)
+# LPMSG = POINTER(MSG)
 
 HOOKPROC = WINFUNCTYPE(LRESULT, c_int, WPARAM, LPARAM)
 
@@ -88,22 +55,21 @@ user32.GetMessageW.argtypes = (
 user32.TranslateMessage.argtypes = (LPMSG,)
 user32.DispatchMessageW.argtypes = (LPMSG,)
 
-# callwndproc hook definition
-HCBT_ACTIVATE = 5
-HCBT_CLICKSKIPPED = 6
-HCBT_CREATEWND = 3
-HCBT_DESTROYWND = 4
-HCBT_KEYSKIPPED = 7
-HCBT_MINMAX = 1
-HCBT_MOVESIZE = 0
-HCBT_QS = 2
-HCBT_SETFOCUS = 9
-HCBT_SYSCOMMAND = 8
-
 # keyboard hook definition
 
 
-class KBDLLHOOKSTRUCT(Structure):
+class KBDLLHOOKMSGID(enum.IntEnum):
+    """Keyboard even msgid"""
+
+    WM_KEYDOWN = 0x0100
+    WM_KEYUP = 0x0101
+    WM_SYSKEYDOWN = 0x0104
+    WM_SYSKEYUP = 0x0105
+
+
+class KBDLLHOOKDATA(Structure):
+    """Keyboard even data"""
+
     _fields_ = (
         ("vkCode", DWORD),
         ("scanCode", DWORD),
@@ -116,7 +82,23 @@ class KBDLLHOOKSTRUCT(Structure):
 # mouse hook definition
 
 
-class MSLLHOOKSTRUCT(Structure):
+class MSLLHOOKMSGID(enum.IntEnum):
+    """Mouse event msgid"""
+
+    WM_MOUSEMOVE = 0x0200
+    WM_LBUTTONDOWN = 0x0201
+    WM_LBUTTONUP = 0x0202
+    WM_RBUTTONDOWN = 0x0204
+    WM_RBUTTONUP = 0x0205
+    WM_MBUTTONDOWN = 0x0207
+    WM_MBUTTONUP = 0x0208
+    WM_MOUSEWHEEL = 0x020A
+    WM_MOUSEHWHEEL = 0x020E
+
+
+class MSLLHOOKDATA(Structure):
+    """Mouse event data"""
+
     _fields_ = (
         ("pt", POINT),
         ("mouseData", DWORD),
@@ -130,10 +112,25 @@ class MSLLHOOKSTRUCT(Structure):
 
 
 class Hook(threading.Thread):
+    """Hook low level keyboard/mouse event
+
+    Usage:
+    ```
+    def swallow_keyboard_a_key_event(msgid KBDLLHOOKMSGID, data KBDLLHOOKDATA) -> bool:
+        return data.vkCode == VirtualKey.VK_A:
+
+    def swallow_mouse_middle_btn_event(msgid MSLLHOOKMSGID, data MSLLHOOKDATA) -> bool:
+        return msgid == MSLLHOOKMSGID.WM_MBUTTONUP or msgid == MSLLHOOKMSGID.WM_MBUTTONDOWN:
+    Hook(keyboard=swallow_keyboard_a_key_event, mouse=swallow_mouse_middle_btn_event)
+    ```
+
+    :param **kwargs:
+    """
+
     SUPPORTED_HOOKS = {
-        # hook_name: (idHook, WPARAMSTRUCT)
-        "keyboard": (13, KBDLLHOOKSTRUCT),
-        "mouse": (14, MSLLHOOKSTRUCT),
+        # hook_name: (idHook, wParamMsgId lParamStruct)
+        "keyboard": (13, KBDLLHOOKMSGID, KBDLLHOOKDATA),
+        "mouse": (14, MSLLHOOKMSGID, MSLLHOOKDATA),
     }
 
     def __init__(
@@ -146,18 +143,14 @@ class Hook(threading.Thread):
         self._specified_hooks = kwargs
         super().__init__()
 
-    def _install_hook(self, hook_id, lparam_type, handler):
+    def _install_hook(self, hook_id, wparam_type, lparam_type, handler):
         @HOOKPROC
         def proc(nCode, wParam, lParam):
             if nCode == HC_ACTION:
-                lp = lParam
-                if lparam_type is not None:
-                    lp = cast(lParam, lparam_type)[0]
-                # try:
-                if handler(wParam, lp):
+                wparam = wparam_type(wParam)
+                lparam = cast(lParam, lparam_type)[0]
+                if handler(wparam, lparam):
                     return 1
-                # except Exception as e:
-                #   print(e)
             return user32.CallNextHookEx(None, nCode, wParam, lParam)
 
         hhook = user32.SetWindowsHookExW(hook_id, proc, None, 0)
@@ -167,17 +160,21 @@ class Hook(threading.Thread):
         self._installed_procs = {}
         self._installed_hooks = {}
         for name, handler in self._specified_hooks.items():
-            idHook, WPARAMSTRUCT = self.SUPPORTED_HOOKS[name]
+            hook_id, wparam_type, lparam_type = self.SUPPORTED_HOOKS[name]
             proc, hook = self._install_hook(
-                idHook,
-                POINTER(WPARAMSTRUCT),
+                hook_id,
+                wparam_type,
+                POINTER(lparam_type),
                 handler,
             )
+            # hold the references for the hook to work properly
             self._installed_procs[name] = proc
             self._installed_hooks[name] = hook
 
     def run(self):
         self._install_hooks()
+        # for the hooks to work, note that only low level keyboard/mouse work this way
+        # while others require DLL injection
         msg = MSG()
         while True:
             bRet = user32.GetMessageW(byref(msg), None, 0, 0)
@@ -192,12 +189,11 @@ class Hook(threading.Thread):
 if __name__ == "__main__":
     from vk import VirtualKey
 
-    def keyboard(msg_id: int, msg: KBDLLHOOKSTRUCT) -> bool:
-        msgid = MSG_TEXT.get(msg_id, str(msg_id))
+    def keyboard(msgid: KBDLLHOOKMSGID, msg: KBDLLHOOKDATA) -> bool:
         print(
             "{:15s} {:15s}: vkCode {:3x} scanCode {:3x} flags: {:3d}, time: {} extra: {}".format(
                 VirtualKey(msg.vkCode).name,
-                msgid,
+                msgid.name,
                 msg.vkCode,
                 msg.scanCode,
                 msg.flags,
@@ -206,8 +202,7 @@ if __name__ == "__main__":
             )
         )
 
-    def mouse(msg_id: int, msg: MSLLHOOKSTRUCT) -> bool:
-        msgid = MSG_TEXT.get(msg_id, str(msg_id))
+    def mouse(msgid: MSLLHOOKMSGID, msg: MSLLHOOKDATA) -> bool:
         msg = (
             (msg.pt.x, msg.pt.y),
             msg.mouseData,
@@ -215,11 +210,11 @@ if __name__ == "__main__":
             msg.time,
             msg.dwExtraInfo,
         )
-        print("{:15s}: {}".format(msgid, msg))
+        print("{:15s}: {}".format(msgid.name, msg))
 
     hook = Hook(
         keyboard=keyboard,
-        # mouse=mouse,
+        mouse=mouse,
     )
     hook.start()
 
@@ -229,6 +224,3 @@ if __name__ == "__main__":
         except KeyboardInterrupt:
             user32.PostThreadMessageW(hook.ident, WM_QUIT, 0, 0)
             break
-
-    # CBT(listen to move/resize/create/destroy of windows)
-    # https://www.experts-exchange.com/questions/21772590/WH-CBT-Callback-does-not-seem-to-want-to-fire-Python-C-SWIG.html
