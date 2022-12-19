@@ -2,28 +2,14 @@ from ctypes import *
 from ctypes.wintypes import *
 from typing import List, Iterator, Optional
 from dataclasses import dataclass
-from . import process
 import enum
 import locale
+from . import process
 
 encoding = locale.getpreferredencoding()
 
 user32 = WinDLL("user32", use_last_error=True)
 dwmapi = WinDLL("dwmapi", use_last_error=True)
-
-
-_current_pos_ptr = POINT()
-
-
-def get_cursor_pos() -> POINT:
-    """Retrieves the position of the mouse cursor, in screen coordinates.
-
-    :return: mouse position
-    :rtype: POINT
-    """
-    if not user32.GetCursorPos(pointer(_current_pos_ptr)):
-        raise Exception("failed to get cursor position")
-    return _current_pos_ptr
 
 
 def enum_windows() -> List[HWND]:
