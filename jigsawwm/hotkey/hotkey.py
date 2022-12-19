@@ -2,6 +2,7 @@ from jigsawwm.w32.hook import Hook, KBDLLHOOKMSGID, KBDLLHOOKDATA
 from jigsawwm.w32.vk import VirtualKey
 from jigsawwm.w32.sendinput import is_synthesized
 from typing import Callable, Dict, Sequence, Tuple, FrozenSet
+from concurrent.futures import ThreadPoolExecutor
 import enum
 
 
@@ -20,6 +21,7 @@ class Modifier(enum.IntFlag):
 
 # { combination: (func, swallow) }
 _hotkeys: Dict[FrozenSet[VirtualKey], Tuple[Callable, bool]] = {}
+_executor = ThreadPoolExecutor()
 
 
 def expand_combination(
@@ -70,6 +72,7 @@ _modifier = Modifier(0)
 
 
 def _keyboard_proc(msgid: KBDLLHOOKMSGID, msg: KBDLLHOOKDATA) -> bool:
+    global _hotkeys, _executor
     # skip key we sent out
     if is_synthesized(msg):
         return False
@@ -87,7 +90,7 @@ def _keyboard_proc(msgid: KBDLLHOOKMSGID, msg: KBDLLHOOKDATA) -> bool:
         fs = _hotkeys.get(combination)
         if fs is not None:
             func, swallow = fs
-            func()
+            _executor.submit(func)
             return swallow
 
 
@@ -98,9 +101,11 @@ if __name__ == "__main__":
     import time
     from functools import partial
 
-    register_hotkey(
-        {VirtualKey.VK_LWIN, VirtualKey.VK_KEY_B}, partial(print, "hello world"), True
-    )
+    def delay_hello():
+        time.sleep(1)
+        print("hello world")
+
+    register_hotkey({VirtualKey.VK_LWIN, VirtualKey.VK_KEY_B}, delay_hello, True)
 
     while True:
         try:
