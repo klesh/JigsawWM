@@ -91,41 +91,16 @@ class IDesktopWallpaper(IUnknown):
         return rect
 
 
-def NewDesktopWallpaperCom() -> IDesktopWallpaper:
-    """Create new DesktopWallpaper instance"""
-    # Search `Desktop Wallpaper` in `\HKEY_CLASSES_ROOT\CLSID` to obtain the magic string
-    class_id = GUID("{C2CF3110-460E-4fc1-B9D0-8A1C0C9CC4BD}")
-    return comtypes.CoCreateInstance(class_id, interface=IDesktopWallpaper)
-
-
-def set_wallpaper(wallpaper_path: str, monitor_id: Optional[str] = None):
-    """Set wallpaper for monitor
-
-    :param wallpaper_path: str, path to the wallpaper image
-    :param monitor_id: str, optional, defaults to All Monitors
-    """
-    desktop_wallpaper = NewDesktopWallpaperCom()
-    desktop_wallpaper.SetWallpaper(monitor_id, wallpaper_path)
-
-
-def get_wallpaper(monitor_id: Optional[str] = None) -> str:
-    """Get wallpaper for monitor
-
-    :param monitor_id: str, optional, defaults to All Monitors, may return None if they are using
-        different wallpapers
-    """
-    desktop_wallpaper = NewDesktopWallpaperCom()
-    return desktop_wallpaper.GetWallpaper(monitor_id)
+# Search `Desktop Wallpaper` in `\HKEY_CLASSES_ROOT\CLSID` to obtain the magic string
+desktop_wallpaper = comtypes.CoCreateInstance(
+    GUID("{C2CF3110-460E-4fc1-B9D0-8A1C0C9CC4BD}"), interface=IDesktopWallpaper
+)
 
 
 if __name__ == "__main__":
-    print("hello")
-    desktop_wallpaper = NewDesktopWallpaperCom()
-    # desktop_wallpaper = IDesktopWallpaper.CoCreateInstance()
-    # desktop_wallpaper.Enable(False)
-    # desktop_wallpaper.SetWallpaper(0, r"D:\Documents\wallpapers\IMG_20220806_151544.jpg")
-    # desktop_wallpaper.SetWallpaper(0, "")
-    # print(desktop_wallpaper.GetWallpaper(None))
+    # set_wallpaper(r"D:\Documents\wallpapers\IMG_20220806_151544.jpg")
+    # set_wallpaper("")
+    # print(get_wallpaper())
     monitor0_path = desktop_wallpaper.GetMonitorDevicePathAt(0)
     # print(monitor0_path)
     monitor0_rect = desktop_wallpaper.GetMonitorRECT(monitor0_path)
