@@ -2,14 +2,13 @@ from ctypes import *
 from ctypes.wintypes import *
 from typing import List, Iterator, Optional
 from dataclasses import dataclass
+from . import process
 import enum
 import locale
 
 encoding = locale.getpreferredencoding()
 
 user32 = WinDLL("user32", use_last_error=True)
-kernel32 = WinDLL("kernel32", use_last_error=True)
-advapi32 = WinDLL("advapi32", use_last_error=True)
 dwmapi = WinDLL("dwmapi", use_last_error=True)
 
 
@@ -25,68 +24,6 @@ def get_cursor_pos() -> POINT:
     if not user32.GetCursorPos(pointer(_current_pos_ptr)):
         raise Exception("failed to get cursor position")
     return _current_pos_ptr
-
-
-def open_process_for_limited_query(pid: int) -> HANDLE:
-    """Opens an existing local process object with permission to query limited information
-
-    Ref: https://learn.microsoft.com/en-us/windows/win32/procthread/process-security-and-access-rights
-
-    :param pid: int
-    :return:  process handle
-    :rtype: HANDLE
-    """
-    PROCESS_QUERY_LIMITED_INFORMATION = DWORD(0x1000)
-    hprc = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
-    if not hprc:
-        raise WinError(get_last_error())
-    return hprc
-
-
-def is_process_elevated(pid: int) -> bool:
-    """Check if specified process is elevated (run in Administrator Role)
-
-    :param pid: int
-    :return: `True` if elevated, `False` otherwise
-    :rtype: bool
-    """
-    hprc = open_process_for_limited_query(pid)
-    TOKEN_QUERY = DWORD(8)
-    htoken = PHANDLE()
-    if not windll.advapi32.OpenProcessToken(hprc, TOKEN_QUERY, byref(htoken)):
-        windll.kernel32.CloseHandle(hprc)
-        return
-    TOKEN_ELEVATION = INT(20)
-    is_elevated = BOOL()
-    returned_length = DWORD()
-    if not advapi32.GetTokenInformation(
-        htoken,
-        TOKEN_ELEVATION,
-        byref(is_elevated),
-        4,
-        byref(returned_length),
-    ):
-        raise WinError(get_last_error())
-    kernel32.CloseHandle(hprc)
-    kernel32.CloseHandle(htoken)
-    return bool(is_elevated.value)
-
-
-def get_process_exepath(pid: int) -> str:
-    """Retrieves the full name of the executable image for the specified process.
-
-    :param pid: int
-    :return: the full path of the executable
-    :rtype: str
-    """
-    hprc = open_process_for_limited_query(pid)
-    buff = create_string_buffer(512)
-    size = DWORD(sizeof(buff))
-    if not kernel32.QueryFullProcessImageNameA(hprc, 0, buff, pointer(size)):
-        kernel32.CloseHandle(hprc)
-        raise WinError(get_last_error())
-    kernel32.CloseHandle(hprc)
-    return buff.value.decode(encoding)
 
 
 def enum_windows() -> List[HWND]:
@@ -277,6 +214,9 @@ class Window:
     def __eq__(self, other):
         return isinstance(other, Window) and self._hwnd == other._hwnd
 
+    def __hash_(self):
+        return hash(self._hwnd)
+
     @property
     def title(self) -> str:
         """Retrieves the text of the specified window's title bar (if it has one)
@@ -315,7 +255,7 @@ class Window:
         :rtype: str
         """
         if self._exepath is None:
-            self._exepath = get_process_exepath(self.pid)
+            self._exepath = process.get_exepath(self.pid)
         return self._exepath
 
     @property
@@ -382,7 +322,7 @@ class Window:
     def is_evelated(self):
         """Check if window is elevated (Administrator)"""
         if self._elevated is None:  # would never change
-            self._elevated = is_process_elevated(self.pid)
+            self._elevated = process.is_elevated(self.pid)
         return self._elevated
 
     @property

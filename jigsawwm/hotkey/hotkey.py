@@ -22,23 +22,48 @@ class Modifier(enum.IntFlag):
 _hotkeys: Dict[FrozenSet[VirtualKey], Tuple[Callable, bool]] = {}
 
 
-def hotkey(combination: Sequence[VirtualKey], func: Callable, swallow: bool = True):
+def expand_combination(
+    combkeys: Sequence[VirtualKey],
+) -> Sequence[Sequence[VirtualKey]]:
+    pass
+
+
+def hotkey(
+    combination: str, target: Callable | str | Sequence[str], swallow: bool = True
+):
+    """Register a combination to a function or inputs
+
+    :param combination: str, example LCtrl+Alt+Shift+Win+a
+    :param target: Callable | str, one of the following action would be carried
+        out based on the type of the target:
+
+        Callable:   the function would be executed
+        str:        the str would be treated as a combination and send accordingly.
+                    i.e. "RWin+Space"
+        Sequence[str]: the sequence would be treated as key inputs
+                    i.e. [ "Alt_Down", "q_Down", "q_Up", "Alt_Up", "h", "e", "l", "l", "o" ]
+    """
+
+    # process combination
+
+
+def register_hotkey(
+    combkeys: Sequence[VirtualKey], func: Callable, swallow: bool = True
+):
     """Register a system hotkey
 
-    :param combination: Sequence[VirtualKey], virtual key combination list
+    :param combkeys: Sequence[VirtualKey], virtual keys combination
     :param func: Callable[[], bool], execute when the last key in the combination is
         pressed
     :param swallow: stop combination being process by other apps
     """
     global _hotkeys
-    combination = frozenset(combination)
+    combkeys = frozenset(combkeys)
     # check if combination valid
-    count = len(
-        list(filter(lambda vk: vk.name not in Modifier.__members__, combination))
-    )
+    count = len(list(filter(lambda vk: vk.name not in Modifier.__members__, combkeys)))
     if count != 1:
         raise Exception("require 1 and onely 1 triggering key")
-    _hotkeys[combination] = (func, swallow)
+    _hotkeys[combkeys] = (func, swallow)
 
 
 _modifier = Modifier(0)
@@ -61,8 +86,9 @@ def _keyboard_proc(msgid: KBDLLHOOKMSGID, msg: KBDLLHOOKDATA) -> bool:
         combination = frozenset((*map(lambda m: VirtualKey[m.name], _modifier), vkey))
         fs = _hotkeys.get(combination)
         if fs is not None:
-            fs[0]()
-            return fs[1]
+            func, swallow = fs
+            func()
+            return swallow
 
 
 hook = Hook(keyboard=_keyboard_proc)
@@ -72,7 +98,7 @@ if __name__ == "__main__":
     import time
     from functools import partial
 
-    hotkey(
+    register_hotkey(
         {VirtualKey.VK_LWIN, VirtualKey.VK_KEY_B}, partial(print, "hello world"), True
     )
 
