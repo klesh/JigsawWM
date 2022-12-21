@@ -1,9 +1,10 @@
 from ctypes import *
 from ctypes.wintypes import *
 from typing import List, Iterator, Optional
-
+import enum
 
 user32 = WinDLL("user32", use_last_error=True)
+shcore = WinDLL("shcore", use_last_error=True)
 _current_pos_ptr = POINT()
 
 # Ref: https://learn.microsoft.com/en-us/windows/win32/gdi/multiple-display-monitors-functions
@@ -62,6 +63,26 @@ class MONITORINFO(Structure):
     )
 
 
+class DEVICE_SCALE_FACTOR(enum.IntEnum):
+    DEVICE_SCALE_FACTOR_INVALID = 0
+    SCALE_100_PERCENT = 100
+    SCALE_120_PERCENT = 120
+    SCALE_125_PERCENT = 125
+    SCALE_140_PERCENT = 140
+    SCALE_150_PERCENT = 150
+    SCALE_160_PERCENT = 160
+    SCALE_175_PERCENT = 175
+    SCALE_180_PERCENT = 180
+    SCALE_200_PERCENT = 200
+    SCALE_225_PERCENT = 225
+    SCALE_250_PERCENT = 250
+    SCALE_300_PERCENT = 300
+    SCALE_350_PERCENT = 350
+    SCALE_400_PERCENT = 400
+    SCALE_450_PERCENT = 450
+    SCALE_500_PERCENT = 500
+
+
 class Monitor:
     """Represents a Display Monitor
 
@@ -76,7 +97,7 @@ class Monitor:
     def __eq__(self, other):
         return isinstance(other, Monitor) and self._hmon == other._hmon
 
-    def __hash_(self):
+    def __hash__(self):
         return hash(self._hmon)
 
     def get_info(self) -> MONITORINFO:
@@ -86,15 +107,30 @@ class Monitor:
             raise WinError(get_last_error())
         return monitor_info
 
+    def get_scale_factor(self) -> DEVICE_SCALE_FACTOR:
+        scale_factor = ULONG()
+        if shcore.GetScaleFactorForMonitor(self._hmon, byref(scale_factor)) != 0:
+            raise WinError(get_last_error())
+        return DEVICE_SCALE_FACTOR(scale_factor.value)
+
 
 def get_monitors() -> Iterator[Monitor]:
     return map(Monitor, enum_display_monitors())
 
 
+def get_monitor_from_point(x: int, y: int) -> Monitor:
+    return Monitor(monitor_from_point(x, y))
+
+
+def get_monitor_from_window(hwnd: HWND) -> Monitor:
+    return Monitor(monitor_from_window(hwnd))
+
+
 if __name__ == "__main__":
     for monitor in get_monitors():
+        print("scale factor     :", monitor.get_scale_factor())
         monitor_info = monitor.get_info()
         m = monitor_info.rcMonitor
-        print(m.left, m.top, m.right, m.bottom)
+        print("monitor rect     :", m.left, m.top, m.right, m.bottom)
         m = monitor_info.rcWork
-        print(m.left, m.top, m.right, m.bottom)
+        print("monitor workarea :", m.left, m.top, m.right, m.bottom)

@@ -1,22 +1,26 @@
-from .layouts import Layout, plug_rect, dwindle
+from .layouts import Layout, plug_rect, dwindle, widescreen_dwindle
 from typing import Iterator, Callable, Tuple
+from functools import partial
 
 # Rect holds physical coordinate for rectangle (left/top/right/bottom)
-Rect = Tuple[float, float, float, float]
+Rect = Tuple[int, int, int, int]
 
 # Tiler generates physical Rects for specified total number of windows based on given Layout
-Tiler = Callable[[Rect, Layout, int], Iterator[Rect]]
+Tiler = Callable[[Layout, Rect, int], Iterator[Rect]]
+
+# LayoutTiler generates physical Rects for specified total number of windows
+LayoutTiler = Callable[[Rect, int], Iterator[Rect]]
 
 
-def direct_tiler(work_area: Rect, layout: Layout, total_windows: int) -> Iterator[Rect]:
+def direct_tiler(layout: Layout, work_area: Rect, total_windows: int) -> Iterator[Rect]:
     """Generates physical Rects for work_area Rect with specified layout"""
     for float_rect in layout(total_windows):
-        yield plug_rect(float_rect, work_area)
+        yield tuple(int(f) for f in plug_rect(float_rect, work_area))
 
 
 def obs_tiler(
-    work_area: Rect,
     layout: Layout,
+    work_area: Rect,
     total_windows: int,
     obs_width: int = 1920,
     obs_height: int = 1080,
@@ -39,8 +43,12 @@ def obs_tiler(
     if total_windows == 2:
         return
     obs_rect = (fr, wt, wr, wt + obs_height)
-    yield from direct_tiler(obs_rect, layout, total_windows - 2)
+    yield from direct_tiler(layout, obs_rect, total_windows - 2)
 
+
+dwindle_layout_tiler: LayoutTiler = partial(direct_tiler, dwindle)
+widescreen_dwindle_layout_tiler: LayoutTiler = partial(direct_tiler, widescreen_dwindle)
+obs_dwindle_layout_tiler: LayoutTiler = partial(obs_tiler, dwindle)
 
 if __name__ == "__main__":
     print("direct dwindle")
@@ -48,8 +56,8 @@ if __name__ == "__main__":
         print(
             list(
                 direct_tiler(
-                    work_area=(10, 10, 3450, 1450),
                     layout=dwindle,
+                    work_area=(10, 10, 3450, 1450),
                     total_windows=n,
                 )
             )
@@ -59,8 +67,8 @@ if __name__ == "__main__":
         print(
             list(
                 obs_tiler(
-                    work_area=(10, 10, 3450, 1450),
                     layout=dwindle,
+                    work_area=(10, 10, 3450, 1450),
                     total_windows=n,
                 )
             )

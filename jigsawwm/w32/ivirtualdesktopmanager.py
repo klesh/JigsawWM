@@ -56,6 +56,25 @@ virtual_desktop_manager: IVirtualDesktopManager = CoCreateInstance(
     GUID("{AA509086-5CA9-4C25-8F95-589D3C07B48A}"), interface=IVirtualDesktopManager
 )
 
+
+class VirtualDesktop:
+    _desktop_id: GUID
+
+    def __init__(self, desktop_id):
+        self._desktop_id = desktop_id
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, VirtualDesktop) and self._desktop_id == other._desktop_id
+        )
+
+    def __hash__(self):
+        return hash(self._desktop_id)
+
+    def move_window_in(self, hwnd: HWND):
+        virtual_desktop_manager.MoveWindowToDesktop(hwnd, self)
+
+
 if __name__ == "__main__":
     print(
         virtual_desktop_manager.GetWindowDesktopId(windll.user32.GetForegroundWindow())

@@ -62,10 +62,10 @@ def widescreen_dwindle(n: int, master_ratio: float = 0.4) -> Iterator[FloatRect]
         yield 0.0, 0.0, 1.0, 1.0
         return
     # master window on the left
-    yield 0.0, 0.0, 1, master_ratio
+    yield 0.0, 0.0, master_ratio, 1
     # other windows on the right with dwindle layout, just map the coordinate and we are good
     yield from map(
-        partial(plug_rect, target=(1.0 - master_ratio, 0.0, 1.0, 1.0)), dwindle(n - 1)
+        partial(plug_rect, target=(master_ratio, 0.0, 1.0, 1.0)), dwindle(n - 1)
     )
 
 

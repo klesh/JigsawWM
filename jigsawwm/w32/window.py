@@ -193,6 +193,8 @@ class Window:
     _title = None
     _class_name = None
     _cloaked = None
+    _ncrendering = None
+    _bound = None
 
     def __init__(self, hwnd: HWND):
         self._hwnd = hwnd
@@ -200,8 +202,12 @@ class Window:
     def __eq__(self, other):
         return isinstance(other, Window) and self._hwnd == other._hwnd
 
-    def __hash_(self):
+    def __hash__(self):
         return hash(self._hwnd)
+
+    @property
+    def handle(self) -> HWND:
+        return self._hwnd
 
     @property
     def title(self) -> str:
@@ -312,7 +318,7 @@ class Window:
         return self._elevated
 
     @property
-    def is_cloaked(self) -> any:
+    def is_cloaked(self) -> bool:
         """Check if window is cloaked (DWM)
 
         Ref: https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/ne-dwmapi-dwmwindowattribute
@@ -326,6 +332,37 @@ class Window:
             sizeof(self._cloaked),
         )
         return bool(self._cloaked.value)
+
+    @property
+    def is_non_client_rendering_enable(self) -> bool:
+        """Check if non-client rendering is enabled (DWM)
+
+        Ref: https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/ne-dwmapi-dwmwindowattribute
+        """
+        if self._ncrendering is None:
+            self._ncrendering = BOOL()
+        windll.dwmapi.DwmGetWindowAttribute(
+            self._hwnd,
+            DwmWindowAttribute.DWMWA_NCRENDERING_ENABLED,
+            pointer(self._ncrendering),
+            sizeof(self._ncrendering),
+        )
+        return bool(self._ncrendering.value)
+
+    def get_extended_frame_bounds(self) -> RECT:
+        """Retrieves extended frame bounds
+
+        Ref: https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/ne-dwmapi-dwmwindowattribute
+        """
+        if self._bound is None:
+            self._bound = RECT()
+        windll.dwmapi.DwmGetWindowAttribute(
+            self._hwnd,
+            DwmWindowAttribute.DWMWA_EXTENDED_FRAME_BOUNDS,
+            pointer(self._bound),
+            sizeof(self._bound),
+        )
+        return self._bound
 
     def get_rect(self) -> RECT:
         """Retrieves the dimensions of the bounding rectangle of the specified window.
@@ -422,5 +459,8 @@ if __name__ == "__main__":
         print("is_minimized :", WindowStyle.MINIMIZE in style)
         print("is_cloaked   :", window.is_cloaked)
         print("is_active    :", active_window == window)
+        print("is_non_client_rending:", window.is_non_client_rendering_enable)
         rect = window.get_rect()
         print("rect         :", rect.top, rect.left, rect.right, rect.bottom)
+        bound = window.get_extended_frame_bounds()
+        print("bound        :", bound.top, bound.left, bound.right, bound.bottom)
