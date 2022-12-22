@@ -96,6 +96,7 @@ def _keyboard_proc(msgid: KBDLLHOOKMSGID, msg: KBDLLHOOKDATA) -> bool:
 
 hook = Hook(keyboard=_keyboard_proc)
 hook.start()
+stop_all_hotkeys = hook.stop
 
 if __name__ == "__main__":
     import time

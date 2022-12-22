@@ -5,10 +5,13 @@ from dataclasses import dataclass
 import enum
 import locale
 from . import process
+from .sendinput import *
+from .vk import VirtualKey
 
 encoding = locale.getpreferredencoding()
 
 user32 = WinDLL("user32", use_last_error=True)
+kernel32 = WinDLL("kernel32", use_last_error=True)
 dwmapi = WinDLL("dwmapi", use_last_error=True)
 
 
@@ -305,7 +308,7 @@ class Window:
 
     def toggle_maximize(self):
         """Toggle maximize style"""
-        if self.is_maximized:
+        if self.get_style() & WindowStyle.MAXIMIZE:
             self.restore()
         else:
             self.maximize()
@@ -332,6 +335,9 @@ class Window:
             sizeof(self._cloaked),
         )
         return bool(self._cloaked.value)
+
+    def exists(self) -> bool:
+        return user32.IsWindow(self._hwnd)
 
     @property
     def is_non_client_rendering_enable(self) -> bool:
@@ -391,9 +397,9 @@ class Window:
         if not user32.SetWindowPos(self._hwnd, None, x, y, w, h, 0):
             raise WinError(get_last_error())
 
-    def activate(self):
+    def activate(self) -> bool:
         """Brings the thread that created current window into the foreground and activates the window"""
-        set_active_window(self)
+        return set_active_window(self)
 
 
 def get_windows(hdst: Optional[HDESK] = None) -> Iterator[Window]:
@@ -426,9 +432,59 @@ def get_active_window() -> Optional[Window]:
         return Window(hwnd)
 
 
-def set_active_window(window: Window):
+def set_active_window(window: Window) -> bool:
     """Brings the thread that created the specified window into the foreground and activates the window"""
-    user32.SetForgroundWindow(window._hwnd)
+    # simple way
+    hwnd = user32.SetForegroundWindow(window.handle)
+    if hwnd:
+        return
+    # well, simple way didn't work, we have to make our process Foreground
+    our_thread_id = kernel32.GetCurrentThread()
+    fore_thread_id = None
+    target_thread_id = user32.GetWindowThreadProcessId(window.handle, None)
+
+    uf = False  # attached our thread to the fore thread
+    ft = False  # attached the fore thread to the target thread
+    curr_fore_hwnd = user32.GetForegroundWindow()
+    if curr_fore_hwnd:
+        fore_thread_id = user32.GetWindowThreadProcessId(curr_fore_hwnd, None)
+        if fore_thread_id and fore_thread_id != our_thread_id:
+            uf = user32.AttachThreadInput(our_thread_id, fore_thread_id, True)
+            # print("attach our thread to the fore thread:", uf)
+        if fore_thread_id and target_thread_id and fore_thread_id != target_thread_id:
+            ft = user32.AttachThreadInput(fore_thread_id, target_thread_id, True)
+            # print("attach fore thread to the target thread:", ft)
+    new_fore_thread = None
+    while not new_fore_thread:
+        send_input(
+            INPUT(
+                type=INPUTTYPE.KEYBOARD,
+                ki=KEYBDINPUT(wVk=VirtualKey.VK_MENU, dwFlags=KEYEVENTF.KEYUP),
+            ),
+            INPUT(
+                type=INPUTTYPE.KEYBOARD,
+                ki=KEYBDINPUT(wVk=VirtualKey.VK_MENU, dwFlags=KEYEVENTF.KEYUP),
+            ),
+        )
+        new_fore_thread = user32.SetForegroundWindow(window.handle)
+    # detach input thread
+    if uf:
+        user32.AttachThreadInput(our_thread_id, fore_thread_id, False)
+    if ft:
+        user32.AttachThreadInput(fore_thread_id, target_thread_id, False)
+    # print("detached")
+
+
+def minimize_active_window():
+    window = get_active_window()
+    if window:
+        window.minimize()
+
+
+def toggle_maximize_active_window():
+    window = get_active_window()
+    if window:
+        window.toggle_maximize()
 
 
 if __name__ == "__main__":

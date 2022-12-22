@@ -21,6 +21,16 @@ def get_cursor_pos() -> POINT:
     return _current_pos_ptr
 
 
+def set_cursor_pos(x: int, y: int):
+    """Moves the cursor to the specified screen coordinates
+
+    :param x: int
+    :param y: int
+    """
+    if not user32.SetCursorPos(int(x), int(y)):
+        raise Exception("failed to set cursor position")
+
+
 def enum_display_monitors() -> List[HMONITOR]:
     """Returns a List of all monitors.
 
@@ -120,6 +130,11 @@ def get_monitors() -> Iterator[Monitor]:
 
 def get_monitor_from_point(x: int, y: int) -> Monitor:
     return Monitor(monitor_from_point(x, y))
+
+
+def get_monitor_from_cursor() -> Monitor:
+    pt = get_cursor_pos()
+    return Monitor(monitor_from_point(pt.x, pt.y))
 
 
 def get_monitor_from_window(hwnd: HWND) -> Monitor:
