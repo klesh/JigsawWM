@@ -274,6 +274,18 @@ class WindowManager:
         self.arrange_monitor_by_window(src_window)
         self.activate(l[0])
 
+    def prev_layout_tiler(self):
+        self.current_layout_tiler_index = (self.current_layout_tiler_index - 1) % len(
+            self.layout_tilers
+        )
+        self.arrange_all_monitors()
+
+    def next_layout_tiler(self):
+        self.current_layout_tiler_index = (self.current_layout_tiler_index + 1) % len(
+            self.layout_tilers
+        )
+        self.arrange_all_monitors()
+
 
 # it is import to hold reference to the timer
 # or they will be freed right away

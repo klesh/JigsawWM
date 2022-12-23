@@ -27,6 +27,7 @@ hotkey([Vk.WIN, Vk.K], wm.activate_prev)
 hotkey("Win+/", wm.swap_master)
 hotkey([Vk.WIN, Vk.R], wm.arrange_all_monitors)
 hotkey("Win+q", "LAlt+F4")
+hotkey([Vk.WIN, Vk.SPACE], wm.next_layout_tiler)
 
 # polling
 timer(1, wm.sync)
