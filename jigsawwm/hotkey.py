@@ -49,6 +49,40 @@ def expand_combination(
 # print("F1", list(expand_combination([Vk.F1])))
 # exit()
 
+# { combination: (func, swallow) }
+_hotkeys: Dict[FrozenSet[Vk], Tuple[Callable, bool]] = {}
+_executor = ThreadPoolExecutor()
+
+
+def hotkey(combkeys: Sequence[Vk] | str, target: Callable | str, swallow: bool = True):
+    """Register a system hotkey
+
+    Check `jigsawwm.w32.vk.Vk` for virtual key names
+    Check `_vk_aliases` for key aliases
+
+    :param combkeys: Sequence[VirtualKey] | str, virtual keys combination
+        example: [Vk.LCONTROL, Vk.LSHIFT, Vk.S] or "LControl+LShift+s"
+    :param target: Callable | str, one of the following action would be carried
+        out based on the type of the target:
+
+        Callable:   the function would be executed
+        str:        the str would be treated as a combination and send accordingly.
+                    i.e. "RWin+Space"
+    :param swallow: stop combination being process by other apps
+    """
+    global _hotkeys
+    # parse combkeys if it is string
+    if isinstance(combkeys, str):
+        combkeys = parse_hotkey(combkeys)
+    # check if combination valid
+    if not combkeys:
+        raise Exception("empty combination")
+    count = len(list(filter(lambda vk: vk.name not in Modifier.__members__, combkeys)))
+    if count != 1:
+        raise Exception("require 1 and only 1 triggering key")
+    for ck in expand_combination(combkeys):
+        _hotkeys[frozenset(ck)] = (target, swallow)
+
 
 _vk_aliases: Dict[str, Vk] = {
     "LCTRL": Vk.LCONTROL,
@@ -70,35 +104,25 @@ _vk_aliases: Dict[str, Vk] = {
     ".": Vk.OEM_PERIOD,
 }
 
-# { combination: (func, swallow) }
-_hotkeys: Dict[FrozenSet[Vk], Tuple[Callable, bool]] = {}
-_executor = ThreadPoolExecutor()
 
-
-def hotkey(combkeys: Sequence[Vk] | str, target: Callable | str, swallow: bool = True):
-    """Register a system hotkey
-
-    Check `jigsawwm.w32.vk.Vk` for virtual key names
-
-    :param combkeys: Sequence[VirtualKey] | str, virtual keys combination
-        example: [Vk.LCONTROL, Vk.LSHIFT, Vk.S] or "LControl+LShift+s"
-    :param target: Callable | str, one of the following action would be carried
-        out based on the type of the target:
-
-        Callable:   the function would be executed
-        str:        the str would be treated as a combination and send accordingly.
-                    i.e. "RWin+Space"
-        Sequence[str]: the sequence would be treated as key inputs
-                    i.e. [ "Alt_Down", "q_Down", "q_Up", "Alt_Up", "h", "e", "l", "l", "o" ]
-    :param swallow: stop combination being process by other apps
-    """
-    global _hotkeys
-    # check if combination valid
-    count = len(list(filter(lambda vk: vk.name not in Modifier.__members__, combkeys)))
-    if count != 1:
-        raise Exception("require 1 and only 1 triggering key")
-    for ck in expand_combination(combkeys):
-        _hotkeys[frozenset(ck)] = (target, swallow)
+def parse_hotkey(combkeys: str) -> Sequence[Vk]:
+    """Converts combination in plain text ("Ctrl+s") to Sequence[Vk] ([Vk.CONTROL, Vk.S])"""
+    parsed = []
+    if not combkeys:
+        return parsed
+    global _vk_aliases
+    for key_name in combkeys.split("+"):
+        key = None
+        key_name = key_name.strip().upper()
+        # try alias
+        key = _vk_aliases.get(key_name)
+        # try name
+        if key is None:
+            if key_name not in Vk.__members__:
+                raise Exception(f"invalid key: {key_name}")
+            key = Vk[key_name]
+        parsed.append(key)
+    return parsed
 
 
 _modifier = Modifier(0)

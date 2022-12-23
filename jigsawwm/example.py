@@ -24,7 +24,7 @@ hotkey([Vk.WIN, Vk.M], toggle_maximize_active_window)
 hotkey([Vk.WIN, Vk.SHIFT, Vk.J], wm.swap_next)
 hotkey([Vk.WIN, Vk.SHIFT, Vk.K], wm.swap_prev)
 hotkey([Vk.WIN, Vk.K], wm.activate_prev)
-hotkey([Vk.WIN, Vk.OEM_2], wm.swap_master)
+hotkey("Win+/", wm.swap_master)
 hotkey([Vk.WIN, Vk.R], wm.arrange_all_monitors)
 
 # polling
