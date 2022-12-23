@@ -4,7 +4,16 @@ from jigsawwm.w32.vk import VirtualKey
 from jigsawwm.w32.window import toggle_maximize_active_window, minimize_active_window
 
 # setup the WindowManager
-wm = WindowManager(ignore_exe_names=["Feishu.exe"])
+wm = WindowManager(
+    ignore_exe_names=[
+        "7zFM.exe",
+        "explorer.exe",
+        "Feishu.exe",
+        "fdm.exe",
+        "WeChat.exe",
+        "foobar2000.exe",
+    ]
+)
 
 # register hotkey
 register_hotkey([VirtualKey.VK_LWIN, VirtualKey.VK_KEY_J], wm.activate_next)

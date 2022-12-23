@@ -421,6 +421,7 @@ def get_normal_windows(hdst: Optional[HDESK] = None) -> Iterator[Window]:
             and WindowStyle.MINIMIZEBOX & style
             and WindowStyle.VISIBLE & style
             and not WindowStyle.MINIMIZE & style
+            and not window.is_evelated
         ):
             yield window
 
@@ -433,13 +434,16 @@ def get_active_window() -> Optional[Window]:
 
 
 def set_active_window(window: Window) -> bool:
-    """Brings the thread that created the specified window into the foreground and activates the window"""
+    """Brings the thread that created the specified window into the foreground and activates the window
+
+    Ref: https://github.com/AutoHotkey/AutoHotkey/blob/e379b60e44d35494d4a19d1e5001f2dd38773391/source/window.cpp#L25
+    """
     # simple way
-    hwnd = user32.SetForegroundWindow(window.handle)
-    if hwnd:
+    if user32.SetForegroundWindow(window.handle):
+        # print("simple way works")
         return
     # well, simple way didn't work, we have to make our process Foreground
-    our_thread_id = kernel32.GetCurrentThread()
+    our_thread_id = kernel32.GetCurrentThreadId()
     fore_thread_id = None
     target_thread_id = user32.GetWindowThreadProcessId(window.handle, None)
 
@@ -454,8 +458,9 @@ def set_active_window(window: Window) -> bool:
         if fore_thread_id and target_thread_id and fore_thread_id != target_thread_id:
             ft = user32.AttachThreadInput(fore_thread_id, target_thread_id, True)
             # print("attach fore thread to the target thread:", ft)
-    new_fore_thread = None
-    while not new_fore_thread:
+    new_fore_window = None
+    retry = 5
+    while new_fore_window != window.handle and retry > 0:
         send_input(
             INPUT(
                 type=INPUTTYPE.KEYBOARD,
@@ -466,7 +471,12 @@ def set_active_window(window: Window) -> bool:
                 ki=KEYBDINPUT(wVk=VirtualKey.VK_MENU, dwFlags=KEYEVENTF.KEYUP),
             ),
         )
-        new_fore_thread = user32.SetForegroundWindow(window.handle)
+        user32.SetForegroundWindow(window.handle)
+        new_fore_window = user32.GetForegroundWindow()
+        retry -= 1
+    # print(
+    #     f"our: {our_thread_id}   fore: {fore_thread_id}   target{target_thread_id}  succeeded: {new_fore_window == window.handle}"
+    # )
     # detach input thread
     if uf:
         user32.AttachThreadInput(our_thread_id, fore_thread_id, False)
