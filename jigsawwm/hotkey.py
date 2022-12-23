@@ -17,18 +17,62 @@ class Modifier(enum.IntFlag):
     RMENU = enum.auto()
     RSHIFT = enum.auto()
     RWIN = enum.auto()
-
-
-# { combination: (func, swallow) }
-_hotkeys: Dict[FrozenSet[Vk], Tuple[Callable, bool]] = {}
-_executor = ThreadPoolExecutor()
+    CONTROL = LCONTROL | RCONTROL
+    MENU = LMENU | RMENU
+    SHIFT = LSHIFT | RSHIFT
+    WIN = LWIN | RWIN
 
 
 def expand_combination(
     combkeys: Sequence[Vk],
     index: Optional[int] = 0,
 ) -> Iterator[Sequence[Vk]]:
-    pass
+    """Expand `Ctrl+s` to `LCtrl+s` and `RCtrl+s`, so on and so forth"""
+    key = combkeys[index]
+    if key.name in Modifier.__members__:
+        is_last = index + 1 == len(combkeys)
+        for mk in Modifier[key.name]:
+            new_combkeys = combkeys[:index] + [Vk[mk.name]]
+            if is_last:
+                yield new_combkeys
+            else:
+                yield from expand_combination(
+                    new_combkeys + combkeys[index + 1 :], index + 1
+                )
+    else:
+        yield combkeys
+
+
+# print("MENU+s", list(expand_combination([Vk.MENU, Vk.S])))
+# print("LMENU+s", list(expand_combination([Vk.LMENU, Vk.S])))
+# print("MENU+SHIFT+s", list(expand_combination([Vk.MENU, Vk.SHIFT, Vk.S])))
+# print("F1", list(expand_combination([Vk.F1])))
+# exit()
+
+
+_vk_aliases: Dict[str, Vk] = {
+    "LCTRL": Vk.LCONTROL,
+    "LALT": Vk.LMENU,
+    "RCTRL": Vk.RCONTROL,
+    "RALT": Vk.RMENU,
+    "CTRL": Vk.CONTROL,
+    "MENU": Vk.MENU,
+    "-": Vk.OEM_MINUS,
+    "=": Vk.OEM_PLUS,
+    ";": Vk.OEM_1,
+    "/": Vk.OEM_2,
+    "`": Vk.OEM_3,
+    "[": Vk.OEM_4,
+    "\\": Vk.OEM_5,
+    "]": Vk.OEM_6,
+    "'": Vk.OEM_7,
+    ",": Vk.OEM_COMMA,
+    ".": Vk.OEM_PERIOD,
+}
+
+# { combination: (func, swallow) }
+_hotkeys: Dict[FrozenSet[Vk], Tuple[Callable, bool]] = {}
+_executor = ThreadPoolExecutor()
 
 
 def hotkey(combkeys: Sequence[Vk] | str, target: Callable | str, swallow: bool = True):
@@ -49,12 +93,12 @@ def hotkey(combkeys: Sequence[Vk] | str, target: Callable | str, swallow: bool =
     :param swallow: stop combination being process by other apps
     """
     global _hotkeys
-    combkeys = frozenset(combkeys)
     # check if combination valid
     count = len(list(filter(lambda vk: vk.name not in Modifier.__members__, combkeys)))
     if count != 1:
         raise Exception("require 1 and only 1 triggering key")
-    _hotkeys[combkeys] = (target, swallow)
+    for ck in expand_combination(combkeys):
+        _hotkeys[frozenset(ck)] = (target, swallow)
 
 
 _modifier = Modifier(0)
@@ -88,6 +132,7 @@ hook.start()
 stop_all_hotkeys = hook.stop
 
 if __name__ == "__main__":
+    print(Modifier.CONTROL)
     import time
     from functools import partial
 

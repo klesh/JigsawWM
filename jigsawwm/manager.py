@@ -158,6 +158,10 @@ class WindowManager:
         m = get_monitor_from_window(window.handle)
         self.arrange_monitor(m)
 
+    def arrange_all_monitors(self):
+        for monitor in self._state:
+            self.arrange_monitor(monitor)
+
     @property
     def current_layout_tiler(self) -> LayoutTiler:
         """Retrieves current layout tiler function"""

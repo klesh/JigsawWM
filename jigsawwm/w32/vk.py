@@ -16,6 +16,7 @@ class Vk(enum.IntEnum):
     CLEAR = 0x0C  # CLEAR key
     RETURN = 0x0D  # ENTER key
     #  0x0E-0F  # Undefined
+    WIN = 0x0E  # THIS UNDEFINED, hacked for shortcut
     SHIFT = 0x10  # SHIFT key
     CONTROL = 0x11  # CTRL key
     MENU = 0x12  # ALT key

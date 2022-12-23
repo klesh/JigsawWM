@@ -17,38 +17,18 @@ wm = WindowManager(
 )
 
 # register hotkey
-hotkey([Vk.LWIN, Vk.J], wm.activate_next)
-hotkey([Vk.RWIN, Vk.J], wm.activate_next)
+hotkey([Vk.WIN, Vk.J], wm.activate_next)
+hotkey([Vk.WIN, Vk.K], wm.activate_prev)
+hotkey([Vk.WIN, Vk.N], minimize_active_window)
+hotkey([Vk.WIN, Vk.M], toggle_maximize_active_window)
+hotkey([Vk.WIN, Vk.SHIFT, Vk.J], wm.swap_next)
+hotkey([Vk.WIN, Vk.SHIFT, Vk.K], wm.swap_prev)
+hotkey([Vk.WIN, Vk.K], wm.activate_prev)
+hotkey([Vk.WIN, Vk.OEM_2], wm.swap_master)
+hotkey([Vk.WIN, Vk.R], wm.arrange_all_monitors)
 
-hotkey([Vk.LWIN, Vk.K], wm.activate_prev)
-hotkey([Vk.RWIN, Vk.K], wm.activate_prev)
-
-hotkey([Vk.LWIN, Vk.N], minimize_active_window)
-hotkey([Vk.RWIN, Vk.N], minimize_active_window)
-
-hotkey([Vk.LWIN, Vk.M], toggle_maximize_active_window)
-hotkey([Vk.RWIN, Vk.M], toggle_maximize_active_window)
-
-hotkey([Vk.LWIN, Vk.LSHIFT, Vk.J], wm.swap_next)
-hotkey([Vk.RWIN, Vk.LSHIFT, Vk.J], wm.swap_next)
-hotkey([Vk.LWIN, Vk.RSHIFT, Vk.J], wm.swap_next)
-hotkey([Vk.RWIN, Vk.RSHIFT, Vk.J], wm.swap_next)
-
-hotkey([Vk.LWIN, Vk.LSHIFT, Vk.K], wm.swap_prev)
-hotkey([Vk.RWIN, Vk.LSHIFT, Vk.K], wm.swap_prev)
-hotkey([Vk.LWIN, Vk.RSHIFT, Vk.K], wm.swap_prev)
-hotkey([Vk.RWIN, Vk.RSHIFT, Vk.K], wm.swap_prev)
-
-hotkey([Vk.LWIN, Vk.K], wm.activate_prev)
-hotkey([Vk.RWIN, Vk.K], wm.activate_prev)
-
-hotkey([Vk.LWIN, Vk.OEM_2], wm.swap_master)
-hotkey([Vk.RWIN, Vk.OEM_2], wm.swap_master)
-
-hotkey([Vk.LWIN, Vk.R], wm.arrange_all_monitors)
 # polling
 timer(1, wm.sync)
-
 
 # test
 import time
