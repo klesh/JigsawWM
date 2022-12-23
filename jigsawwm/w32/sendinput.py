@@ -77,11 +77,11 @@ def send_input(*inputs: List[INPUT]):
     send_input(
         INPUT(
             type=INPUTTYPE.KEYBOARD,
-            ki=KEYBDINPUT(wVk=VirtualKey.VK_KEY_A, dwExtraInfo=123),
+            ki=KEYBDINPUT(wVk=VirtualKey.A, dwExtraInfo=123),
         ),
         INPUT(
             type=INPUTTYPE.KEYBOARD,
-            ki=KEYBDINPUT(wVk=VirtualKey.VK_KEY_A, dwFlags=KEYEVENTF.KEYUP),
+            ki=KEYBDINPUT(wVk=VirtualKey.A, dwFlags=KEYEVENTF.KEYUP),
         ),
     )
     ```
@@ -100,15 +100,15 @@ def is_synthesized(msg: KEYBDINPUT | MOUSEINPUT) -> bool:
 
 
 if __name__ == "__main__":
-    from .vk import VirtualKey
+    from .vk import Vk
 
     send_input(
         INPUT(
             type=INPUTTYPE.KEYBOARD,
-            ki=KEYBDINPUT(wVk=VirtualKey.VK_KEY_A),
+            ki=KEYBDINPUT(wVk=Vk.A),
         ),
         INPUT(
             type=INPUTTYPE.KEYBOARD,
-            ki=KEYBDINPUT(wVk=VirtualKey.VK_KEY_A, dwFlags=KEYEVENTF.KEYUP),
+            ki=KEYBDINPUT(wVk=Vk.A, dwFlags=KEYEVENTF.KEYUP),
         ),
     )

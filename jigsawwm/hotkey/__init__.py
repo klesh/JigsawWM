@@ -1,1 +1,1 @@
-from .hotkeys import register_hotkey, stop_all_hotkeys
+from .hotkeys import hotkey, stop_all_hotkeys

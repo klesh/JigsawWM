@@ -202,12 +202,12 @@ class Hook(threading.Thread):
 
 
 if __name__ == "__main__":
-    from .vk import VirtualKey
+    from .vk import Vk
 
     def keyboard(msgid: KBDLLHOOKMSGID, msg: KBDLLHOOKDATA) -> bool:
         print(
             "{:15s} {:15s}: vkCode {:3x} scanCode {:3x} flags: {:3d}, time: {} extra: {}".format(
-                VirtualKey(msg.vkCode).name,
+                Vk(msg.vkCode).name,
                 msgid.name,
                 msg.vkCode,
                 msg.scanCode,

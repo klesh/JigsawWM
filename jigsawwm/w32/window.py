@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import enum
 from . import process
 from .sendinput import *
-from .vk import VirtualKey
+from .vk import Vk
 
 
 user32 = WinDLL("user32", use_last_error=True)
@@ -462,11 +462,11 @@ def set_active_window(window: Window) -> bool:
         send_input(
             INPUT(
                 type=INPUTTYPE.KEYBOARD,
-                ki=KEYBDINPUT(wVk=VirtualKey.VK_MENU, dwFlags=KEYEVENTF.KEYUP),
+                ki=KEYBDINPUT(wVk=Vk.VK_MENU, dwFlags=KEYEVENTF.KEYUP),
             ),
             INPUT(
                 type=INPUTTYPE.KEYBOARD,
-                ki=KEYBDINPUT(wVk=VirtualKey.VK_MENU, dwFlags=KEYEVENTF.KEYUP),
+                ki=KEYBDINPUT(wVk=Vk.VK_MENU, dwFlags=KEYEVENTF.KEYUP),
             ),
         )
         user32.SetForegroundWindow(window.handle)

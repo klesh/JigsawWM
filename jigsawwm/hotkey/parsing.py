@@ -1,8 +1,8 @@
-from jigsawwm.w32.vk import VirtualKey
+from jigsawwm.w32.vk import Vk
 from typing import Sequence
 
 
-def combination_to_combkeys(combination: str) -> Sequence[VirtualKey]:
+def combination_to_combkeys(combination: str) -> Sequence[Vk]:
     """Converts combination string to virtual keys sequence
 
     Ref: http://www.kbdedit.com/manual/low_level_vk_list.html
@@ -49,7 +49,7 @@ def combination_to_combkeys(combination: str) -> Sequence[VirtualKey]:
             # alphabet and numbers
             key_name = f"KEY_{key_name}"
         key_name = f"VK_{key_name}"
-        if key_name not in VirtualKey.__members__:
+        if key_name not in Vk.__members__:
             raise Exception(f"invalid key name {kn}")
-        keylist.append(VirtualKey[key_name])
+        keylist.append(Vk[key_name])
     return keylist
