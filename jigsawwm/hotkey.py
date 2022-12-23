@@ -1,9 +1,17 @@
 from jigsawwm.w32.hook import Hook, KBDLLHOOKMSGID, KBDLLHOOKDATA
 from jigsawwm.w32.vk import Vk
-from jigsawwm.w32.sendinput import is_synthesized
+from jigsawwm.w32.sendinput import (
+    is_synthesized,
+    send_input,
+    INPUT,
+    INPUTTYPE,
+    KEYBDINPUT,
+    KEYEVENTF,
+)
 from typing import Callable, Dict, Sequence, Tuple, FrozenSet, Iterator, Optional
 from concurrent.futures import ThreadPoolExecutor
 import enum
+from traceback import print_exception
 
 
 class Modifier(enum.IntFlag):
@@ -49,8 +57,8 @@ def expand_combination(
 # print("F1", list(expand_combination([Vk.F1])))
 # exit()
 
-# { combination: (func, swallow) }
-_hotkeys: Dict[FrozenSet[Vk], Tuple[Callable, bool]] = {}
+# { combination: (func, swallow, counteract) }
+_hotkeys: Dict[FrozenSet[Vk], Tuple[Callable, bool, bool]] = {}
 _executor = ThreadPoolExecutor()
 
 
@@ -77,11 +85,16 @@ def hotkey(combkeys: Sequence[Vk] | str, target: Callable | str, swallow: bool =
     # check if combination valid
     if not combkeys:
         raise Exception("empty combination")
+    # turn target to function if it is string
+    counteract = False
+    if isinstance(target, str):
+        target = combination_input(target)
+        counteract = True
     count = len(list(filter(lambda vk: vk.name not in Modifier.__members__, combkeys)))
     if count != 1:
         raise Exception("require 1 and only 1 triggering key")
     for ck in expand_combination(combkeys):
-        _hotkeys[frozenset(ck)] = (target, swallow)
+        _hotkeys[frozenset(ck)] = (target, swallow, counteract)
 
 
 _vk_aliases: Dict[str, Vk] = {
@@ -125,6 +138,23 @@ def parse_hotkey(combkeys: str) -> Sequence[Vk]:
     return parsed
 
 
+def combination_input(target: str) -> Callable:
+    target = parse_hotkey(target)
+
+    def callback():
+        for key in target:
+            send_input(INPUT(type=INPUTTYPE.KEYBOARD, ki=KEYBDINPUT(wVk=key)))
+        for key in reversed(target):
+            send_input(
+                INPUT(
+                    type=INPUTTYPE.KEYBOARD,
+                    ki=KEYBDINPUT(wVk=key, dwFlags=KEYEVENTF.KEYUP),
+                )
+            )
+
+    return callback
+
+
 _modifier = Modifier(0)
 
 
@@ -135,6 +165,7 @@ def _keyboard_proc(msgid: KBDLLHOOKMSGID, msg: KBDLLHOOKDATA) -> bool:
         return False
     global _modifier, _hotkeys
     vkey = Vk(msg.vkCode)
+    # print(msgid.name, vkey.name, msg.dwExtraInfo)
     if vkey.name in Modifier.__members__:
         # update modifier state if
         if msgid == KBDLLHOOKMSGID.WM_KEYDOWN:
@@ -146,8 +177,25 @@ def _keyboard_proc(msgid: KBDLLHOOKMSGID, msg: KBDLLHOOKDATA) -> bool:
         combination = frozenset((*map(lambda m: Vk[m.name], _modifier), vkey))
         fs = _hotkeys.get(combination)
         if fs is not None:
-            func, swallow = fs
-            _executor.submit(func)
+            func, swallow, counteract = fs
+            if counteract:
+                # send key up for combination to avoid confliction if the func
+                # call send_input
+                for key in combination:
+                    send_input(
+                        INPUT(
+                            type=INPUTTYPE.KEYBOARD,
+                            ki=KEYBDINPUT(wVk=key, dwFlags=KEYEVENTF.KEYUP),
+                        )
+                    )
+            # wrap func with in try-catch for safty
+            def wrapped_func():
+                try:
+                    func()
+                except Exception as e:
+                    print_exception(e)
+
+            _executor.submit(wrapped_func)
             return swallow
 
 

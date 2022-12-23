@@ -199,7 +199,7 @@ class WindowManager:
             rect.left + (rect.right - rect.left) / 2,
             rect.top + (rect.bottom - rect.top) / 2,
         )
-        self.last_active_window = window
+        self._last_active_window = window
 
     def activate_by_offset(self, offset: int):
         """Activate managed window by offset

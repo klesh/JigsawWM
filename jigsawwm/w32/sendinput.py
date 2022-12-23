@@ -77,7 +77,7 @@ def send_input(*inputs: List[INPUT]):
     send_input(
         INPUT(
             type=INPUTTYPE.KEYBOARD,
-            ki=KEYBDINPUT(wVk=VirtualKey.A, dwExtraInfo=123),
+            ki=KEYBDINPUT(wVk=VirtualKey.A),
         ),
         INPUT(
             type=INPUTTYPE.KEYBOARD,
