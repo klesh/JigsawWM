@@ -1,10 +1,8 @@
 from ctypes import *
 from ctypes.wintypes import *
-import locale
 
 kernel32 = WinDLL("kernel32", use_last_error=True)
 advapi32 = WinDLL("advapi32", use_last_error=True)
-encoding = locale.getpreferredencoding()
 
 TOKEN_QUERY = DWORD(8)
 
@@ -61,10 +59,10 @@ def get_exepath(pid: int) -> str:
     :rtype: str
     """
     hprc = open_process_for_limited_query(pid)
-    buff = create_string_buffer(512)
+    buff = create_unicode_buffer(512)
     size = DWORD(sizeof(buff))
-    if not kernel32.QueryFullProcessImageNameA(hprc, 0, buff, pointer(size)):
+    if not kernel32.QueryFullProcessImageNameW(hprc, 0, buff, pointer(size)):
         kernel32.CloseHandle(hprc)
         raise WinError(get_last_error())
     kernel32.CloseHandle(hprc)
-    return buff.value.decode(encoding)
+    return str(buff.value)

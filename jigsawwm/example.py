@@ -12,6 +12,7 @@ wm = WindowManager(
         "fdm.exe",
         "WeChat.exe",
         "foobar2000.exe",
+        "ApplicationFrameHost.exe",
     ]
 )
 

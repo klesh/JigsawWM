@@ -3,12 +3,10 @@ from ctypes.wintypes import *
 from typing import List, Iterator, Optional
 from dataclasses import dataclass
 import enum
-import locale
 from . import process
 from .sendinput import *
 from .vk import VirtualKey
 
-encoding = locale.getpreferredencoding()
 
 user32 = WinDLL("user32", use_last_error=True)
 kernel32 = WinDLL("kernel32", use_last_error=True)
@@ -223,9 +221,9 @@ class Window:
         """
         # length = user32.GetWindowTextLengthW(self.hwnd)
         if self._title is None:
-            self._title = create_string_buffer(255)
-        user32.GetWindowTextA(self._hwnd, self._title, 255)
-        return self._title.value.decode(encoding)
+            self._title = create_unicode_buffer(255)
+        user32.GetWindowTextW(self._hwnd, self._title, 255)
+        return str(self._title.value)
 
     @property
     def class_name(self):
@@ -237,9 +235,9 @@ class Window:
         :rtype: str
         """
         if self._class_name is None:  # class_name would never change
-            buff = create_string_buffer(100)
-            user32.GetClassNameA(self._hwnd, buff, 100)
-            self._class_name = buff.value.decode(encoding)
+            buff = create_unicode_buffer(100)
+            user32.GetClassNameW(self._hwnd, buff, 100)
+            self._class_name = str(buff.value)
         return self._class_name
 
     @property
