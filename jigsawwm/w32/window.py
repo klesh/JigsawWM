@@ -462,11 +462,11 @@ def set_active_window(window: Window) -> bool:
         send_input(
             INPUT(
                 type=INPUTTYPE.KEYBOARD,
-                ki=KEYBDINPUT(wVk=Vk.VK_MENU, dwFlags=KEYEVENTF.KEYUP),
+                ki=KEYBDINPUT(wVk=Vk.VK_LMENU, dwFlags=KEYEVENTF.KEYUP),
             ),
             INPUT(
                 type=INPUTTYPE.KEYBOARD,
-                ki=KEYBDINPUT(wVk=Vk.VK_MENU, dwFlags=KEYEVENTF.KEYUP),
+                ki=KEYBDINPUT(wVk=Vk.VK_LMENU, dwFlags=KEYEVENTF.KEYUP),
             ),
         )
         user32.SetForegroundWindow(window.handle)
