@@ -13,6 +13,8 @@ from concurrent.futures import ThreadPoolExecutor
 import enum
 from traceback import print_exception
 
+error_handler = print_exception
+
 
 class Modifier(enum.IntFlag):
     """Keyboard modifier"""
@@ -193,15 +195,14 @@ def _keyboard_proc(msgid: KBDLLHOOKMSGID, msg: KBDLLHOOKDATA) -> bool:
                 try:
                     func()
                 except Exception as e:
-                    print_exception(e)
+                    error_handler(e)
 
             _executor.submit(wrapped_func)
             return swallow
 
 
-hook = Hook(keyboard=_keyboard_proc)
-hook.start()
-stop_all_hotkeys = hook.stop
+hotkey_thread = Hook(keyboard=_keyboard_proc)
+
 
 if __name__ == "__main__":
     print(Modifier.CONTROL)
@@ -214,9 +215,11 @@ if __name__ == "__main__":
 
     hotkey({Vk.LWIN, Vk.B}, delay_hello, True)
 
+    hotkey_thread.stop()
+
     while True:
         try:
             time.sleep(1)
         except KeyboardInterrupt:
-            hook.stop()
+            hotkey_thread.stop()
             break

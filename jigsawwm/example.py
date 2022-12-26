@@ -1,10 +1,12 @@
-from jigsawwm.manager import WindowManager, timer, stop_all_timers
-from jigsawwm.hotkey import hotkey, stop_all_hotkeys
+from jigsawwm.manager import WindowManager
+from jigsawwm.hotkey import hotkey
 from jigsawwm.w32.vk import Vk
 from jigsawwm.w32.window import toggle_maximize_active_window, minimize_active_window
+from jigsawwm.daemon import daemon, timer
 
 # setup the WindowManager
 wm = WindowManager(
+    new_window_as_master=False,
     ignore_exe_names=[
         "7zFM.exe",
         "explorer.exe",
@@ -13,7 +15,7 @@ wm = WindowManager(
         "WeChat.exe",
         "foobar2000.exe",
         "ApplicationFrameHost.exe",
-    ]
+    ],
 )
 
 # register hotkey
@@ -32,13 +34,5 @@ hotkey([Vk.WIN, Vk.SPACE], wm.next_layout_tiler)
 # polling
 timer(1, wm.sync)
 
-# test
-import time
-
-while True:
-    try:
-        time.sleep(1)
-    except KeyboardInterrupt:
-        stop_all_hotkeys()
-        stop_all_timers()
-        break
+# kickstart
+daemon(console=True)

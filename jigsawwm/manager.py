@@ -180,7 +180,10 @@ class WindowManager:
     @property
     def last_active_window(self) -> Optional[Window]:
         """Retrieves last activated window"""
-        if self._last_active_window and not self._last_active_window.exists:
+        if self._last_active_window and (
+            self._last_active_window not in self.managed_windows
+            or not self._last_active_window.exists
+        ):
             return None
         return self._last_active_window
 
@@ -285,32 +288,6 @@ class WindowManager:
             self.layout_tilers
         )
         self.arrange_all_monitors()
-
-
-# it is import to hold reference to the timer
-# or they will be freed right away
-_timers: Dict[Callable, Thread] = {}
-
-
-def timer(interval: float, callback: Callable):
-    """Run callback function with a fixed time delay between each call"""
-    global _timers
-
-    def run():
-        # global _timers
-        while callback in _timers:
-            # while True:
-            callback()
-            time.sleep(interval)
-
-    thread = Thread(target=run, daemon=True)
-    _timers[callback] = thread
-    thread.start()
-
-
-def stop_all_timers():
-    global _timers
-    _timers.clear()
 
 
 if __name__ == "__main__":
