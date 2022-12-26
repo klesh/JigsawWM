@@ -13,8 +13,6 @@ from concurrent.futures import ThreadPoolExecutor
 import enum
 from traceback import print_exception
 
-error_handler = print_exception
-
 
 class Modifier(enum.IntFlag):
     """Keyboard modifier"""
@@ -60,11 +58,18 @@ def expand_combination(
 # exit()
 
 # { combination: (func, swallow, counteract) }
-_hotkeys: Dict[FrozenSet[Vk], Tuple[Callable, bool, bool]] = {}
+_hotkeys: Dict[
+    FrozenSet[Vk], Tuple[Callable, bool, bool, Callable[[Exception], None]]
+] = {}
 _executor = ThreadPoolExecutor()
 
 
-def hotkey(combkeys: Sequence[Vk] | str, target: Callable | str, swallow: bool = True):
+def hotkey(
+    combkeys: Sequence[Vk] | str,
+    target: Callable | str,
+    swallow: bool = True,
+    error_handler: Callable[[Exception], None] = print_exception,
+):
     """Register a system hotkey
 
     Check `jigsawwm.w32.vk.Vk` for virtual key names
@@ -96,7 +101,7 @@ def hotkey(combkeys: Sequence[Vk] | str, target: Callable | str, swallow: bool =
     if count != 1:
         raise Exception("require 1 and only 1 triggering key")
     for ck in expand_combination(combkeys):
-        _hotkeys[frozenset(ck)] = (target, swallow, counteract)
+        _hotkeys[frozenset(ck)] = (target, swallow, counteract, error_handler)
 
 
 _vk_aliases: Dict[str, Vk] = {
@@ -179,7 +184,7 @@ def _keyboard_proc(msgid: KBDLLHOOKMSGID, msg: KBDLLHOOKDATA) -> bool:
         combination = frozenset((*map(lambda m: Vk[m.name], _modifier), vkey))
         fs = _hotkeys.get(combination)
         if fs is not None:
-            func, swallow, counteract = fs
+            func, swallow, counteract, error_handler = fs
             if counteract:
                 # send key up for combination to avoid confliction if the func
                 # call send_input
@@ -201,25 +206,22 @@ def _keyboard_proc(msgid: KBDLLHOOKMSGID, msg: KBDLLHOOKDATA) -> bool:
             return swallow
 
 
-hotkey_thread = Hook(keyboard=_keyboard_proc)
-
+hook = Hook(keyboard=_keyboard_proc)
 
 if __name__ == "__main__":
-    print(Modifier.CONTROL)
     import time
-    from functools import partial
 
     def delay_hello():
         time.sleep(1)
         print("hello world")
 
-    hotkey({Vk.LWIN, Vk.B}, delay_hello, True)
+    hotkey([Vk.LWIN, Vk.B], delay_hello, True)
 
-    hotkey_thread.stop()
+    hook.start()
 
     while True:
         try:
             time.sleep(1)
         except KeyboardInterrupt:
-            hotkey_thread.stop()
+            hook.stop()
             break

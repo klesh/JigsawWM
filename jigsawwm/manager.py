@@ -9,8 +9,6 @@ from jigsawwm.w32.window import Window, get_normal_windows, get_active_window, R
 from jigsawwm.w32.ivirtualdesktopmanager import GUID
 from jigsawwm.tiler.tilers import *
 from os import path
-from threading import Thread
-import time
 
 
 class WindowManager:
