@@ -1,3 +1,6 @@
+import sys
+
+sys.coinit_flags = 0x0
 from jigsawwm.hotkey import hook, hotkey
 from typing import Dict, Callable, Sequence
 from jigsawwm.w32.vk import Vk
@@ -9,7 +12,6 @@ import pystray
 import time
 import os.path
 import io
-import sys
 
 
 class Daemon:
@@ -18,6 +20,7 @@ class Daemon:
     _trayicon: pystray.Icon
     _trayicon_thread: Thread
     _started: bool = False
+    menu_items: Sequence[pystray.MenuItem] = []
 
     def __init__(self):
         self._timers = {}
@@ -49,16 +52,13 @@ class Daemon:
     def timer(self, interval: float, callback: Callable):
         """Run callback function with a fixed time interval repeatedly"""
         # wrap func with in try-catch for safty
-        def wrapped_callback():
-            try:
-                callback()
-            except Exception as e:
-                self.error_handler(e)
-
         def run():
             # global _timers
             while callback in self._timers:
-                wrapped_callback()
+                try:
+                    callback()
+                except Exception as e:
+                    self.error_handler(e)
                 time.sleep(interval)
 
         self._timers[callback] = Thread(target=run)
@@ -72,12 +72,15 @@ class Daemon:
 
     def start_trayicon(self):
         script_dir = os.path.dirname(__file__)
-        icon_path = os.path.join(script_dir, "assets", "icon.png")
+        icon_path = os.path.join(script_dir, "assets", "logo.png")
         icon = Image.open(icon_path)
         tray_icon = pystray.Icon(
             "JigsawWM",
             icon=icon,
-            menu=pystray.Menu(pystray.MenuItem("Exit", self.stop)),
+            menu=pystray.Menu(
+                *self.menu_items,
+                pystray.MenuItem("Exit", self.stop),
+            ),
         )
         self._trayicon = tray_icon
         self._trayicon_thread = Thread(target=tray_icon.run)

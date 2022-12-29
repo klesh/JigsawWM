@@ -106,8 +106,8 @@ if __name__ == "__main__":
     monitor0_rect = desktop_wallpaper.GetMonitorRECT(monitor0_path)
     print(
         monitor0_path,
-        monitor0_rect.top,
-        monitor0_rect.bottom,
         monitor0_rect.left,
+        monitor0_rect.top,
         monitor0_rect.right,
+        monitor0_rect.bottom,
     )

@@ -18,16 +18,16 @@ class IVirtualDesktopManager(IUnknown):
         COMMETHOD(
             [],
             HRESULT,
-            "GetWindowDesktopId",
+            "IsWindowOnCurrentVirtualDesktop",
             (["in"], HWND, "topLevelWindow"),
-            (["out"], POINTER(GUID), "desktopId"),
+            (["out"], LPBOOL, "onCurrentDesktop"),
         ),
         COMMETHOD(
             [],
             HRESULT,
-            "IsWindowOnCurrentVirtualDesktop",
+            "GetWindowDesktopId",
             (["in"], HWND, "topLevelWindow"),
-            (["out"], LPBOOL, "onCurrentDesktop"),
+            (["out"], POINTER(GUID), "desktopId"),
         ),
         COMMETHOD(
             [],
@@ -45,7 +45,7 @@ class IVirtualDesktopManager(IUnknown):
 
     def IsWindowOnCurrentVirtualDesktop(self, hwnd: HWND) -> bool:
         value = BOOL()
-        _check(self.__com_IsWindowOnCurrentVirtualDesktop(hwnd, pointer(bool)))
+        _check(self.__com_IsWindowOnCurrentVirtualDesktop(hwnd, pointer(value)))
         return value.value
 
     def MoveWindowToDesktop(self, hwnd: HWND, desktop_id: GUID):
@@ -57,25 +57,9 @@ virtual_desktop_manager: IVirtualDesktopManager = CoCreateInstance(
 )
 
 
-class VirtualDesktop:
-    _desktop_id: GUID
-
-    def __init__(self, desktop_id):
-        self._desktop_id = desktop_id
-
-    def __eq__(self, other):
-        return (
-            isinstance(other, VirtualDesktop) and self._desktop_id == other._desktop_id
-        )
-
-    def __hash__(self):
-        return hash(self._desktop_id)
-
-    def move_window_in(self, hwnd: HWND):
-        virtual_desktop_manager.MoveWindowToDesktop(hwnd, self)
-
-
 if __name__ == "__main__":
-    print(
-        virtual_desktop_manager.GetWindowDesktopId(windll.user32.GetForegroundWindow())
-    )
+    import time
+
+    time.sleep(2)
+    virtual_desktop_manager.GetWindowDesktopId(windll.user32.GetForegroundWindow())
+    # print(virtual_desktop_manager.IsWindowOnCurrentVirtualDesktop(HWND(131352)))

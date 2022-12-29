@@ -1,6 +1,6 @@
 from ctypes import *
 from ctypes.wintypes import *
-from typing import List, Iterator, Optional
+from typing import List, Iterator
 import enum
 
 user32 = WinDLL("user32", use_last_error=True)
@@ -32,7 +32,7 @@ def set_cursor_pos(x: int, y: int):
 
 
 def enum_display_monitors() -> List[HMONITOR]:
-    """Returns a List of all monitors.
+    """Returns a List of all monitors. THIS DO NOT RETURN MIRRORING MONITORS
 
     :return: list of monitor handles
     :rtype: List[]
@@ -59,17 +59,22 @@ def monitor_from_window(hwnd: HWND) -> HMONITOR:
     return user32.MonitorFromWindow(hwnd, 0)
 
 
-class MONITORINFO(Structure):
+CCHDEVICENAME = 32
+
+
+class MONITORINFOEX(Structure):
     cbSize: int
     rcMonitor: RECT
     rcWork: RECT
     dwFlags: int
+    szDevice: CHAR * CCHDEVICENAME
 
     _fields_ = (
         ("cbSize", DWORD),
         ("rcMonitor", RECT),
         ("rcWork", RECT),
         ("dwFlags", DWORD),
+        ("szDevice", CHAR * CCHDEVICENAME),
     )
 
 
@@ -110,8 +115,8 @@ class Monitor:
     def __hash__(self):
         return hash(self._hmon)
 
-    def get_info(self) -> MONITORINFO:
-        monitor_info = MONITORINFO()
+    def get_info(self) -> MONITORINFOEX:
+        monitor_info = MONITORINFOEX()
         monitor_info.cbSize = sizeof(monitor_info)
         if not user32.GetMonitorInfoA(self._hmon, pointer(monitor_info)):
             raise WinError(get_last_error())
@@ -138,13 +143,15 @@ def get_monitor_from_cursor() -> Monitor:
 
 
 def get_monitor_from_window(hwnd: HWND) -> Monitor:
-    return Monitor(monitor_from_window(hwnd))
+    if hwnd:
+        return Monitor(monitor_from_window(hwnd))
 
 
 if __name__ == "__main__":
     for monitor in get_monitors():
         print("scale factor     :", monitor.get_scale_factor())
         monitor_info = monitor.get_info()
+        print("device           :", monitor_info.szDevice)
         m = monitor_info.rcMonitor
         print("monitor rect     :", m.left, m.top, m.right, m.bottom)
         m = monitor_info.rcWork

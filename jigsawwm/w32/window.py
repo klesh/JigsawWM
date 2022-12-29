@@ -52,6 +52,22 @@ def enum_desktop_windows(hdst: Optional[HDESK] = None) -> List[HWND]:
     return hwnds
 
 
+def first_desktop_window(hdst: Optional[HDESK] = None) -> Optional[HWND]:
+    hwnds = []
+
+    @WINFUNCTYPE(BOOL, HWND, LPARAM)
+    def enum_windows_proc(hwnd: HWND, lParam: LPARAM) -> BOOL:
+        hwnds.append(hwnd)
+        return False
+
+    user32.EnumDesktopWindows(hdst, enum_windows_proc, None)
+    return hwnds[0]
+
+
+def get_foreground_window() -> HWND:
+    return user32.GetForegroundWindow()
+
+
 class WindowStyle(enum.IntFlag):
     """The object that holds the window styles.
 
@@ -196,6 +212,7 @@ class Window:
     _cloaked = None
     _ncrendering = None
     _bound = None
+    _last_rect = None
 
     def __init__(self, hwnd: HWND):
         self._hwnd = hwnd
@@ -394,10 +411,15 @@ class Window:
         x, y, w, h = rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top
         if not user32.SetWindowPos(self._hwnd, None, x, y, w, h, 0):
             raise WinError(get_last_error())
+        self._last_rect = rect
 
     def activate(self) -> bool:
         """Brings the thread that created current window into the foreground and activates the window"""
         return set_active_window(self)
+
+    @property
+    def last_rect(self) -> Optional[RECT]:
+        return self._last_rect
 
 
 def get_windows(hdst: Optional[HDESK] = None) -> Iterator[Window]:
@@ -495,6 +517,26 @@ def toggle_maximize_active_window():
         window.toggle_maximize()
 
 
+def inspect_window(window: Window):
+    print()
+    style = window.get_style()
+    exstyle = window.get_exstyle()
+    print(window.title)
+    print("pid          :", window.pid)
+    print("class name   :", window.class_name)
+    print("exe path     :", window.exe)
+    print("is_elevated  :", window.is_evelated)
+    print("is_visible   :", WindowStyle.VISIBLE in style)
+    print("is_minimized :", WindowStyle.MINIMIZE in style)
+    print("is_cloaked   :", window.is_cloaked)
+    # print("is_active    :", active_window == window)
+    print("is_non_client_rending:", window.is_non_client_rendering_enable)
+    rect = window.get_rect()
+    print("rect         :", rect.left, rect.top, rect.right, rect.bottom)
+    bound = window.get_extended_frame_bounds()
+    print("bound        :", bound.left, bound.top, bound.right, bound.bottom)
+
+
 if __name__ == "__main__":
     # pos = get_cursor_pos()
     # print(pos.x, pos.y)
@@ -509,22 +551,9 @@ if __name__ == "__main__":
     #   and not w.is_cloaked
     # ), get_windows()))
     # windows[0].set_rect(RECT(0, 0, 300, 300))
-    active_window = get_active_window()
+    # import time
+
+    # time.sleep(2)
+    # inspect_window(get_active_window())
     for window in get_normal_windows():
-        print()
-        style = window.get_style()
-        exstyle = window.get_exstyle()
-        print(window.title)
-        print("pid          :", window.pid)
-        print("class name   :", window.class_name)
-        print("exe path     :", window.exe)
-        print("is_elevated  :", window.is_evelated)
-        print("is_visible   :", WindowStyle.VISIBLE in style)
-        print("is_minimized :", WindowStyle.MINIMIZE in style)
-        print("is_cloaked   :", window.is_cloaked)
-        print("is_active    :", active_window == window)
-        print("is_non_client_rending:", window.is_non_client_rendering_enable)
-        rect = window.get_rect()
-        print("rect         :", rect.top, rect.left, rect.right, rect.bottom)
-        bound = window.get_extended_frame_bounds()
-        print("bound        :", bound.top, bound.left, bound.right, bound.bottom)
+        inspect_window(window)
