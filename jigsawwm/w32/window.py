@@ -53,20 +53,32 @@ def enum_desktop_windows(hdst: Optional[HDESK] = None) -> List[HWND]:
     return hwnds
 
 
-def first_desktop_window(hdst: Optional[HDESK] = None) -> Optional[HWND]:
+def get_foreground_window() -> HWND:
+    return user32.GetForegroundWindow()
+
+
+def get_first_app_window() -> HWND:
     hwnds = []
 
     @WINFUNCTYPE(BOOL, HWND, LPARAM)
     def enum_windows_proc(hwnd: HWND, lParam: LPARAM) -> BOOL:
+        w = Window(hwnd)
+        # if w.is_cloaked:
+        #     return True
+        style = w.get_style()
+        if (
+            WindowStyle.VISIBLE not in style
+            or WindowStyle.TOOLWINDOW in style
+            or WindowStyle.CAPTION not in style
+        ):
+            return True
+        # inspect_window(w)
         hwnds.append(hwnd)
         return False
 
-    user32.EnumDesktopWindows(hdst, enum_windows_proc, None)
-    return hwnds[0]
-
-
-def get_foreground_window() -> HWND:
-    return user32.GetForegroundWindow()
+    user32.EnumDesktopWindows(None, enum_windows_proc, None)
+    if hwnds:
+        return hwnds[0]
 
 
 class WindowStyle(enum.IntFlag):
@@ -330,6 +342,11 @@ class Window:
             self.maximize()
 
     @property
+    def is_top_level(self):
+        """Check if window is top level window"""
+        return bool(user32.IsTopLevelWindow(self._hwnd))
+
+    @property
     def is_evelated(self):
         """Check if window is elevated (Administrator)"""
         if self._elevated is None:  # would never change
@@ -426,6 +443,11 @@ class Window:
 def get_windows(hdst: Optional[HDESK] = None) -> Iterator[Window]:
     """Get all windows of specified/current desktop"""
     return map(Window, enum_desktop_windows(hdst))
+
+
+def get_top_windows(hdst: Optional[HDESK] = None) -> Iterator[Window]:
+    """Get all windows of specified/current desktop"""
+    return map(Window, filter(user32.IsTopLevelWindow, enum_desktop_windows(hdst)))
 
 
 def get_normal_windows(hdst: Optional[HDESK] = None) -> Iterator[Window]:
@@ -527,6 +549,7 @@ def inspect_window(window: Window):
     print("pid          :", window.pid)
     print("class name   :", window.class_name)
     print("exe path     :", window.exe)
+    print("is_top_level :", window.is_top_level)
     print("is_elevated  :", window.is_evelated)
     print("is_visible   :", WindowStyle.VISIBLE in style)
     print("is_minimized :", WindowStyle.MINIMIZE in style)
@@ -553,9 +576,11 @@ if __name__ == "__main__":
     #   and not w.is_cloaked
     # ), get_windows()))
     # windows[0].set_rect(RECT(0, 0, 300, 300))
-    # import time
+    import time
 
-    # time.sleep(2)
-    # inspect_window(get_active_window())
-    for window in get_normal_windows():
-        inspect_window(window)
+    time.sleep(2)
+    inspect_window(get_active_window())
+    # for window in get_normal_windows():
+    #     inspect_window(window)
+    # for win in get_windows():
+    #     inspect_window(win)

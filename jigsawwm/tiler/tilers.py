@@ -1,6 +1,7 @@
-from .layouts import Layout, plug_rect, dwindle, widescreen_dwindle
-from typing import Iterator, Callable, Tuple
 from functools import partial
+from typing import Callable, Iterator, Tuple
+
+from .layouts import Layout, dwindle, plug_rect, widescreen_dwindle
 
 # Rect holds physical coordinate for rectangle (left/top/right/bottom)
 Rect = Tuple[int, int, int, int]
@@ -32,7 +33,10 @@ def obs_tiler(
     scr_width, scr_height = wr - wl, wb - wt
     # fallback to direct_tiler when work_area is smaller than obs reserved area
     if obs_width >= scr_width or obs_height >= scr_height:
-        return direct_tiler(work_area, layout, total_windows)
+        yield from direct_tiler(layout, work_area, total_windows)
+        return
+    if total_windows == 0:
+        return
     fr = wr - obs_width
     # first window on the left
     yield wl, wt, fr, wb

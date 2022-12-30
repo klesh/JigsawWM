@@ -124,7 +124,7 @@ class Daemon:
             WinEvent.EVENT_SYSTEM_MINIMIZEEND,
             WinEvent.EVENT_SYSTEM_MOVESIZEEND,
         }:
-            self._wm.sync()
+            self._wm.sync(restrict=event == WinEvent.EVENT_SYSTEM_MOVESIZEEND)
 
     def setup(self):
         pass

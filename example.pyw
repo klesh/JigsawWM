@@ -1,18 +1,35 @@
 import pystray
 
 from jigsawwm.daemon import Daemon
-from jigsawwm.manager import Preference, WindowManager
+from jigsawwm.manager import Theme, WindowManager
+from jigsawwm.tiler import tilers
 from jigsawwm.w32.vk import Vk
 from jigsawwm.w32.window import minimize_active_window, toggle_maximize_active_window
 
 
 class MyDaemon(Daemon):
-    wm: WindowManager
-
     def setup(self):
 
         # setup the WindowManager
         wm = WindowManager(
+            themes=[
+                Theme(
+                    name="WideScreen Dwindle",
+                    layout_tiler=tilers.widescreen_dwindle_layout_tiler,
+                    icon_name="wide-dwindle.png",
+                    background=r"D:\Documents\wallpapers\IMG_20220816_102143.jpg",
+                    gap=2,
+                    strict=True,
+                ),
+                Theme(
+                    name="OBS Dwindle",
+                    layout_tiler=tilers.obs_dwindle_layout_tiler,
+                    icon_name="obs.png",
+                    background=r"D:\Documents\wallpapers\obs-green.png",
+                    gap=2,
+                    strict=True,
+                ),
+            ],
             ignore_exe_names=[
                 "7zFM.exe",
                 "explorer.exe",
@@ -24,7 +41,6 @@ class MyDaemon(Daemon):
                 "notepad++.exe",
                 "PotPlayerMini64.exe",
             ],
-            pref=Preference(gap=2, strict=True),
         )
 
         # setup hotkeys

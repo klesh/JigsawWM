@@ -1,5 +1,5 @@
-from typing import Iterator, Tuple, Callable, Union
 from functools import partial
+from typing import Callable, Iterator, Tuple, Union
 
 # FloatRect holds relative coordinate for rectangle (left/top/right/bottom)
 FloatRect = Tuple[float, float, float, float]
@@ -57,6 +57,8 @@ def widescreen_dwindle(n: int, master_ratio: float = 0.4) -> Iterator[FloatRect]
     :return: master_dwindle generator
     :rtype: Iterator[FloatRect]
     """
+    if n == 0:
+        return
     #    wide_dwindle
     if n == 1:
         yield 0.0, 0.0, 1.0, 1.0

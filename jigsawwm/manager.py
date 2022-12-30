@@ -4,30 +4,25 @@ from os import path
 from typing import Dict, List, Optional, Set
 
 from jigsawwm.tiler.tilers import *
+from jigsawwm.virtdeskstub import find_or_create_virtdeskstub
+from jigsawwm.w32.idesktopwallpaper import desktop_wallpaper
 from jigsawwm.w32.ivirtualdesktopmanager import GUID, virtual_desktop_manager
 from jigsawwm.w32.monitor import (
     Monitor,
     get_monitor_from_cursor,
     get_monitor_from_window,
+    get_monitors,
     set_cursor_pos,
 )
 from jigsawwm.w32.window import (
     HWND,
     RECT,
     Window,
-    first_desktop_window,
     get_active_window,
+    get_first_app_window,
     get_foreground_window,
     get_normal_windows,
 )
-
-
-@dataclass
-class Preference:
-    new_window_as_master: Optional[bool] = None
-    gap: Optional[int] = None
-    theme_name: Optional[str] = None
-    strict: Optional[bool] = None
 
 
 @dataclass
@@ -37,35 +32,39 @@ class Theme:
     icon_name: Optional[str] = None
     icon_path: Optional[str] = None
     background: Optional[str] = None
+    new_window_as_master: Optional[bool] = None
+    gap: Optional[int] = None
+    strict: Optional[bool] = None
 
 
 class MonitorState:
     virtdesk_state: "VirtDeskState"
     monitor: Monitor
-    pref: Preference
+    theme: Optional[str]
     windows: List[Window]
 
     def __init__(
         self,
         virtdesk_state: "VirtDeskState",
         monitor: Monitor,
-        pref: Optional[Preference] = None,
+        theme: Optional[str] = None,
     ):
         self.virtdesk_state = virtdesk_state
         self.monitor = monitor
-        self.pref = pref or Preference()
+        self.theme = theme
         self.windows = []
 
     def get_theme(self) -> Theme:
         """Retrieves theme for monitor"""
         mgr = self.virtdesk_state.manager
-        return mgr.themes[mgr.get_theme_index(self.pref.theme_name)]
+        return mgr.themes[mgr.get_theme_index(self.theme)]
 
     def get_existing_windows(self) -> List[Window]:
         # self.windows = list(filter(lambda w: w.exists(), self.windows))
         return self.windows
 
-    def sync(self, windows: Set[Window]):
+    def sync(self, windows: Set[Window], restrict=False):
+        theme = self.get_theme()
         old_list = self.windows
         new_list = []
         for w in old_list:
@@ -76,32 +75,32 @@ class MonitorState:
                 continue
             new_list.append(w)
         # and then, prepend or append the new windows
-        new_window_as_master = self.pref.new_window_as_master
-        if new_window_as_master is None:
-            new_window_as_master = self.virtdesk_state.manager.pref.new_window_as_master
-        if new_window_as_master:
+        if theme.new_window_as_master:
             new_list = list(windows) + new_list
         else:
             new_list = new_list + list(windows)
         # skip if there is nothing changed, unless Strict mode is enable
         if new_list == old_list:
-            self.restrict()
+            if theme.background is not None:
+                self.set_background(theme)
+            if restrict:
+                self.restrict(theme)
             return
         self.windows = new_list
-        self.arrange()
+        self.arrange(theme)
 
-    def arrange(self):
+    def arrange(self, theme: Optional[Theme] = None):
         """Arrange windows based on theme"""
-        theme = self.get_theme()
-        # TODO: update background
+        theme = theme or self.get_theme()
+        if theme.background is not None:
+            self.set_background(theme)
         scale_factor = self.monitor.get_scale_factor().value / 100
         wr = self.monitor.get_info().rcWork
         work_area = (wr.left, wr.top, wr.right, wr.bottom)
         windows = self.get_existing_windows()
         i = 0
-        gap = self.pref.gap
-        if gap is None:
-            gap = self.virtdesk_state.manager.pref.gap
+        gap = theme.gap
+        # print(work_area, theme.name, len(windows))
         for (left, top, right, bottom) in theme.layout_tiler(work_area, len(windows)):
             window = windows[i]
             # add gap
@@ -138,12 +137,16 @@ class MonitorState:
             window.set_rect(RECT(*compensated_rect))
             i += 1
 
-    def restrict(self):
+    def set_background(self, theme: Theme):
+        monitors = list(get_monitors())
+        idx = monitors.index(self.monitor)
+        monitor_id = desktop_wallpaper.GetMonitorDevicePathAt(idx)
+        desktop_wallpaper.SetWallpaper(monitor_id, theme.background)
+
+    def restrict(self, theme: Optional[Theme] = None):
         """Restrict all managed windows to their specified rect"""
-        strict = self.pref.strict
-        if strict is None:
-            strict = self.virtdesk_state.manager.pref.strict
-        if not strict:
+        theme = theme or self.get_theme()
+        if not theme.strict:
             return
         for window in self.windows:
             window.set_rect(window.last_rect)
@@ -166,7 +169,7 @@ class VirtDeskState:
     def get_monitor(self, monitor: Monitor) -> MonitorState:
         monitor_state = self.monitors.get(monitor)
         if monitor_state is None:
-            monitor_state = MonitorState(self, monitor, replace(self.manager.pref))
+            monitor_state = MonitorState(self, monitor)
             self.monitors[monitor] = monitor_state
         return monitor_state
 
@@ -216,13 +219,11 @@ class WindowManager:
     _state: Dict[GUID, VirtDeskState]
     themes: List[Theme]
     ignore_exe_names: Set[str]
-    pref: Preference
 
     def __init__(
         self,
         themes: List[Theme] = None,
         ignore_exe_names: Set[str] = None,
-        pref: Optional[Preference] = None,
     ):
         self._state = {}
         self.themes = themes or [
@@ -243,18 +244,20 @@ class WindowManager:
             ),
         ]
         self.ignore_exe_names = set(ignore_exe_names or [])
-        self.pref = pref or Preference(
-            new_window_as_master=True,
-            gap=2,
-            theme_name=self.themes[0].name,
-        )
+        self.theme = self.themes[0].name
         self.sync(init=True)
 
     def get_virtdesk_state(self, hwnd: Optional[HWND] = None) -> VirtDeskState:
         """Retrieve virtual desktop state"""
-        while hwnd is None:
-            hwnd = get_foreground_window()
-            time.sleep(0.1)
+        # Hey, M$, why not just offer an API so we can know which virtual desktop is current active? WHY?
+        proc = None
+        # try to use the first app window
+        if hwnd is None:
+            hwnd = get_first_app_window()
+        # last resort: create a temporary window ... :tears:
+        if hwnd is None:
+            hwnd, proc = find_or_create_virtdeskstub()
+
         desktop_id = virtual_desktop_manager.GetWindowDesktopId(hwnd)
         # print("desktop id", desktop_id)
         virtdesk_state = self._state.get(desktop_id)
@@ -262,13 +265,13 @@ class WindowManager:
             # make sure monitor_state for current virtual desktop exists
             virtdesk_state = VirtDeskState(self, desktop_id)
             self._state[desktop_id] = virtdesk_state
+        if proc:
+            proc.kill()
         return virtdesk_state
 
-    def sync(self, init=False) -> bool:
+    def sync(self, init=False, restrict=False) -> bool:
         """Update manager state(monitors, windows) to match OS's and arrange windows if it is changed"""
         normal_windows = list(get_normal_windows())
-        if not normal_windows:
-            return
         virtdesk_state = self.get_virtdesk_state(normal_windows[0].handle)
         # gather all normal windows and group them by monitor
         group_wins_by_mons: Dict[Monitor, Set[Window]] = {}
@@ -293,7 +296,7 @@ class WindowManager:
         # pass down to monitor_state for further synchronization
         for monitor, windows in group_wins_by_mons.items():
             monitor_state = virtdesk_state.get_monitor(monitor)
-            monitor_state.sync(windows)
+            monitor_state.sync(windows, restrict=restrict)
 
     def arrange_all_monitors(self):
         virtdesk_state = self.get_virtdesk_state()
@@ -409,9 +412,9 @@ class WindowManager:
             or get_monitor_from_cursor()
         )
         monitor_state = virtdesk_state.get_monitor(monitor)
-        theme_index = self.get_theme_index(monitor_state.pref.theme_name)
+        theme_index = self.get_theme_index(monitor_state.theme)
         new_theme_name = self.themes[(theme_index + delta) % len(self.themes)].name
-        monitor_state.pref.theme_name = new_theme_name
+        monitor_state.theme = new_theme_name
         monitor_state.arrange()
 
     def prev_theme(self):

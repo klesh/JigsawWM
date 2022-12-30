@@ -1,6 +1,7 @@
-from typing import Optional
 from ctypes import *
 from ctypes.wintypes import *
+from typing import Optional
+
 from comtypes import *
 
 # Ref: https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nn-shobjidl_core-ivirtualdesktopmanager
