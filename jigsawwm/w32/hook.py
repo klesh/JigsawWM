@@ -1,8 +1,12 @@
+import enum
+import threading
+import time
 from ctypes import *
 from ctypes.wintypes import *
-import enum
-import time
-import threading
+from functools import partial
+from typing import Callable, Optional, Tuple
+
+from .winevent import HWINEVENTHOOK, WINEVENTHOOKPROC, WinEvent
 
 user32 = WinDLL("user32", use_last_error=True)
 
@@ -17,7 +21,9 @@ ULONG_PTR = WPARAM
 LRESULT = LPARAM
 # LPMSG = POINTER(MSG)
 
+# Hook
 HOOKPROC = WINFUNCTYPE(LRESULT, c_int, WPARAM, LPARAM)
+
 
 # setup api
 
@@ -54,6 +60,8 @@ user32.GetMessageW.argtypes = (
 
 user32.TranslateMessage.argtypes = (LPMSG,)
 user32.DispatchMessageW.argtypes = (LPMSG,)
+
+user32.SetWinEventHook.restype = HWINEVENTHOOK
 
 # keyboard hook definition
 
@@ -123,72 +131,131 @@ class MSLLHOOKDATA(Structure):
 # wrap them all inside Hook class
 
 
+def keyboard(msgid: KBDLLHOOKMSGID, msg: KBDLLHOOKDATA) -> bool:
+    print(
+        "{:15s} {:15s}: vkCode {:3x} scanCode {:3x} flags: {:3d}, time: {} extra: {}".format(
+            Vk(msg.vkCode).name,
+            msgid.name,
+            msg.vkCode,
+            msg.scanCode,
+            msg.flags,
+            msg.time,
+            msg.dwExtraInfo,
+        )
+    )
+
+
 class Hook(threading.Thread):
     """Hook low level keyboard/mouse event
 
     Usage:
     ```
-    def swallow_keyboard_a_key_event(msgid KBDLLHOOKMSGID, data KBDLLHOOKDATA) -> bool:
+    def swallow_keyboard_a_key_event(msgid: KBDLLHOOKMSGID, data: KBDLLHOOKDATA) -> bool:
         return data.vkCode == VirtualKey.VK_A:
 
-    def swallow_mouse_middle_btn_event(msgid MSLLHOOKMSGID, data MSLLHOOKDATA) -> bool:
+    def swallow_mouse_middle_btn_event(msgid: MSLLHOOKMSGID, data: MSLLHOOKDATA) -> bool:
         return msgid == MSLLHOOKMSGID.WM_MBUTTONUP or msgid == MSLLHOOKMSGID.WM_MBUTTONDOWN:
-    Hook(keyboard=swallow_keyboard_a_key_event, mouse=swallow_mouse_middle_btn_event)
+
+    def winevent(
+        event: WinEvent,
+        hwnd: HWND,
+        id_obj: LONG,
+        id_chd: LONG,
+        id_evt_thread: DWORD,
+        time: DWORD,
+    ):
+        pass
+
+
+    hook = Hook()
+    kbd_hook_id = hook.install_keyboard_hook(swallow_keyboard_a_key_event)
+    mouse_hook_id = hook.install_mouse_hook(swallow_mouse_middle_btn_event)
+    winevent_hook_id = hook.install_winevent_hook()
+    hook.start()
     ```
 
     :param **kwargs:
     """
 
-    SUPPORTED_HOOKS = {
-        # hook_name: (idHook, wParamMsgId lParamStruct)
-        "keyboard": (13, KBDLLHOOKMSGID, KBDLLHOOKDATA),
-        "mouse": (14, MSLLHOOKMSGID, MSLLHOOKDATA),
-    }
-
-    def __init__(
-        self,
-        **kwargs,
-    ):
-        for hook_name in kwargs.keys():
-            if hook_name not in self.SUPPORTED_HOOKS:
-                raise Exception(f"unsupported hook {hook_name}")
-        self._specified_hooks = kwargs
+    def __init__(self):
+        self._installed_hooks = {}
+        self._queue = []
         super().__init__()
 
-    def _install_hook(self, hook_id, wparam_type, lparam_type, handler):
+    def _install_hook(
+        self, hook_id, wparam_type, lparam_type, handler
+    ) -> Tuple[HANDLE, Callable]:
+        # for the hooks to work, note that only low level keyboard/mouse work this way
+        # while others require DLL injection
         @HOOKPROC
         def proc(nCode, wParam, lParam):
             if nCode == HC_ACTION:
                 wparam = wparam_type(wParam)
-                lparam = cast(lParam, lparam_type)[0]
+                lparam = cast(lParam, POINTER(lparam_type))[0]
                 if handler(wparam, lparam):
                     return 1
             return user32.CallNextHookEx(None, nCode, wParam, lParam)
 
-        hhook = user32.SetWindowsHookExW(hook_id, proc, None, 0)
-        return proc, hhook
+        hook = user32.SetWindowsHookExW(hook_id, proc, None, 0)
+        return hook, proc
 
-    def _install_hooks(self):
-        self._installed_procs = {}
-        self._installed_hooks = {}
-        for name, handler in self._specified_hooks.items():
-            hook_id, wparam_type, lparam_type = self.SUPPORTED_HOOKS[name]
-            proc, hook = self._install_hook(
-                hook_id,
-                wparam_type,
-                POINTER(lparam_type),
-                handler,
+    def _install_winevent_hook(
+        self,
+        event_min: WinEvent,
+        event_max: WinEvent,
+        cb: Callable[[WinEvent, HWND, LONG, LONG, DWORD, DWORD], None],
+    ) -> Tuple[HANDLE, Callable]:
+        @WINEVENTHOOKPROC
+        def proc(hhook, event, hwnd, id_obj, id_chd, id_evt_thread, dwms_evt_time):
+            cb(WinEvent(event), hwnd, id_obj, id_chd, id_evt_thread, dwms_evt_time)
+
+        hook = user32.SetWinEventHook(
+            DWORD(event_min.value),
+            DWORD(event_max.value),
+            HMODULE(None),
+            proc,
+            0,
+            0,
+            0,  # WINEVENT_OUTOFCONTEXT
+        )
+        return hook, proc
+
+    def install_keyboard_hook(
+        self, callback: Callable[[KBDLLHOOKMSGID, KBDLLHOOKDATA], bool]
+    ):
+        self._queue.append(
+            partial(self._install_hook, 13, KBDLLHOOKMSGID, KBDLLHOOKDATA, callback)
+        )
+
+    def install_mouse_hook(
+        self, callback: Callable[[MSLLHOOKMSGID, MSLLHOOKDATA], bool]
+    ):
+        self._queue.append(
+            partial(self._install_hook, 14, MSLLHOOKMSGID, MSLLHOOKDATA, callback)
+        )
+
+    def install_winevent_hook(
+        self,
+        callback: Callable[[WinEvent, HWND, LONG, LONG, DWORD, DWORD], None],
+        event_min: WinEvent,
+        event_max: Optional[WinEvent] = None,
+    ):
+        self._queue.append(
+            partial(
+                self._install_winevent_hook, event_min, event_max or event_min, callback
             )
-            # hold the references for the hook to work properly
-            self._installed_procs[name] = proc
-            self._installed_hooks[name] = hook
+        )
 
     def run(self):
-        self._install_hooks()
-        # for the hooks to work, note that only low level keyboard/mouse work this way
-        # while others require DLL injection
+        # IMPORTANT: the hook must be installed in the thread!
         msg = MSG()
         while True:
+            # install pending hooks
+            while self._queue:
+                install_hook = self._queue.pop()
+                hook, proc = install_hook()
+                self._installed_hooks[hook] = proc
+
             bRet = user32.GetMessageW(byref(msg), None, 0, 0)
             if not bRet:
                 break
@@ -227,10 +294,49 @@ if __name__ == "__main__":
         )
         print("{:15s}: {}".format(msgid.name, msg))
 
-    hook = Hook(
-        keyboard=keyboard,
-        mouse=mouse,
+    def winevent(
+        event: WinEvent,
+        hwnd: HWND,
+        id_obj: LONG,
+        id_chd: LONG,
+        id_evt_thread: DWORD,
+        time: DWORD,
+    ):
+
+        title = create_unicode_buffer(255)
+        user32.GetWindowTextW(hwnd, title, 255)
+        # if not title.value or id_obj or id_chd:
+        #     return
+        is_top_hwnd = user32.IsTopLevelWindow(hwnd)
+        if not is_top_hwnd:
+            return
+        print(
+            event.name,
+            "HWND:",
+            hwnd,
+            "title:",
+            title.value,
+            "id_obj:",
+            id_obj,
+            "id_chd:",
+            id_chd,
+            "id_evt_thread:",
+            id_evt_thread,
+        )
+
+    hook = Hook()
+    # hook.install_winevent_hook(winevent, WinEvent.EVENT_SYSTEM_MOVESIZEEND)
+    # hook.install_winevent_hook(winevent, WinEvent.EVENT_SYSTEM_MINIMIZESTART, WinEvent.EVENT_SYSTEM_MINIMIZEEND)
+    # hook.install_winevent_hook(
+    #     winevent, WinEvent.EVENT_OBJECT_SHOW, WinEvent.EVENT_OBJECT_HIDE
+    # )
+    # hook.install_winevent_hook(
+    #     winevent, WinEvent.EVENT_OBJECT_CREATE, WinEvent.EVENT_OBJECT_DESTROY
+    # )
+    hook.install_winevent_hook(
+        winevent, WinEvent.EVENT_SYSTEM_FOREGROUND, WinEvent.EVENT_SYSTEM_END
     )
+    # hook.install_keyboard_hook(keyboard)
     hook.start()
 
     while True:

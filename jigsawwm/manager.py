@@ -1,31 +1,33 @@
-from typing import Set, Dict, List, Optional
+import time
+from dataclasses import dataclass, replace
+from os import path
+from typing import Dict, List, Optional, Set
+
+from jigsawwm.tiler.tilers import *
+from jigsawwm.w32.ivirtualdesktopmanager import GUID, virtual_desktop_manager
 from jigsawwm.w32.monitor import (
     Monitor,
-    get_monitor_from_window,
     get_monitor_from_cursor,
+    get_monitor_from_window,
     set_cursor_pos,
 )
 from jigsawwm.w32.window import (
+    HWND,
+    RECT,
     Window,
-    get_normal_windows,
+    first_desktop_window,
     get_active_window,
     get_foreground_window,
-    first_desktop_window,
-    RECT,
-    HWND,
+    get_normal_windows,
 )
-from jigsawwm.w32.ivirtualdesktopmanager import GUID, virtual_desktop_manager
-from jigsawwm.tiler.tilers import *
-from os import path
-from dataclasses import dataclass, replace
-import time
 
 
 @dataclass
 class Preference:
-    new_window_as_master: bool
-    gap: int
-    theme_name: str
+    new_window_as_master: Optional[bool] = None
+    gap: Optional[int] = None
+    theme_name: Optional[str] = None
+    strict: Optional[bool] = None
 
 
 @dataclass
@@ -51,7 +53,7 @@ class MonitorState:
     ):
         self.virtdesk_state = virtdesk_state
         self.monitor = monitor
-        self.pref = pref or replace(virtdesk_state.manager.pref)
+        self.pref = pref or Preference()
         self.windows = []
 
     def get_theme(self) -> Theme:
@@ -74,17 +76,17 @@ class MonitorState:
                 continue
             new_list.append(w)
         # and then, prepend or append the new windows
-        if self.pref.new_window_as_master:
+        new_window_as_master = self.pref.new_window_as_master
+        if new_window_as_master is None:
+            new_window_as_master = self.virtdesk_state.manager.pref.new_window_as_master
+        if new_window_as_master:
             new_list = list(windows) + new_list
         else:
             new_list = new_list + list(windows)
-        # skip if there is nothing changed
+        # skip if there is nothing changed, unless Strict mode is enable
         if new_list == old_list:
+            self.restrict()
             return
-        # print()
-        # print(self.virtdesk_state.desktop_id)
-        # print("newlist", new_list)
-        # print("oldlist", old_list)
         self.windows = new_list
         self.arrange()
 
@@ -98,6 +100,8 @@ class MonitorState:
         windows = self.get_existing_windows()
         i = 0
         gap = self.pref.gap
+        if gap is None:
+            gap = self.virtdesk_state.manager.pref.gap
         for (left, top, right, bottom) in theme.layout_tiler(work_area, len(windows)):
             window = windows[i]
             # add gap
@@ -133,6 +137,16 @@ class MonitorState:
             )
             window.set_rect(RECT(*compensated_rect))
             i += 1
+
+    def restrict(self):
+        """Restrict all managed windows to their specified rect"""
+        strict = self.pref.strict
+        if strict is None:
+            strict = self.virtdesk_state.manager.pref.strict
+        if not strict:
+            return
+        for window in self.windows:
+            window.set_rect(window.last_rect)
 
 
 class VirtDeskState:
@@ -234,6 +248,7 @@ class WindowManager:
             gap=2,
             theme_name=self.themes[0].name,
         )
+        self.sync(init=True)
 
     def get_virtdesk_state(self, hwnd: Optional[HWND] = None) -> VirtDeskState:
         """Retrieve virtual desktop state"""
@@ -249,7 +264,7 @@ class WindowManager:
             self._state[desktop_id] = virtdesk_state
         return virtdesk_state
 
-    def sync(self) -> bool:
+    def sync(self, init=False) -> bool:
         """Update manager state(monitors, windows) to match OS's and arrange windows if it is changed"""
         normal_windows = list(get_normal_windows())
         if not normal_windows:
@@ -263,7 +278,7 @@ class WindowManager:
             if path.basename(window.exe) in self.ignore_exe_names:
                 continue
             # if window was already managed, use previous monitor, or use the one under the cursor
-            if window in virtdesk_state.managed_windows:
+            if init or window in virtdesk_state.managed_windows:
                 monitor = get_monitor_from_window(window.handle)
             else:
                 monitor = get_monitor_from_cursor()

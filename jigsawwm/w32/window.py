@@ -1,12 +1,13 @@
+import enum
+import time
 from ctypes import *
 from ctypes.wintypes import *
-from typing import List, Iterator, Optional
 from dataclasses import dataclass
-import enum
+from typing import Iterator, List, Optional
+
 from . import process
 from .sendinput import *
 from .vk import Vk
-
 
 user32 = WinDLL("user32", use_last_error=True)
 kernel32 = WinDLL("kernel32", use_last_error=True)
@@ -494,6 +495,7 @@ def set_active_window(window: Window) -> bool:
         user32.SetForegroundWindow(window.handle)
         new_fore_window = user32.GetForegroundWindow()
         retry -= 1
+        time.sleep(0.01)
     # print(
     #     f"our: {our_thread_id}   fore: {fore_thread_id}   target{target_thread_id}  succeeded: {new_fore_window == window.handle}"
     # )

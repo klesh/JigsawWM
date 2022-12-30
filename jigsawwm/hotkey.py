@@ -165,7 +165,7 @@ def combination_input(target: str) -> Callable:
 _modifier = Modifier(0)
 
 
-def _keyboard_proc(msgid: KBDLLHOOKMSGID, msg: KBDLLHOOKDATA) -> bool:
+def keyboard_event_handler(msgid: KBDLLHOOKMSGID, msg: KBDLLHOOKDATA) -> bool:
     global _hotkeys, _executor
     # skip key we sent out
     if is_synthesized(msg):
@@ -206,8 +206,6 @@ def _keyboard_proc(msgid: KBDLLHOOKMSGID, msg: KBDLLHOOKDATA) -> bool:
             return swallow
 
 
-hook = Hook(keyboard=_keyboard_proc)
-
 if __name__ == "__main__":
     import time
 
@@ -217,6 +215,8 @@ if __name__ == "__main__":
 
     hotkey([Vk.LWIN, Vk.B], delay_hello, True)
 
+    hook = Hook()
+    hook.install_keyboard_hook(keyboard_event_handler)
     hook.start()
 
     while True:

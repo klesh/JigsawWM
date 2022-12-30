@@ -1,8 +1,9 @@
-from jigsawwm.daemon import Daemon
-from jigsawwm.manager import WindowManager
-from jigsawwm.w32.vk import Vk
-from jigsawwm.w32.window import toggle_maximize_active_window, minimize_active_window
 import pystray
+
+from jigsawwm.daemon import Daemon
+from jigsawwm.manager import Preference, WindowManager
+from jigsawwm.w32.vk import Vk
+from jigsawwm.w32.window import minimize_active_window, toggle_maximize_active_window
 
 
 class MyDaemon(Daemon):
@@ -23,8 +24,8 @@ class MyDaemon(Daemon):
                 "notepad++.exe",
                 "PotPlayerMini64.exe",
             ],
+            pref=Preference(gap=2, strict=True),
         )
-        self.wm = wm
 
         # setup hotkeys
         self.hotkey([Vk.WIN, Vk.J], wm.activate_next)
@@ -42,8 +43,7 @@ class MyDaemon(Daemon):
         # setup trayicon menu
         self.menu_items = [pystray.MenuItem("Arrange All", wm.arrange_all_monitors)]
 
-        # setup sync frequency
-        self.timer(1, wm.sync)
+        return wm
 
 
 MyDaemon().start()
