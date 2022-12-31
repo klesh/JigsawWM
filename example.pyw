@@ -40,6 +40,7 @@ class MyDaemon(Daemon):
                 "ApplicationFrameHost.exe",
                 "notepad++.exe",
                 "PotPlayerMini64.exe",
+                "mintty.exe",
             ],
         )
 

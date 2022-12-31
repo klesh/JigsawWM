@@ -22,7 +22,7 @@ from jigsawwm.w32.window import (
     get_active_window,
     get_first_app_window,
     get_foreground_window,
-    get_normal_windows,
+    get_manageable_windows,
     sprint_window,
 )
 
@@ -262,8 +262,12 @@ class WindowManager:
         if hwnd is None:
             hwnd, proc = find_or_create_virtdeskstub()
 
-        desktop_id = virtual_desktop_manager.GetWindowDesktopId(hwnd)
-        if desktop_id == GUID():
+        desktop_id = None
+        try:
+            desktop_id = virtual_desktop_manager.GetWindowDesktopId(hwnd)
+        except Exception as e:
+            pass
+        if desktop_id is None or desktop_id == GUID():
             wininfo = sprint_window(hwnd)
             raise Exception("invalid desktop_id\n" + wininfo)
         # print("desktop id", desktop_id)
@@ -278,12 +282,14 @@ class WindowManager:
 
     def sync(self, init=False, restrict=False) -> bool:
         """Update manager state(monitors, windows) to match OS's and arrange windows if it is changed"""
-        normal_windows = list(get_normal_windows())
-        virtdesk_state = self.get_virtdesk_state(normal_windows[0].handle)
-        # gather all normal windows and group them by monitor
+        manageable_windows = list(get_manageable_windows())
+        if not manageable_windows:
+            return
+        virtdesk_state = self.get_virtdesk_state(manageable_windows[0].handle)
+        # gather all manageable windows and group them by monitor
         group_wins_by_mons: Dict[Monitor, Set[Window]] = {}
         managed_windows = set()
-        for window in normal_windows:
+        for window in manageable_windows:
             # skip certain exe file name
             if path.basename(window.exe) in self.ignore_exe_names:
                 continue

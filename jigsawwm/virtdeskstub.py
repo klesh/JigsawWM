@@ -83,7 +83,7 @@ if __name__ == "__main__":
         hwnd = find_or_create_virtdeskstub()
         print("hwnd", hwnd)
         if hwnd:
-            inspect_window(Window(hwnd))
+            inspect_window(hwnd)
             try:
                 virtual_desktop_manager.GetWindowDesktopId(hwnd)
             except:

@@ -5,53 +5,42 @@ from ctypes import *
 from ctypes.wintypes import *
 from dataclasses import dataclass
 from io import StringIO
-from typing import Iterator, List, Optional
+from typing import Callable, Iterator, List, Optional
 
 from . import process
 from .sendinput import *
 from .vk import Vk
+from .window_structs import *
 
 user32 = WinDLL("user32", use_last_error=True)
 kernel32 = WinDLL("kernel32", use_last_error=True)
 dwmapi = WinDLL("dwmapi", use_last_error=True)
 
 
-def enum_windows() -> List[HWND]:
+def enum_windows(
+    check: Optional[Callable[[HWND], EnumCheckResult]] = None
+) -> List[HWND]:
     """Returns a List of all top-level windows on the screen.
 
+    :param check: to determinate if a HWN should be added to list, or stop iteration
+
     :return: list of window handles
     :rtype: List[HWND]
     """
+    check = check or (lambda _: 1)
     hwnds = []
 
     @WINFUNCTYPE(BOOL, HWND, LPARAM)
     def enum_windows_proc(hwnd: HWND, lParam: LPARAM) -> BOOL:
-        hwnds.append(hwnd)
-        return True
+        r = check(hwnd)
+        if EnumCheckResult.CAPTURE in r:
+            hwnds.append(hwnd)
+        return EnumCheckResult.STOP not in r
 
     if not user32.EnumWindows(enum_windows_proc, None):
-        raise WinError(get_last_error())
-    return hwnds
-
-
-def enum_desktop_windows(hdst: Optional[HDESK] = None) -> List[HWND]:
-    """Returns a List of all top-level windows associated with the specified desktop.
-
-    Ref: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-enumdesktopwindows
-
-    :param hdst: HDESK, optional. If this parameter is NULL, the current desktop is used.
-    :return: list of window handles
-    :rtype: List[HWND]
-    """
-    hwnds = []
-
-    @WINFUNCTYPE(BOOL, HWND, LPARAM)
-    def enum_windows_proc(hwnd: HWND, lParam: LPARAM) -> BOOL:
-        hwnds.append(hwnd)
-        return True
-
-    if not user32.EnumDesktopWindows(hdst, enum_windows_proc, None):
-        raise WinError(get_last_error())
+        last_error = get_last_error()
+        if last_error:
+            raise WinError(last_error)
     return hwnds
 
 
@@ -59,18 +48,86 @@ def get_foreground_window() -> HWND:
     return user32.GetForegroundWindow()
 
 
-def is_app_window(hwnd: HWND) -> bool:
-    w = Window(hwnd)
-    # if w.is_cloaked:
-    #     return True
-    style = w.get_style()
-    if (
-        WindowStyle.VISIBLE not in style
-        or WindowStyle.TOOLWINDOW in style
-        or WindowStyle.CAPTION not in style
-    ):
-        return False
-    return True
+def get_window_style(hwnd: HWND) -> WindowStyle:
+    return WindowStyle(user32.GetWindowLongA(hwnd, -16))
+
+
+def get_window_exstyle(hwnd: HWND) -> WindowExStyle:
+    return WindowStyle(user32.GetWindowLongA(hwnd, -20))
+
+
+def show_window(hwnd: HWND, cmd: ShowWindowCmd):
+    user32.ShowWindow(hwnd, cmd)
+
+
+def minimize_window(hwnd: HWND):
+    show_window(hwnd, ShowWindowCmd.SW_MINIMIZE)
+
+
+def maximize_window(hwnd: HWND):
+    show_window(hwnd, ShowWindowCmd.SW_MAXIMIZE)
+
+
+def restore_window(hwnd: HWND):
+    show_window(hwnd, ShowWindowCmd.SW_RESTORE)
+
+
+def get_window_title(hwnd: HWND) -> str:
+    title = create_unicode_buffer(255)
+    user32.GetWindowTextW(hwnd, title, 255)
+    return str(title.value)
+
+
+def get_window_class_name(hwnd: HWND) -> str:
+    buff = create_unicode_buffer(100)
+    user32.GetClassNameW(hwnd, buff, 100)
+    return str(buff.value)
+
+
+def get_window_pid(hwnd: HWND) -> DWORD:
+    pid = DWORD()
+    user32.GetWindowThreadProcessId(hwnd, pointer(pid))
+    return pid
+
+
+def is_window_visible(hwnd: HWND) -> bool:
+    return bool(user32.IsWindowVisible(hwnd))
+
+
+def is_window_cloaked(hwnd: HWND) -> bool:
+    cloaked = INT()
+    windll.dwmapi.DwmGetWindowAttribute(
+        hwnd,
+        DwmWindowAttribute.DWMWA_CLOAKED,
+        pointer(cloaked),
+        sizeof(cloaked),
+    )
+    return bool(cloaked.value)
+
+
+def is_window(hwnd: HWND) -> bool:
+    return user32.IsWindow(hwnd)
+
+
+def is_app_window(hwnd: HWND, style: Optional[WindowExStyle] = None) -> bool:
+    style = style or get_window_style(hwnd)
+    return (
+        get_window_title(hwnd)
+        and not is_window_cloaked(hwnd)
+        and WindowStyle.VISIBLE in style
+        and (WindowStyle.MAXIMIZEBOX & style or WindowStyle.MINIMIZEBOX & style)
+        and not process.is_elevated(get_window_pid(hwnd))
+    )
+
+
+def is_manageable_window(hwnd: HWND) -> bool:
+    style = get_window_style(hwnd)
+    return (
+        is_app_window(hwnd, style)
+        and WindowStyle.MAXIMIZEBOX & style
+        and WindowStyle.MINIMIZEBOX & style
+        and not WindowStyle.MINIMIZE & style
+    )
 
 
 def get_first_app_window() -> HWND:
@@ -78,146 +135,42 @@ def get_first_app_window() -> HWND:
     if is_app_window(hwnd):
         return hwnd
 
-    hwnds = []
+    hwnds = enum_windows(
+        lambda hwnd: EnumCheckResult.CAPTURE_AND_STOP
+        if is_app_window(hwnd)
+        else EnumCheckResult.SKIP
+    )
 
-    @WINFUNCTYPE(BOOL, HWND, LPARAM)
-    def enum_windows_proc(hwnd: HWND, lParam: LPARAM) -> BOOL:
-        # inspect_window(w)
-        if is_app_window(hwnd):
-            hwnds.append(hwnd)
-            return False
-        return True
-
-    user32.EnumDesktopWindows(None, enum_windows_proc, None)
     if hwnds:
         return hwnds[0]
 
 
-class WindowStyle(enum.IntFlag):
-    """The object that holds the window styles.
-
-    Ref: https://docs.microsoft.com/en-us/windows/win32/winmsg/window-styles
-    """
-
-    BORDER = 0x00800000
-    CAPTION = 0x00C00000
-    CHILD = 0x40000000
-    CHILDWINDOW = 0x40000000
-    CLIPCHILDREN = 0x02000000
-    CLIPSIBLINGS = 0x04000000
-    DISABLED = 0x08000000
-    DLGFRAME = 0x00400000
-    GROUP = 0x00020000
-    HSCROLL = 0x00100000
-    ICONIC = 0x20000000
-    MAXIMIZE = 0x01000000
-    MAXIMIZEBOX = 0x00010000
-    MINIMIZE = 0x20000000
-    MINIMIZEBOX = 0x00020000
-    OVERLAPPED = 0x00000000
-    POPUP = 0x80000000
-    SIZEBOX = 0x00040000
-    SYSMENU = 0x00080000
-    TABSTOP = 0x00010000
-    THICKFRAME = 0x00040000
-    TILED = 0x00000000
-    TOOLWINDOW = 0x00000080
-    VISIBLE = 0x10000000
-    VSCROLL = 0x00200000
-    OVERLAPPEDWINDOW = (
-        OVERLAPPED | CAPTION | SYSMENU | THICKFRAME | MINIMIZEBOX | MAXIMIZEBOX
+def get_window_extended_frame_bounds(hwnd: HWND) -> RECT:
+    bound = RECT()
+    windll.dwmapi.DwmGetWindowAttribute(
+        hwnd,
+        DwmWindowAttribute.DWMWA_EXTENDED_FRAME_BOUNDS,
+        pointer(bound),
+        sizeof(bound),
     )
-    POPUPWINDOW = POPUP | BORDER | SYSMENU
-    TILEDWINDOW = (
-        OVERLAPPED | CAPTION | SYSMENU | THICKFRAME | MINIMIZEBOX | MAXIMIZEBOX
-    )
+    return bound
 
 
-class ExWindowStyle(enum.IntFlag):
-    """The object that holds the extended window styles.
-
-    Ref: https://docs.microsoft.com/en-us/windows/win32/winmsg/extended-window-styles>
-    """
-
-    ACCEPTFILES = 0x00000010
-    APPWINDOW = 0x00040000
-    CLIENTEDGE = 0x00000200
-    COMPOSITED = 0x02000000
-    CONTEXTHELP = 0x00000400
-    CONTROLPARENT = 0x00010000
-    DLGMODALFRAME = 0x00000001
-    LAYERED = 0x00080000
-    LAYOUTRTL = 0x00400000
-    LEFT = 0x00000000
-    LEFTSCROLLBAR = 0x00004000
-    LTRREADING = 0x00000000
-    MDICHILD = 0x00000040
-    NOACTIVATE = 0x08000000
-    NOINHERITLAYOUT = 0x00100000
-    NOPARENTNOTIFY = 0x00000004
-    NOREDIRECTIONBITMAP = 0x00200000
-    RIGHT = 0x00001000
-    RIGHTSCROLLBAR = 0x00000000
-    RTLREADING = 0x00002000
-    STATICEDGE = 0x00020000
-    TOOLWINDOW = 0x00000080
-    TOPMOST = 0x00000008
-    TRANSPARENT = 0x00000020
-    WINDOWEDGE = 0x00000100
-    OVERLAPPEDWINDOW = WINDOWEDGE | CLIENTEDGE
-    PALETTEWINDOW = WINDOWEDGE | TOOLWINDOW | TOPMOST
+def get_window_rect(hwnd: HWND) -> RECT:
+    rect = RECT()
+    if not user32.GetWindowRect(hwnd, pointer(rect)):
+        raise WinError(get_last_error())
+    return rect
 
 
-class ShowWindowCmd(enum.IntFlag):
-    """The object that holds the CmdShow for ShowWindow api
-
-    Ref: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow
-    """
-
-    SW_HIDE = 0
-    SW_MAXIMIZE = 3
-    SW_MINIMIZE = 6
-    SW_RESTORE = 9
-    SW_SHOW = 5
-    SW_SHOWMAXIMIZED = 3
-    SW_SHOWMINIMIZED = 2
-    SW_SHOWMINNOACTIVE = 7
-    SW_SHOWNA = 8
-    SW_SHOWNOACTIVATE = 4
-    SW_SHOWNORMAL = 1
+SWP_NOACTIVATE = 0x0010
+SET_WINDOW_RECT_FLAG = SWP_NOACTIVATE
 
 
-class DwmWindowAttribute(enum.IntEnum):
-    """Options used by the DwmGetWindowAttribute and DwmSetWindowAttribute functions.
-
-    Ref: https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/ne-dwmapi-dwmwindowattribute
-    """
-
-    DWMWA_NCRENDERING_ENABLED = 1
-    DWMWA_NCRENDERING_POLICY = 2
-    DWMWA_TRANSITIONS_FORCEDISABLED = 3
-    DWMWA_ALLOW_NCPAINT = 4
-    DWMWA_CAPTION_BUTTON_BOUNDS = 5
-    DWMWA_NONCLIENT_RTL_LAYOUT = 6
-    DWMWA_FORCE_ICONIC_REPRESENTATION = 7
-    DWMWA_FLIP3D_POLICY = 8
-    DWMWA_EXTENDED_FRAME_BOUNDS = 9
-    DWMWA_HAS_ICONIC_BITMAP = 10
-    DWMWA_DISALLOW_PEEK = 11
-    DWMWA_EXCLUDED_FROM_PEEK = 12
-    DWMWA_CLOAK = 13
-    DWMWA_CLOAKED = 14
-    DWMWA_FREEZE_REPRESENTATION = 15
-    DWMWA_PASSIVE_UPDATE_MODE = 16
-    DWMWA_USE_HOSTBACKDROPBRUSH = 17
-    DWMWA_USE_IMMERSIVE_DARK_MODE = (20,)
-    DWMWA_WINDOW_CORNER_PREFERENCE = (33,)
-    DWMWA_BORDER_COLOR = 34
-    DWMWA_CAPTION_COLOR = 35
-    DWMWA_TEXT_COLOR = 36
-    DWMWA_VISIBLE_FRAME_BORDER_THICKNESS = 37
-    DWMWA_SYSTEMBACKDROP_TYPE = 38
-    DWMWA_LAST = 39
+def set_window_rect(hwnd: HWND, rect: RECT):
+    x, y, w, h = rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top
+    if not user32.SetWindowPos(hwnd, None, x, y, w, h, SET_WINDOW_RECT_FLAG):
+        raise WinError(get_last_error())
 
 
 @dataclass
@@ -228,15 +181,6 @@ class Window:
     """
 
     _hwnd: HWND
-    _rect = None
-    _exepath = None
-    _pid = None
-    _elevated = None
-    _title = None
-    _class_name = None
-    _cloaked = None
-    _ncrendering = None
-    _bound = None
     _last_rect = None
 
     def __init__(self, hwnd: HWND):
@@ -261,11 +205,7 @@ class Window:
         :return: text of the title bar
         :rtype: str
         """
-        # length = user32.GetWindowTextLengthW(self.hwnd)
-        if self._title is None:
-            self._title = create_unicode_buffer(255)
-        user32.GetWindowTextW(self._hwnd, self._title, 255)
-        return str(self._title.value)
+        return get_window_title(self._hwnd)
 
     @property
     def class_name(self):
@@ -276,11 +216,7 @@ class Window:
         :return: class name
         :rtype: str
         """
-        if self._class_name is None:  # class_name would never change
-            buff = create_unicode_buffer(100)
-            user32.GetClassNameW(self._hwnd, buff, 100)
-            self._class_name = str(buff.value)
-        return self._class_name
+        return get_window_class_name(self._hwnd)
 
     @property
     def exe(self):
@@ -289,9 +225,7 @@ class Window:
         :return: full path of the executable
         :rtype: str
         """
-        if self._exepath is None:
-            self._exepath = process.get_exepath(self.pid)
-        return self._exepath
+        return process.get_exepath(self.pid)
 
     @property
     def pid(self) -> int:
@@ -300,11 +234,7 @@ class Window:
         :return: process id
         :rtype: int
         """
-        if self._pid is None:  # pid would never change
-            pid = DWORD()
-            user32.GetWindowThreadProcessId(self._hwnd, pointer(pid))
-            self._pid = pid.value
-        return self._pid
+        return get_window_pid(self._hwnd)
 
     @property
     def is_visible(self) -> bool:
@@ -315,7 +245,7 @@ class Window:
             Otherwise, the return value is `False`.
         :rtype: bool
         """
-        return bool(user32.IsWindowVisible(self._hwnd))
+        return is_window_visible(self._hwnd)
 
     def get_style(self) -> WindowStyle:
         """Retrieves style
@@ -323,7 +253,7 @@ class Window:
         :return: window style
         :rtype: WindowStyle
         """
-        return WindowStyle(user32.GetWindowLongA(self._hwnd, -16))
+        return get_window_style(self._hwnd)
 
     def get_exstyle(self) -> int:
         """Retrieves ex-style
@@ -331,20 +261,20 @@ class Window:
         :return: window ex-style
         :rtype: ExWindowStyle
         """
-        return ExWindowStyle(user32.GetWindowLongA(self._hwnd, -20))
+        return get_window_exstyle(self._hwnd)
 
     def minimize(self):
         """Minimizes the specified window and activates the next top-level window in the Z order."""
-        user32.ShowWindow(self._hwnd, ShowWindowCmd.SW_MINIMIZE)
+        minimize_window(self._hwnd)
 
     def maximize(self):
         """Activates the window and displays it as a maximized window."""
-        user32.ShowWindow(self._hwnd, ShowWindowCmd.SW_MAXIMIZE)
+        maximize_window(self._hwnd)
 
     def restore(self):
         """Activates and displays the window. If the window is minimized or maximized,
         the system restores it to its original size and position."""
-        user32.ShowWindow(self._hwnd, ShowWindowCmd.SW_RESTORE)
+        restore_window(self._hwnd)
 
     def toggle_maximize(self):
         """Toggle maximize style"""
@@ -354,16 +284,9 @@ class Window:
             self.maximize()
 
     @property
-    def is_top_level(self):
-        """Check if window is top level window"""
-        return bool(user32.IsTopLevelWindow(self._hwnd))
-
-    @property
     def is_evelated(self):
         """Check if window is elevated (Administrator)"""
-        if self._elevated is None:  # would never change
-            self._elevated = process.is_elevated(self.pid)
-        return self._elevated
+        return process.is_elevated(self.pid)
 
     @property
     def is_cloaked(self) -> bool:
@@ -371,49 +294,17 @@ class Window:
 
         Ref: https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/ne-dwmapi-dwmwindowattribute
         """
-        if self._cloaked is None:
-            self._cloaked = INT()
-        windll.dwmapi.DwmGetWindowAttribute(
-            self._hwnd,
-            DwmWindowAttribute.DWMWA_CLOAKED,
-            pointer(self._cloaked),
-            sizeof(self._cloaked),
-        )
-        return bool(self._cloaked.value)
+        return is_window_cloaked(self._hwnd)
 
     def exists(self) -> bool:
-        return user32.IsWindow(self._hwnd)
-
-    @property
-    def is_non_client_rendering_enable(self) -> bool:
-        """Check if non-client rendering is enabled (DWM)
-
-        Ref: https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/ne-dwmapi-dwmwindowattribute
-        """
-        if self._ncrendering is None:
-            self._ncrendering = BOOL()
-        windll.dwmapi.DwmGetWindowAttribute(
-            self._hwnd,
-            DwmWindowAttribute.DWMWA_NCRENDERING_ENABLED,
-            pointer(self._ncrendering),
-            sizeof(self._ncrendering),
-        )
-        return bool(self._ncrendering.value)
+        return is_window(self._hwnd)
 
     def get_extended_frame_bounds(self) -> RECT:
         """Retrieves extended frame bounds
 
         Ref: https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/ne-dwmapi-dwmwindowattribute
         """
-        if self._bound is None:
-            self._bound = RECT()
-        windll.dwmapi.DwmGetWindowAttribute(
-            self._hwnd,
-            DwmWindowAttribute.DWMWA_EXTENDED_FRAME_BOUNDS,
-            pointer(self._bound),
-            sizeof(self._bound),
-        )
-        return self._bound
+        return get_window_extended_frame_bounds(self._hwnd)
 
     def get_rect(self) -> RECT:
         """Retrieves the dimensions of the bounding rectangle of the specified window.
@@ -425,11 +316,7 @@ class Window:
         :return: a RECT with top/left/bottom/right properties
         :rtype: RECT
         """
-        if self._rect is None:
-            self._rect = RECT()
-        if not user32.GetWindowRect(self._hwnd, pointer(self._rect)):
-            raise WinError(get_last_error())
-        return self._rect
+        return get_window_rect(self._hwnd)
 
     def set_rect(self, rect: RECT):
         """Sets the dimensions of the bounding rectangle (Call SetWindowPos with RECT)
@@ -438,9 +325,7 @@ class Window:
 
         :param rect: RECT with top/left/bottom/right properties
         """
-        x, y, w, h = rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top
-        if not user32.SetWindowPos(self._hwnd, None, x, y, w, h, 0):
-            raise WinError(get_last_error())
+        set_window_rect(self._hwnd, rect)
         self._last_rect = rect
 
     def activate(self) -> bool:
@@ -452,38 +337,21 @@ class Window:
         return self._last_rect
 
 
-def get_windows(hdst: Optional[HDESK] = None) -> Iterator[Window]:
-    """Get all windows of specified/current desktop"""
-    return map(Window, enum_desktop_windows(hdst))
-
-
-def get_top_windows(hdst: Optional[HDESK] = None) -> Iterator[Window]:
-    """Get all windows of specified/current desktop"""
-    return map(Window, filter(user32.IsTopLevelWindow, enum_desktop_windows(hdst)))
-
-
-def get_normal_windows(hdst: Optional[HDESK] = None) -> Iterator[Window]:
-    """Get all normal windows of specified/current desktop
-
-    normal windows would not include cloaked / invisible / unmaximizeable / unminimizable windows
-    """
-    for window in get_windows(hdst):
-        style = window.get_style()
-        if (
-            window.title
-            and not window.is_cloaked
-            and WindowStyle.MAXIMIZEBOX & style
-            and WindowStyle.MINIMIZEBOX & style
-            and WindowStyle.VISIBLE & style
-            and not WindowStyle.MINIMIZE & style
-            and not window.is_evelated
-        ):
-            yield window
+def get_manageable_windows() -> Iterator[Window]:
+    """Get all manageable windows of specified/current desktop"""
+    return map(
+        Window,
+        enum_windows(
+            lambda hwnd: EnumCheckResult.CAPTURE
+            if is_manageable_window(hwnd)
+            else EnumCheckResult.SKIP
+        ),
+    )
 
 
 def get_active_window() -> Optional[Window]:
     """Retrieves current activated window"""
-    hwnd = user32.GetForegroundWindow()
+    hwnd = get_foreground_window()
     if hwnd:
         return Window(hwnd)
 
@@ -553,27 +421,26 @@ def toggle_maximize_active_window():
         window.toggle_maximize()
 
 
-def sprint_window(window: Window) -> str:
+def sprint_window(hwnd: HWND) -> str:
     f = StringIO()
-    inspect_window(window, file=f)
+    inspect_window(hwnd, file=f)
     return f.getvalue()
 
 
-def inspect_window(window: Window, file=sys.stdout):
+def inspect_window(hwnd: HWND, file=sys.stdout):
     print(file=file)
+    window = Window(hwnd)
     style = window.get_style()
     exstyle = window.get_exstyle()
-    print(window.title)
+    print("title        :", window.title, file=file)
     print("pid          :", window.pid, file=file)
     print("class name   :", window.class_name, file=file)
     print("exe path     :", window.exe, file=file)
-    print("is_top_level :", window.is_top_level, file=file)
     print("is_elevated  :", window.is_evelated, file=file)
     print("is_visible   :", WindowStyle.VISIBLE in style, file=file)
     print("is_minimized :", WindowStyle.MINIMIZE in style, file=file)
     print("is_cloaked   :", window.is_cloaked, file=file)
     # print("is_active    :", active_window == window)
-    print("is_non_client_rending:", window.is_non_client_rendering_enable, file=file)
     rect = window.get_rect()
     print("rect         :", rect.left, rect.top, rect.right, rect.bottom, file=file)
     bound = window.get_extended_frame_bounds()
@@ -581,24 +448,11 @@ def inspect_window(window: Window, file=sys.stdout):
 
 
 if __name__ == "__main__":
-    # pos = get_cursor_pos()
-    # print(pos.x, pos.y)
-    # hwnds = enum_windows()
+    # import time
 
-    # for hwnd in hwnds:
-    #   wnd = Window(hwnd)
-    #   print(wnd.hwnd, wnd.title)
-    # print(b'\xce\xde\xb1\xea\xcc\xe2 - \xbc\xc7\xca\xc2\xb1\xbe'.decode(locale.getpreferredencoding()))
-    # windows = list(filter(lambda w: (
-    #   w.is_visible and w.title and not w.is_minimized and w.is_minimizable and w.is_maximizable
-    #   and not w.is_cloaked
-    # ), get_windows()))
-    # windows[0].set_rect(RECT(0, 0, 300, 300))
-    import time
-
-    time.sleep(2)
-    inspect_window(get_active_window())
-    # for window in get_normal_windows():
-    #     inspect_window(window)
+    # time.sleep(2)
+    # inspect_window(get_active_window())
+    for window in get_manageable_windows():
+        inspect_window(window)
     # for win in get_windows():
     #     inspect_window(win)
