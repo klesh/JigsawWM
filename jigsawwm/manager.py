@@ -12,6 +12,7 @@ from jigsawwm.w32.monitor import (
     get_monitor_from_cursor,
     get_monitor_from_window,
     get_monitors,
+    get_topo_sorted_monitors,
     set_cursor_pos,
 )
 from jigsawwm.w32.window import (
@@ -22,6 +23,7 @@ from jigsawwm.w32.window import (
     get_first_app_window,
     get_foreground_window,
     get_normal_windows,
+    sprint_window,
 )
 
 
@@ -42,6 +44,7 @@ class MonitorState:
     monitor: Monitor
     theme: Optional[str]
     windows: List[Window]
+    last_active_window: Optional[Window] = None
 
     def __init__(
         self,
@@ -53,6 +56,7 @@ class MonitorState:
         self.monitor = monitor
         self.theme = theme
         self.windows = []
+        self.last_active_window = None
 
     def get_theme(self) -> Theme:
         """Retrieves theme for monitor"""
@@ -259,6 +263,9 @@ class WindowManager:
             hwnd, proc = find_or_create_virtdeskstub()
 
         desktop_id = virtual_desktop_manager.GetWindowDesktopId(hwnd)
+        if desktop_id == GUID():
+            wininfo = sprint_window(hwnd)
+            raise Exception("invalid desktop_id\n" + wininfo)
         # print("desktop id", desktop_id)
         virtdesk_state = self._state.get(desktop_id)
         if virtdesk_state is None:
@@ -311,7 +318,10 @@ class WindowManager:
             rect.left + (rect.right - rect.left) / 2,
             rect.top + (rect.bottom - rect.top) / 2,
         )
-        self.get_virtdesk_state(window.handle).last_active_window = window
+        virtdesk_state = self.get_virtdesk_state(window.handle)
+        virtdesk_state.last_active_window = window
+        monitor = get_monitor_from_window(window.handle)
+        virtdesk_state.get_monitor(monitor).last_active_window = window
 
     def activate_by_offset(self, offset: int):
         """Activate managed window by offset
@@ -422,6 +432,27 @@ class WindowManager:
 
     def next_theme(self):
         self.switch_theme_by_offset(+1)
+
+    def switch_monitor_by_offset(self, delta: int):
+        monitors = get_topo_sorted_monitors()
+        src_monitor = get_monitor_from_cursor()
+        src_idx = monitors.index(src_monitor)
+        dst_idx = (src_idx + delta) % len(monitors)
+        dst_monitor = monitors[dst_idx]
+        virtdesk_state = self.get_virtdesk_state()
+        dst_monitor_state = virtdesk_state.get_monitor(dst_monitor)
+        window = dst_monitor_state.last_active_window
+        if window is None:
+            windows = dst_monitor_state.get_existing_windows()
+            window = windows[0]
+        if window:
+            self.activate(window)
+
+    def prev_monitor(self):
+        self.switch_monitor_by_offset(-1)
+
+    def next_monitor(self):
+        self.switch_monitor_by_offset(+1)
 
 
 if __name__ == "__main__":

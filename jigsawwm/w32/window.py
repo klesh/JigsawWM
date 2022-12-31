@@ -1,8 +1,10 @@
 import enum
+import sys
 import time
 from ctypes import *
 from ctypes.wintypes import *
 from dataclasses import dataclass
+from io import StringIO
 from typing import Iterator, List, Optional
 
 from . import process
@@ -57,24 +59,34 @@ def get_foreground_window() -> HWND:
     return user32.GetForegroundWindow()
 
 
+def is_app_window(hwnd: HWND) -> bool:
+    w = Window(hwnd)
+    # if w.is_cloaked:
+    #     return True
+    style = w.get_style()
+    if (
+        WindowStyle.VISIBLE not in style
+        or WindowStyle.TOOLWINDOW in style
+        or WindowStyle.CAPTION not in style
+    ):
+        return False
+    return True
+
+
 def get_first_app_window() -> HWND:
+    hwnd = get_foreground_window()
+    if is_app_window(hwnd):
+        return hwnd
+
     hwnds = []
 
     @WINFUNCTYPE(BOOL, HWND, LPARAM)
     def enum_windows_proc(hwnd: HWND, lParam: LPARAM) -> BOOL:
-        w = Window(hwnd)
-        # if w.is_cloaked:
-        #     return True
-        style = w.get_style()
-        if (
-            WindowStyle.VISIBLE not in style
-            or WindowStyle.TOOLWINDOW in style
-            or WindowStyle.CAPTION not in style
-        ):
-            return True
         # inspect_window(w)
-        hwnds.append(hwnd)
-        return False
+        if is_app_window(hwnd):
+            hwnds.append(hwnd)
+            return False
+        return True
 
     user32.EnumDesktopWindows(None, enum_windows_proc, None)
     if hwnds:
@@ -541,25 +553,31 @@ def toggle_maximize_active_window():
         window.toggle_maximize()
 
 
-def inspect_window(window: Window):
-    print()
+def sprint_window(window: Window) -> str:
+    f = StringIO()
+    inspect_window(window, file=f)
+    return f.getvalue()
+
+
+def inspect_window(window: Window, file=sys.stdout):
+    print(file=file)
     style = window.get_style()
     exstyle = window.get_exstyle()
     print(window.title)
-    print("pid          :", window.pid)
-    print("class name   :", window.class_name)
-    print("exe path     :", window.exe)
-    print("is_top_level :", window.is_top_level)
-    print("is_elevated  :", window.is_evelated)
-    print("is_visible   :", WindowStyle.VISIBLE in style)
-    print("is_minimized :", WindowStyle.MINIMIZE in style)
-    print("is_cloaked   :", window.is_cloaked)
+    print("pid          :", window.pid, file=file)
+    print("class name   :", window.class_name, file=file)
+    print("exe path     :", window.exe, file=file)
+    print("is_top_level :", window.is_top_level, file=file)
+    print("is_elevated  :", window.is_evelated, file=file)
+    print("is_visible   :", WindowStyle.VISIBLE in style, file=file)
+    print("is_minimized :", WindowStyle.MINIMIZE in style, file=file)
+    print("is_cloaked   :", window.is_cloaked, file=file)
     # print("is_active    :", active_window == window)
-    print("is_non_client_rending:", window.is_non_client_rendering_enable)
+    print("is_non_client_rending:", window.is_non_client_rendering_enable, file=file)
     rect = window.get_rect()
-    print("rect         :", rect.left, rect.top, rect.right, rect.bottom)
+    print("rect         :", rect.left, rect.top, rect.right, rect.bottom, file=file)
     bound = window.get_extended_frame_bounds()
-    print("bound        :", bound.left, bound.top, bound.right, bound.bottom)
+    print("bound        :", bound.left, bound.top, bound.right, bound.bottom, file=file)
 
 
 if __name__ == "__main__":

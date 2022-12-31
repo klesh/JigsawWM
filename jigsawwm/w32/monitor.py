@@ -1,7 +1,7 @@
+import enum
 from ctypes import *
 from ctypes.wintypes import *
-from typing import List, Iterator
-import enum
+from typing import Iterator, List, Tuple
 
 user32 = WinDLL("user32", use_last_error=True)
 shcore = WinDLL("shcore", use_last_error=True)
@@ -133,6 +133,19 @@ def get_monitors() -> Iterator[Monitor]:
     return map(Monitor, enum_display_monitors())
 
 
+def get_monitor_central(monitor: Monitor) -> Tuple[int, int]:
+    rect = monitor.get_info().rcMonitor
+    return (
+        rect.left + (rect.right - rect.left) / 2,
+        rect.top + (rect.bottom - rect.top) / 2,
+    )
+
+
+def get_topo_sorted_monitors() -> List[Monitor]:
+    """Sort monitor from left to right, top to bottom by Central Points"""
+    return sorted(get_monitors(), key=get_monitor_central)
+
+
 def get_monitor_from_point(x: int, y: int) -> Monitor:
     return Monitor(monitor_from_point(x, y))
 
@@ -148,7 +161,7 @@ def get_monitor_from_window(hwnd: HWND) -> Monitor:
 
 
 if __name__ == "__main__":
-    for monitor in get_monitors():
+    for monitor in get_topo_sorted_monitors():
         print("scale factor     :", monitor.get_scale_factor())
         monitor_info = monitor.get_info()
         print("device           :", monitor_info.szDevice)
