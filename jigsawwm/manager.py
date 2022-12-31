@@ -433,16 +433,23 @@ class WindowManager:
     def next_theme(self):
         self.switch_theme_by_offset(+1)
 
-    def switch_monitor_by_offset(self, delta: int):
+    def get_monitor_state_pair(
+        self, delta: int, virtdesk_state: Optional[VirtDeskState] = None
+    ) -> Tuple[MonitorState, MonitorState]:
         monitors = get_topo_sorted_monitors()
         src_monitor = get_monitor_from_cursor()
         src_idx = monitors.index(src_monitor)
         dst_idx = (src_idx + delta) % len(monitors)
         dst_monitor = monitors[dst_idx]
-        virtdesk_state = self.get_virtdesk_state()
+        virtdesk_state = virtdesk_state or self.get_virtdesk_state()
         dst_monitor_state = virtdesk_state.get_monitor(dst_monitor)
+        src_monitor_state = virtdesk_state.get_monitor(src_monitor)
+        return src_monitor_state, dst_monitor_state
+
+    def switch_monitor_by_offset(self, delta: int):
+        _, dst_monitor_state = self.get_monitor_state_pair(delta)
         window = dst_monitor_state.last_active_window
-        if window is None:
+        if window is None or not window.exists():
             windows = dst_monitor_state.get_existing_windows()
             window = windows[0]
         if window:
@@ -453,6 +460,30 @@ class WindowManager:
 
     def next_monitor(self):
         self.switch_monitor_by_offset(+1)
+
+    def move_to_monitor_by_offset(self, delta: int):
+        virtdesk_state = self.get_virtdesk_state()
+        window = virtdesk_state.get_managed_active_window()
+        if not window:
+            return
+        src_monitor_state, dst_monitor_state = self.get_monitor_state_pair(
+            delta, virtdesk_state
+        )
+        idx = src_monitor_state.windows.index(window)
+        src_monitor_state.windows.remove(window)
+        src_monitor_state.arrange()
+        dst_monitor_state.windows.append(window)
+        dst_monitor_state.arrange()
+        src_win_len = len(src_monitor_state.windows)
+        if src_win_len:
+            next_window = src_monitor_state.windows[idx % src_win_len]
+            self.activate(next_window)
+
+    def move_to_prev_monitor(self):
+        self.move_to_monitor_by_offset(-1)
+
+    def move_to_next_monitor(self):
+        self.move_to_monitor_by_offset(+1)
 
 
 if __name__ == "__main__":

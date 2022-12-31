@@ -57,6 +57,8 @@ class MyDaemon(Daemon):
         self.hotkey([Vk.WIN, Vk.SPACE], wm.next_theme)
         self.hotkey([Vk.WIN, Vk.U], wm.prev_monitor)
         self.hotkey([Vk.WIN, Vk.I], wm.next_monitor)
+        self.hotkey([Vk.WIN, Vk.SHIFT, Vk.U], wm.move_to_prev_monitor)
+        self.hotkey([Vk.WIN, Vk.SHIFT, Vk.I], wm.move_to_next_monitor)
 
         # setup trayicon menu
         self.menu_items = [pystray.MenuItem("Arrange All", wm.arrange_all_monitors)]
