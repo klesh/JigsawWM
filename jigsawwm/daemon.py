@@ -5,6 +5,7 @@ import io
 import os.path
 import time
 from ctypes.wintypes import DWORD, HWND, LONG
+from datetime import datetime
 from threading import Thread
 from tkinter import messagebox
 from traceback import print_exception
@@ -80,12 +81,22 @@ class Daemon:
         evt_time: DWORD,
     ):
         if (
-            not is_window(hwnd)
+            id_obj
+            or id_chd
+            or not is_window(hwnd)
             or not is_app_window(hwnd)
             or self._wm.is_ignored(Window(hwnd))
         ):
             return
-        # print(event.name, time.time(), hwnd, Window(hwnd).title)
+        print(
+            "[{now}] {hwnd:8d} ido: {id_obj:6d} idc: {id_chd:6d} {title}".format(
+                now=datetime.now().strftime("%H:%S.%f"),
+                hwnd=hwnd,
+                id_obj=id_obj,
+                id_chd=id_chd,
+                title=Window(hwnd).title,
+            )
+        )
         self._wm.sync(restrict=event == WinEvent.EVENT_SYSTEM_MOVESIZEEND)
 
     def stop_hooks(self):
