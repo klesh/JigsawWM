@@ -62,7 +62,7 @@ class MyDaemon(Daemon):
         self.hotkey([Vk.WIN, Vk.SHIFT, Vk.I], wm.move_to_next_monitor)
 
         # setup trayicon menu
-        self.menu_items = [pystray.MenuItem("Arrange All", wm.arrange_all_monitors)]
+        # self.menu_items = [pystray.MenuItem("Arrange All", wm.arrange_all_monitors)]
 
         return wm
 
