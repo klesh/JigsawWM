@@ -1,4 +1,3 @@
-import enum
 import sys
 import time
 from ctypes import *
@@ -53,7 +52,7 @@ def get_window_style(hwnd: HWND) -> WindowStyle:
 
 
 def get_window_exstyle(hwnd: HWND) -> WindowExStyle:
-    return WindowStyle(user32.GetWindowLongA(hwnd, -20))
+    return WindowExStyle(user32.GetWindowLongA(hwnd, -20))
 
 
 def show_window(hwnd: HWND, cmd: ShowWindowCmd):
@@ -109,12 +108,14 @@ def is_window(hwnd: HWND) -> bool:
     return user32.IsWindow(hwnd)
 
 
+def is_top_level_window(hwnd: HWND) -> bool:
+    return user32.IsTopLevelWindow(hwnd)
+
+
 def is_app_window(hwnd: HWND, style: Optional[WindowExStyle] = None) -> bool:
     style = style or get_window_style(hwnd)
-    return (
-        get_window_title(hwnd)
-        and not is_window_cloaked(hwnd)
-        and WindowStyle.VISIBLE in style
+    return bool(
+        not is_window_cloaked(hwnd)
         and (WindowStyle.MAXIMIZEBOX & style or WindowStyle.MINIMIZEBOX & style)
         and not process.is_elevated(get_window_pid(hwnd))
     )
@@ -122,10 +123,12 @@ def is_app_window(hwnd: HWND, style: Optional[WindowExStyle] = None) -> bool:
 
 def is_manageable_window(hwnd: HWND) -> bool:
     style = get_window_style(hwnd)
-    return (
+    return bool(
         is_app_window(hwnd, style)
+        and get_window_title(hwnd)
         and WindowStyle.MAXIMIZEBOX & style
         and WindowStyle.MINIMIZEBOX & style
+        and WindowStyle.VISIBLE in style
         and not WindowStyle.MINIMIZE & style
     )
 
@@ -255,7 +258,7 @@ class Window:
         """
         return get_window_style(self._hwnd)
 
-    def get_exstyle(self) -> int:
+    def get_exstyle(self) -> WindowExStyle:
         """Retrieves ex-style
 
         :return: window ex-style
@@ -335,6 +338,18 @@ class Window:
     @property
     def last_rect(self) -> Optional[RECT]:
         return self._last_rect
+
+
+def get_app_windows() -> Iterator[Window]:
+    """Get all manageable windows of specified/current desktop"""
+    return map(
+        Window,
+        enum_windows(
+            lambda hwnd: EnumCheckResult.CAPTURE
+            if is_app_window(hwnd)
+            else EnumCheckResult.SKIP
+        ),
+    )
 
 
 def get_manageable_windows() -> Iterator[Window]:
@@ -430,17 +445,27 @@ def sprint_window(hwnd: HWND) -> str:
 def inspect_window(hwnd: HWND, file=sys.stdout):
     print(file=file)
     window = Window(hwnd)
-    style = window.get_style()
-    exstyle = window.get_exstyle()
+    if not window.exists():
+        print("window doesn't exist anymore")
+        return
+    print("hwnd         :", window.handle, file=file)
     print("title        :", window.title, file=file)
     print("pid          :", window.pid, file=file)
     print("class name   :", window.class_name, file=file)
     print("exe path     :", window.exe, file=file)
-    print("is_elevated  :", window.is_evelated, file=file)
-    print("is_visible   :", WindowStyle.VISIBLE in style, file=file)
-    print("is_minimized :", WindowStyle.MINIMIZE in style, file=file)
+    style = window.get_style()
+    style_flags = []
+    for s in WindowStyle:
+        if s in style:
+            style_flags.append(s.name)
+    print("style        :", ", ".join(style_flags), file=file)
+    exstyle = window.get_exstyle()
+    exstyle_flags = []
+    for s in WindowExStyle:
+        if s in exstyle:
+            exstyle_flags.append(s.name)
+    print("exstyle      :", ", ".join(exstyle_flags), file=file)
     print("is_cloaked   :", window.is_cloaked, file=file)
-    # print("is_active    :", active_window == window)
     rect = window.get_rect()
     print("rect         :", rect.left, rect.top, rect.right, rect.bottom, file=file)
     bound = window.get_extended_frame_bounds()
@@ -452,7 +477,7 @@ if __name__ == "__main__":
 
     # time.sleep(2)
     # inspect_window(get_active_window())
-    for window in get_manageable_windows():
-        inspect_window(window)
+    for window in get_app_windows():
+        inspect_window(window.handle)
     # for win in get_windows():
     #     inspect_window(win)

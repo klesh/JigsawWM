@@ -1,5 +1,4 @@
-import time
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from os import path
 from typing import Dict, List, Optional, Set
 
@@ -280,6 +279,10 @@ class WindowManager:
             proc.kill()
         return virtdesk_state
 
+    def is_ignored(self, window: Window) -> bool:
+        exepath = window.exe
+        return not exepath or path.basename(exepath) in self.ignore_exe_names
+
     def sync(self, init=False, restrict=False) -> bool:
         """Update manager state(monitors, windows) to match OS's and arrange windows if it is changed"""
         manageable_windows = list(get_manageable_windows())
@@ -291,7 +294,7 @@ class WindowManager:
         managed_windows = set()
         for window in manageable_windows:
             # skip certain exe file name
-            if path.basename(window.exe) in self.ignore_exe_names:
+            if self.is_ignored(window):
                 continue
             # if window was already managed, use previous monitor, or use the one under the cursor
             if init or window in virtdesk_state.managed_windows:

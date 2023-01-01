@@ -269,6 +269,7 @@ class Hook(threading.Thread):
 
 
 if __name__ == "__main__":
+    from . import window
     from .vk import Vk
 
     def keyboard(msgid: KBDLLHOOKMSGID, msg: KBDLLHOOKDATA) -> bool:
@@ -302,20 +303,12 @@ if __name__ == "__main__":
         id_evt_thread: DWORD,
         time: DWORD,
     ):
-
-        title = create_unicode_buffer(255)
-        user32.GetWindowTextW(hwnd, title, 255)
-        # if not title.value or id_obj or id_chd:
-        #     return
-        is_top_hwnd = user32.IsTopLevelWindow(hwnd)
-        if not is_top_hwnd:
+        if not window.is_app_window(hwnd):
             return
         print(
             event.name,
             "HWND:",
             hwnd,
-            "title:",
-            title.value,
             "id_obj:",
             id_obj,
             "id_chd:",
@@ -323,6 +316,7 @@ if __name__ == "__main__":
             "id_evt_thread:",
             id_evt_thread,
         )
+        window.inspect_window(hwnd)
 
     hook = Hook()
     # hook.install_winevent_hook(winevent, WinEvent.EVENT_SYSTEM_MOVESIZEEND)
@@ -333,9 +327,7 @@ if __name__ == "__main__":
     # hook.install_winevent_hook(
     #     winevent, WinEvent.EVENT_OBJECT_CREATE, WinEvent.EVENT_OBJECT_DESTROY
     # )
-    hook.install_winevent_hook(
-        winevent, WinEvent.EVENT_SYSTEM_FOREGROUND, WinEvent.EVENT_SYSTEM_END
-    )
+    hook.install_winevent_hook(winevent, WinEvent.EVENT_MIN, WinEvent.EVENT_MAX)
     # hook.install_keyboard_hook(keyboard)
     hook.start()
 

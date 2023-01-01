@@ -58,6 +58,8 @@ def get_exepath(pid: int) -> str:
     :return: the full path of the executable
     :rtype: str
     """
+    if not pid:
+        return
     hprc = open_process_for_limited_query(pid)
     buff = create_unicode_buffer(512)
     size = DWORD(sizeof(buff))

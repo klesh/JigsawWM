@@ -17,6 +17,7 @@ from jigsawwm.hotkey import hotkey, keyboard_event_handler
 from jigsawwm.manager import WindowManager
 from jigsawwm.w32.hook import Hook
 from jigsawwm.w32.vk import Vk
+from jigsawwm.w32.window import Window, is_app_window, is_window
 from jigsawwm.w32.winevent import WinEvent
 
 
@@ -56,10 +57,36 @@ class Daemon:
         self._hook.install_keyboard_hook(keyboard_event_handler)
         self._hook.install_winevent_hook(
             self.winevent_callback,
-            WinEvent.EVENT_SYSTEM_FOREGROUND,
-            WinEvent.EVENT_SYSTEM_END,
+            WinEvent.EVENT_OBJECT_SHOW,
+            WinEvent.EVENT_OBJECT_HIDE,
+        )
+        self._hook.install_winevent_hook(
+            self.winevent_callback,
+            WinEvent.EVENT_SYSTEM_MINIMIZESTART,
+            WinEvent.EVENT_SYSTEM_MINIMIZEEND,
+        )
+        self._hook.install_winevent_hook(
+            self.winevent_callback, WinEvent.EVENT_SYSTEM_MOVESIZEEND
         )
         self._hook.start()
+
+    def winevent_callback(
+        self,
+        event: WinEvent,
+        hwnd: HWND,
+        id_obj: LONG,
+        id_chd: LONG,
+        id_evt_thread: DWORD,
+        evt_time: DWORD,
+    ):
+        if (
+            not is_window(hwnd)
+            or not is_app_window(hwnd)
+            or self._wm.is_ignored(Window(hwnd))
+        ):
+            return
+        # print(event.name, time.time(), hwnd, Window(hwnd).title)
+        self._wm.sync(restrict=event == WinEvent.EVENT_SYSTEM_MOVESIZEEND)
 
     def stop_hooks(self):
         self._hook.stop()
@@ -105,26 +132,6 @@ class Daemon:
 
     def stop_trayicon(self):
         self._trayicon.stop()
-
-    def winevent_callback(
-        self,
-        event: WinEvent,
-        hwnd: HWND,
-        id_obj: LONG,
-        id_chd: LONG,
-        id_evt_thread: DWORD,
-        time: DWORD,
-    ):
-        if event in {
-            WinEvent.EVENT_SYSTEM_FOREGROUND,  # may trigger by new window
-            WinEvent.EVENT_OBJECT_CLOAKED,
-            WinEvent.EVENT_OBJECT_UNCLOAKED,
-            WinEvent.EVENT_SYSTEM_DESKTOPSWITCH,
-            WinEvent.EVENT_SYSTEM_MINIMIZESTART,
-            WinEvent.EVENT_SYSTEM_MINIMIZEEND,
-            WinEvent.EVENT_SYSTEM_MOVESIZEEND,
-        }:
-            self._wm.sync(restrict=event == WinEvent.EVENT_SYSTEM_MOVESIZEEND)
 
     def setup(self):
         pass

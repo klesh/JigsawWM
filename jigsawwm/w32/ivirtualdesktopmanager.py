@@ -1,6 +1,5 @@
 from ctypes import *
 from ctypes.wintypes import *
-from typing import Optional
 
 from comtypes import *
 
