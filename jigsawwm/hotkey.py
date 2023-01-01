@@ -1,17 +1,18 @@
-from jigsawwm.w32.hook import Hook, KBDLLHOOKMSGID, KBDLLHOOKDATA
-from jigsawwm.w32.vk import Vk
+import enum
+from concurrent.futures import ThreadPoolExecutor
+from traceback import print_exception
+from typing import Callable, Dict, FrozenSet, Iterator, Optional, Sequence, Tuple
+
+from jigsawwm.w32.hook import KBDLLHOOKDATA, KBDLLHOOKMSGID, Hook
 from jigsawwm.w32.sendinput import (
-    is_synthesized,
-    send_input,
     INPUT,
     INPUTTYPE,
     KEYBDINPUT,
     KEYEVENTF,
+    is_synthesized,
+    send_input,
 )
-from typing import Callable, Dict, Sequence, Tuple, FrozenSet, Iterator, Optional
-from concurrent.futures import ThreadPoolExecutor
-import enum
-from traceback import print_exception
+from jigsawwm.w32.vk import Vk
 
 
 class Modifier(enum.IntFlag):
@@ -177,7 +178,7 @@ def keyboard_event_handler(msgid: KBDLLHOOKMSGID, msg: KBDLLHOOKDATA) -> bool:
         # update modifier state if
         if msgid == KBDLLHOOKMSGID.WM_KEYDOWN:
             _modifier |= Modifier[vkey.name]
-        else:
+        elif msgid == KBDLLHOOKMSGID.WM_KEYUP:
             _modifier &= ~Modifier[vkey.name]
     elif msgid == KBDLLHOOKMSGID.WM_KEYDOWN:
         # see if combination registered
