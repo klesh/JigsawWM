@@ -269,6 +269,8 @@ class Hook(threading.Thread):
 
 
 if __name__ == "__main__":
+    from datetime import datetime
+
     from . import window
     from .vk import Vk
 
@@ -303,20 +305,25 @@ if __name__ == "__main__":
         id_evt_thread: DWORD,
         time: DWORD,
     ):
-        if not window.is_app_window(hwnd):
-            return
+        print("==================================")
+        # print(
+        #     hwnd is None,
+        #     id_obj is None,
+        #     id_chd is None,
+        #     window.Window(hwnd).title is None,
+        # )
         print(
-            event.name,
-            "HWND:",
-            hwnd,
-            "id_obj:",
-            id_obj,
-            "id_chd:",
-            id_chd,
-            "id_evt_thread:",
-            id_evt_thread,
+            "[{now}] {event:30s} {hwnd:8d} ido: {id_obj:6d} idc: {id_chd:6d} {title}".format(
+                now=datetime.now().strftime("%M:%S.%f"),
+                event=event.name,
+                hwnd=hwnd or 0,
+                id_obj=id_obj,
+                id_chd=id_chd,
+                title=window.Window(hwnd).title,
+            )
         )
         window.inspect_window(hwnd)
+        print("==================================")
 
     hook = Hook()
     # hook.install_winevent_hook(winevent, WinEvent.EVENT_SYSTEM_MOVESIZEEND)

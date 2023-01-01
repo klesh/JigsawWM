@@ -63,6 +63,11 @@ class Daemon:
         )
         self._hook.install_winevent_hook(
             self.winevent_callback,
+            WinEvent.EVENT_OBJECT_CLOAKED,
+            WinEvent.EVENT_OBJECT_UNCLOAKED,
+        )
+        self._hook.install_winevent_hook(
+            self.winevent_callback,
             WinEvent.EVENT_SYSTEM_MINIMIZESTART,
             WinEvent.EVENT_SYSTEM_MINIMIZEEND,
         )
@@ -89,11 +94,13 @@ class Daemon:
         ):
             return
         print(
-            "[{now}] {hwnd:8d} ido: {id_obj:6d} idc: {id_chd:6d} {title}".format(
-                now=datetime.now().strftime("%H:%S.%f"),
+            "[{now}] {event:30s} {hwnd:8d} {title}".format(
+                now=datetime.now().strftime("%M:%S.%f"),
+                event=event.name,
                 hwnd=hwnd,
-                id_obj=id_obj,
-                id_chd=id_chd,
+                #  ido: {id_obj:6d} idc: {id_chd:6d}
+                # id_obj=id_obj,
+                # id_chd=id_chd,
                 title=Window(hwnd).title,
             )
         )

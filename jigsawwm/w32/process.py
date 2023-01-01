@@ -30,7 +30,11 @@ def is_elevated(pid: int) -> bool:
     :return: `True` if elevated, `False` otherwise
     :rtype: bool
     """
-    hprc = open_process_for_limited_query(pid)
+    hprc = None
+    try:
+        hprc = open_process_for_limited_query(pid)
+    except:
+        return True
     htoken = PHANDLE()
     if not windll.advapi32.OpenProcessToken(hprc, TOKEN_QUERY, byref(htoken)):
         windll.kernel32.CloseHandle(hprc)
