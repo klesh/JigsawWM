@@ -1,5 +1,3 @@
-import pystray
-
 from jigsawwm.daemon import Daemon
 from jigsawwm.manager import Theme, WindowManager
 from jigsawwm.tiler import tilers
@@ -51,9 +49,7 @@ class MyDaemon(Daemon):
         self.hotkey([Vk.WIN, Vk.M], toggle_maximize_active_window)
         self.hotkey([Vk.WIN, Vk.SHIFT, Vk.J], wm.swap_next)
         self.hotkey([Vk.WIN, Vk.SHIFT, Vk.K], wm.swap_prev)
-        self.hotkey([Vk.WIN, Vk.K], wm.activate_prev)
         self.hotkey("Win+/", wm.swap_master)
-        self.hotkey([Vk.WIN, Vk.CONTROL, Vk.R], wm.arrange_all_monitors)
         self.hotkey("Win+q", "LAlt+F4")
         self.hotkey([Vk.WIN, Vk.SPACE], wm.next_theme)
         self.hotkey([Vk.WIN, Vk.U], wm.prev_monitor)
