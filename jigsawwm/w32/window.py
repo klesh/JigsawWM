@@ -4,6 +4,7 @@ from ctypes import *
 from ctypes.wintypes import *
 from dataclasses import dataclass
 from io import StringIO
+from tkinter import messagebox
 from typing import Callable, Iterator, List, Optional
 
 from . import process
@@ -116,7 +117,7 @@ def is_app_window(hwnd: HWND, style: Optional[WindowExStyle] = None) -> bool:
     style = style or get_window_style(hwnd)
     return bool(
         not is_window_cloaked(hwnd)
-        and (WindowStyle.MAXIMIZEBOX & style or WindowStyle.MINIMIZEBOX & style)
+        and WindowStyle.SIZEBOX in style
         and not process.is_elevated(get_window_pid(hwnd))
     )
 
@@ -127,7 +128,6 @@ def is_manageable_window(hwnd: HWND) -> bool:
         is_app_window(hwnd, style)
         and get_window_title(hwnd)
         and WindowStyle.MAXIMIZEBOX & style
-        and WindowStyle.MINIMIZEBOX & style
         and WindowStyle.VISIBLE in style
         and not WindowStyle.MINIMIZE & style
     )
@@ -470,6 +470,11 @@ def inspect_window(hwnd: HWND, file=sys.stdout):
     print("rect         :", rect.left, rect.top, rect.right, rect.bottom, file=file)
     bound = window.get_extended_frame_bounds()
     print("bound        :", bound.left, bound.top, bound.right, bound.bottom, file=file)
+
+
+def inspect_active_window():
+    text = sprint_window(get_foreground_window())
+    messagebox.showerror("JigsawWM", text)
 
 
 if __name__ == "__main__":

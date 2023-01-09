@@ -2,7 +2,11 @@ from jigsawwm.daemon import Daemon
 from jigsawwm.manager import Theme, WindowManager
 from jigsawwm.tiler import tilers
 from jigsawwm.w32.vk import Vk
-from jigsawwm.w32.window import minimize_active_window, toggle_maximize_active_window
+from jigsawwm.w32.window import (
+    inspect_active_window,
+    minimize_active_window,
+    toggle_maximize_active_window,
+)
 
 
 class MyDaemon(Daemon):
@@ -56,6 +60,7 @@ class MyDaemon(Daemon):
         self.hotkey([Vk.WIN, Vk.I], wm.next_monitor)
         self.hotkey([Vk.WIN, Vk.SHIFT, Vk.U], wm.move_to_prev_monitor)
         self.hotkey([Vk.WIN, Vk.SHIFT, Vk.I], wm.move_to_next_monitor)
+        self.hotkey([Vk.WIN, Vk.CONTROL, Vk.I], inspect_active_window)
 
         # setup trayicon menu
         # self.menu_items = [pystray.MenuItem("Arrange All", wm.arrange_all_monitors)]
