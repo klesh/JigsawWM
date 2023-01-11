@@ -27,7 +27,6 @@ class Daemon:
     _timers: Dict[Callable, Thread] = {}
     _timer_thread: Thread
     _trayicon: pystray.Icon
-    _trayicon_thread: Thread
     _started: bool = False
     _wm: WindowManager
     menu_items: Sequence[pystray.MenuItem] = []
@@ -37,7 +36,6 @@ class Daemon:
         self._timers = {}
         self._timer_thread = None
         self._trayicon = None
-        self._trayicon_thread = None
 
     def error_handler(self, e: Exception):
         file = io.StringIO()
@@ -145,11 +143,11 @@ class Daemon:
             ),
         )
         self._trayicon = tray_icon
-        self._trayicon_thread = Thread(target=tray_icon.run)
-        self._trayicon_thread.start()
+        self._trayicon.run_detached()
 
     def stop_trayicon(self):
         self._trayicon.stop()
+        self._trayicon = None
 
     def setup(self):
         pass

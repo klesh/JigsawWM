@@ -128,6 +128,7 @@ def is_manageable_window(hwnd: HWND) -> bool:
         is_app_window(hwnd, style)
         and get_window_title(hwnd)
         and WindowStyle.MAXIMIZEBOX & style
+        and WindowStyle.MINIMIZEBOX & style
         and WindowStyle.VISIBLE in style
         and not WindowStyle.MINIMIZE & style
     )
@@ -474,15 +475,15 @@ def inspect_window(hwnd: HWND, file=sys.stdout):
 
 def inspect_active_window():
     text = sprint_window(get_foreground_window())
-    messagebox.showerror("JigsawWM", text)
+    messagebox.showinfo("JigsawWM", text)
 
 
 if __name__ == "__main__":
-    # import time
+    import time
 
-    # time.sleep(2)
-    # inspect_window(get_active_window())
-    for window in get_app_windows():
-        inspect_window(window.handle)
+    time.sleep(2)
+    inspect_active_window()
+    # for window in get_app_windows():
+    #     inspect_window(window.handle)
     # for win in get_windows():
     #     inspect_window(win)
