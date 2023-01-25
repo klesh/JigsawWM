@@ -250,6 +250,17 @@ class WindowManager:
         self.theme = self.themes[0].name
         self.sync(init=True)
 
+    def try_get_virtdesk_state(
+        self, hwnd: Optional[HWND] = None
+    ) -> Optional[VirtDeskState]:
+        """Retrieve virtual desktop state without exception.
+        It is likely to fail due to API limitation, i.e. pressing hotkey while
+        Start Menu is activating, better to do nothing than raising exception"""
+        try:
+            return self.get_virtdesk_state(hwnd)
+        except:
+            pass
+
     def get_virtdesk_state(self, hwnd: Optional[HWND] = None) -> VirtDeskState:
         """Retrieve virtual desktop state"""
         # Hey, M$, why not just offer an API so we can know which virtual desktop is current active? WHY?
@@ -288,7 +299,9 @@ class WindowManager:
         manageable_windows = list(get_manageable_windows())
         if not manageable_windows:
             return
-        virtdesk_state = self.get_virtdesk_state(manageable_windows[0].handle)
+        virtdesk_state = self.try_get_virtdesk_state(manageable_windows[0].handle)
+        if not virtdesk_state:
+            return
         # gather all manageable windows and group them by monitor
         group_wins_by_mons: Dict[Monitor, Set[Window]] = {}
         managed_windows = set()
@@ -315,11 +328,16 @@ class WindowManager:
             monitor_state.sync(windows, restrict=restrict)
 
     def arrange_all_monitors(self):
-        virtdesk_state = self.get_virtdesk_state()
+        virtdesk_state = self.try_get_virtdesk_state()
+        if not virtdesk_state:
+            return
         for monitor in virtdesk_state.monitors.values():
             monitor.arrange()
 
     def activate(self, window: Window):
+        virtdesk_state = self.try_get_virtdesk_state(window.handle)
+        if not virtdesk_state:
+            return
         window.activate()
         # move cursor to the center of the window
         rect = window.get_rect()
@@ -327,7 +345,6 @@ class WindowManager:
             rect.left + (rect.right - rect.left) / 2,
             rect.top + (rect.bottom - rect.top) / 2,
         )
-        virtdesk_state = self.get_virtdesk_state(window.handle)
         virtdesk_state.last_active_window = window
         monitor = get_monitor_from_window(window.handle)
         virtdesk_state.get_monitor(monitor).last_active_window = window
@@ -340,7 +357,9 @@ class WindowManager:
         When none of above viable, activate the Master window in the montior under cursor
         Or, do nothing!
         """
-        virtdesk_state = self.get_virtdesk_state()
+        virtdesk_state = self.try_get_virtdesk_state()
+        if not virtdesk_state:
+            return
         src_window = virtdesk_state.get_managed_active_window()
         dst_window = None
         if src_window:
@@ -369,7 +388,9 @@ class WindowManager:
 
     def swap_by_offset(self, offset: int):
         """Swap current active managed window with its sibling by offset"""
-        virtdesk_state = self.get_virtdesk_state()
+        virtdesk_state = self.try_get_virtdesk_state()
+        if not virtdesk_state:
+            return
         src_window = virtdesk_state.get_managed_active_window()
         if not src_window:
             return
@@ -397,7 +418,9 @@ class WindowManager:
         """Swap the current active managed window with the Master or the second window
         in the list if it is Master already
         """
-        virtdesk_state = self.get_virtdesk_state()
+        virtdesk_state = self.try_get_virtdesk_state()
+        if not virtdesk_state:
+            return
         src_window = virtdesk_state.get_managed_active_window()
         if not src_window:
             return
@@ -425,7 +448,9 @@ class WindowManager:
         return i
 
     def switch_theme_by_offset(self, delta: int):
-        virtdesk_state = self.get_virtdesk_state()
+        virtdesk_state = self.try_get_virtdesk_state()
+        if not virtdesk_state:
+            return
         monitor = (
             get_monitor_from_window(get_foreground_window())
             or get_monitor_from_cursor()
@@ -445,12 +470,14 @@ class WindowManager:
     def get_monitor_state_pair(
         self, delta: int, virtdesk_state: Optional[VirtDeskState] = None
     ) -> Tuple[MonitorState, MonitorState]:
+        virtdesk_state = virtdesk_state or self.try_get_virtdesk_state()
+        if not virtdesk_state:
+            return
         monitors = get_topo_sorted_monitors()
         src_monitor = get_monitor_from_cursor()
         src_idx = monitors.index(src_monitor)
         dst_idx = (src_idx + delta) % len(monitors)
         dst_monitor = monitors[dst_idx]
-        virtdesk_state = virtdesk_state or self.get_virtdesk_state()
         dst_monitor_state = virtdesk_state.get_monitor(dst_monitor)
         src_monitor_state = virtdesk_state.get_monitor(src_monitor)
         return src_monitor_state, dst_monitor_state
@@ -471,7 +498,9 @@ class WindowManager:
         self.switch_monitor_by_offset(+1)
 
     def move_to_monitor_by_offset(self, delta: int):
-        virtdesk_state = self.get_virtdesk_state()
+        virtdesk_state = self.try_get_virtdesk_state()
+        if not virtdesk_state:
+            return
         window = virtdesk_state.get_managed_active_window()
         if not window:
             return
