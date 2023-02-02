@@ -28,13 +28,21 @@ from jigsawwm.w32.window import (
 
 @dataclass
 class Theme:
+    # name of the theme
     name: str
+    # layout tiler
     layout_tiler: LayoutTiler
+    # unused
     icon_name: Optional[str] = None
+    # unused
     icon_path: Optional[str] = None
+    # background, color if the string starts with `#`, otherwise treated as image path
     background: Optional[str] = None
+    # new appeared window would be prepended to the list if the option was set to True
     new_window_as_master: Optional[bool] = None
+    # gap between windows / monitor edges
     gap: Optional[int] = None
+    # forbid
     strict: Optional[bool] = None
 
 

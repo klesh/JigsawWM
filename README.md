@@ -17,10 +17,38 @@ Should work on **Windows 10** and **Python 3.8**
 pip install git+https://github.com/klesh/JigsawWM.git
 ```
 
-## Configuration
+## Quick Start
 
+### Step 1: download the example
 
 1. Download the [example.pyw](example.pyw) to your local hard drive
 2. Edit the code as you see fit
 3. Double-click the file and it should launch with a tray icon, or you may have to associate `*.pyw` with the `Python` program
 4. Create a shortcut in your `Startup` folder if you like it
+
+### Step 2: using hotkeys to manage your windows
+
+**JigsawWm** follows the [suckless philosophy](https://suckless.org/philosophy/) and works just like [dwm - dynamic window manager | suckless.org software that sucks less](https://dwm.suckless.org/). All windows are treated as a `Ordered List`, they will be moved into places based on the the `Order` and specified `Layout` **automatically** to improve your productivity.
+
+- `Win + j`: activate next window and move cursor to its center
+- `Win + k`: activate previous window and move cursor to its center
+- `Win + Shift + j`: move active window down in the list / swap with the next one
+- `Win + Shift + k`: move active window up in the list / swap with the previous one
+- `Win + n`: minimized active window
+- `Win + m`: maximize/unmaximized active window
+- `Win + /`: swap active window with **first window** in the list or **second window** if it is the first window already
+- `Win + q`: kill active window
+- `Win + Space`: next theme, `Theme` consists of `Layout`, `Background`, `gap`, etc. to determine how windows should be placed
+- `Win + i`: activate first window of the next monitor if any or move cursor only
+- `Win + u`: activate first window of the previous monitor if any or move cursor only
+- `Win + Shift + i`: move active window to next monitor
+- `Win + Shift + u`: move active window to previous monitor
+- `Win + Control + i`: inspect active window
+
+
+## Changelog
+
+### 2023-02-02
+
+- support portrait mode monitor (rotate layout by 90 degree)
+- update readme
