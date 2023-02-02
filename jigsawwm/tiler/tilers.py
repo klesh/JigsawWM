@@ -15,7 +15,14 @@ LayoutTiler = Callable[[Rect, int], Iterator[Rect]]
 
 def direct_tiler(layout: Layout, work_area: Rect, total_windows: int) -> Iterator[Rect]:
     """Generates physical Rects for work_area Rect with specified layout"""
-    for float_rect in layout(total_windows):
+    rects = layout(total_windows)
+    w = work_area[2] - work_area[0]
+    h = work_area[3] - work_area[1]
+    is_portrait = w < h
+    if is_portrait:
+        # rotate 90 degree if monitor in portrait mode
+        rects = map(lambda r: (r[1], r[0], r[3], r[2]), rects)
+    for float_rect in rects:
         yield tuple(int(f) for f in plug_rect(float_rect, work_area))
 
 
