@@ -72,7 +72,6 @@ def hotkey(
     error_handler: Callable[[Exception], None] = print_exception,
 ):
     """Register a system hotkey
-
     Check `jigsawwm.w32.vk.Vk` for virtual key names
     Check `_vk_aliases` for key aliases
 
@@ -80,10 +79,9 @@ def hotkey(
         example: [Vk.LCONTROL, Vk.LSHIFT, Vk.S] or "LControl+LShift+s"
     :param target: Callable | str, one of the following action would be carried
         out based on the type of the target:
-
         Callable:   the function would be executed
         str:        the str would be treated as a combination and send accordingly.
-                    i.e. "RWin+Space"
+        i.e. "RWin+Space"
     :param swallow: stop combination being process by other apps
     """
     global _hotkeys
