@@ -7,9 +7,11 @@ Welcome to JigsawWM's documentation!
 ====================================
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 6
    :caption: Contents:
 
+   installation.rst
+   quickstart.rst
    modules
 
 

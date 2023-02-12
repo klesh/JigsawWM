@@ -1,4 +1,4 @@
-JigsawWM
+Reference
 ========
 
 .. toctree::

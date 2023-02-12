@@ -9,16 +9,19 @@ Layout = Callable[[int], Iterator[FloatRect]]
 
 
 def dwindle(n: int) -> Iterator[FloatRect]:
-    """Returns a generator of dwindle layout
-    +-----------+-----------+
-    |           |           |
-    |           |     2     |
-    |           |           |
-    |     1     +-----+-----+
-    |           |     |  4  |
-    |           |  3  +--+--+
-    |           |     | 5|-.|
-    +-----------+-----+-----+
+    """Returns a generator of dwindle layout.
+
+    .. code-block:: text
+
+        +-----------+-----------+
+        |           |           |
+        |           |     2     |
+        |           |           |
+        |     1     +-----+-----+
+        |           |     |  4  |
+        |           |  3  +--+--+
+        |           |     | 5|-.|
+        +-----------+-----+-----+
 
     :param n: total number of windows
     :return: dwindle generator
@@ -43,15 +46,18 @@ def dwindle(n: int) -> Iterator[FloatRect]:
 
 def widescreen_dwindle(n: int, master_ratio: float = 0.4) -> Iterator[FloatRect]:
     """Returns a generator of dwindle layout, works greate for wide-screen monitor
-    +-----------+-----------+-----------+
-    |           |           |           |
-    |           |           |     3     |
-    |           |           |           |
-    |     1     |     2     +-----+-----+
-    |           |           |     |  5  |
-    |           |           |  4  +--+--+
-    |           |           |     | 6|-.|
-    +-----------+-----------+-----+-----+
+
+    .. code-block:: text
+
+        +-----------+-----------+-----------+
+        |           |           |           |
+        |           |           |     3     |
+        |           |           |           |
+        |     1     |     2     +-----+-----+
+        |           |           |     |  5  |
+        |           |           |  4  +--+--+
+        |           |           |     | 6|-.|
+        +-----------+-----------+-----+-----+
 
     :param n: total number of windows
     :return: master_dwindle generator

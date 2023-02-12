@@ -72,8 +72,8 @@ def hotkey(
     error_handler: Callable[[Exception], None] = print_exception,
 ):
     """Register a system hotkey
-    Check `jigsawwm.w32.vk.Vk` for virtual key names
-    Check `_vk_aliases` for key aliases
+    check `jigsawwm.w32.vk.Vk` for virtual key names
+    check `_vk_aliases` for key aliases
 
     :param combkeys: Sequence[VirtualKey] | str, virtual keys combination
         example: [Vk.LCONTROL, Vk.LSHIFT, Vk.S] or "LControl+LShift+s"

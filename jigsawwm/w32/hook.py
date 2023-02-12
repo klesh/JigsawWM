@@ -149,32 +149,32 @@ class Hook(threading.Thread):
     """Hook low level keyboard/mouse event
 
     Usage:
-    ```
-    def swallow_keyboard_a_key_event(msgid: KBDLLHOOKMSGID, data: KBDLLHOOKDATA) -> bool:
-        return data.vkCode == VirtualKey.VK_A:
 
-    def swallow_mouse_middle_btn_event(msgid: MSLLHOOKMSGID, data: MSLLHOOKDATA) -> bool:
-        return msgid == MSLLHOOKMSGID.WM_MBUTTONUP or msgid == MSLLHOOKMSGID.WM_MBUTTONDOWN:
+    .. code-block:: python
 
-    def winevent(
-        event: WinEvent,
-        hwnd: HWND,
-        id_obj: LONG,
-        id_chd: LONG,
-        id_evt_thread: DWORD,
-        time: DWORD,
-    ):
-        pass
+        def swallow_keyboard_a_key_event(msgid: KBDLLHOOKMSGID, data: KBDLLHOOKDATA) -> bool:
+            return data.vkCode == VirtualKey.VK_A:
+
+        def swallow_mouse_middle_btn_event(msgid: MSLLHOOKMSGID, data: MSLLHOOKDATA) -> bool:
+            return msgid == MSLLHOOKMSGID.WM_MBUTTONUP or msgid == MSLLHOOKMSGID.WM_MBUTTONDOWN:
+
+        def winevent(
+            event: WinEvent,
+            hwnd: HWND,
+            id_obj: LONG,
+            id_chd: LONG,
+            id_evt_thread: DWORD,
+            time: DWORD,
+        ):
+            pass
 
 
-    hook = Hook()
-    kbd_hook_id = hook.install_keyboard_hook(swallow_keyboard_a_key_event)
-    mouse_hook_id = hook.install_mouse_hook(swallow_mouse_middle_btn_event)
-    winevent_hook_id = hook.install_winevent_hook()
-    hook.start()
-    ```
+        hook = Hook()
+        kbd_hook_id = hook.install_keyboard_hook(swallow_keyboard_a_key_event)
+        mouse_hook_id = hook.install_mouse_hook(swallow_mouse_middle_btn_event)
+        winevent_hook_id = hook.install_winevent_hook()
+        hook.start()
 
-    :param **kwargs:
     """
 
     def __init__(self):
@@ -223,6 +223,10 @@ class Hook(threading.Thread):
     def install_keyboard_hook(
         self, callback: Callable[[KBDLLHOOKMSGID, KBDLLHOOKDATA], bool]
     ):
+        """Install keyboard hook
+
+        :param callback: function to be called when key press/release
+        """
         self._queue.append(
             partial(self._install_hook, 13, KBDLLHOOKMSGID, KBDLLHOOKDATA, callback)
         )
@@ -230,6 +234,10 @@ class Hook(threading.Thread):
     def install_mouse_hook(
         self, callback: Callable[[MSLLHOOKMSGID, MSLLHOOKDATA], bool]
     ):
+        """Install mouse hook
+
+        :param callback: function to be called when mouse moved, bth pressed/release and scroll
+        """
         self._queue.append(
             partial(self._install_hook, 14, MSLLHOOKMSGID, MSLLHOOKDATA, callback)
         )
@@ -240,6 +248,10 @@ class Hook(threading.Thread):
         event_min: WinEvent,
         event_max: Optional[WinEvent] = None,
     ):
+        """Install winevent hook
+
+        :param callback: function to be called when Windows event occurred
+        """
         self._queue.append(
             partial(
                 self._install_winevent_hook, event_min, event_max or event_min, callback
@@ -247,6 +259,8 @@ class Hook(threading.Thread):
         )
 
     def run(self):
+        """Start hooking, all installed hooks would not actually work until
+        this method invoked. You may install new hooks thereafter"""
         # IMPORTANT: the hook must be installed in the thread!
         msg = MSG()
         while True:
@@ -265,6 +279,7 @@ class Hook(threading.Thread):
             user32.DispatchMessageW(byref(msg))
 
     def stop(self):
+        """Stop all hooks"""
         user32.PostThreadMessageW(self.ident, WM_QUIT, 0, 0)
 
 
