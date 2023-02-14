@@ -1,3 +1,13 @@
+"""
+
+The `layout` module operates in Relative Coordinate, to that end, it defines 2 basic types:
+
+`FloatRect` is a tuple with 4 elements (left/top/right/bottom) to describe a rectangle in ratio form (0.0~1.0)
+
+`Layout` is a generator which generates FloatRects for given total number of windows
+
+"""
+
 from functools import partial
 from typing import Callable, Iterator, Tuple, Union
 
@@ -9,7 +19,7 @@ Layout = Callable[[int], Iterator[FloatRect]]
 
 
 def dwindle(n: int) -> Iterator[FloatRect]:
-    """Returns a generator of dwindle layout.
+    """The dwindle Layout
 
     .. code-block:: text
 
@@ -24,7 +34,6 @@ def dwindle(n: int) -> Iterator[FloatRect]:
         +-----------+-----+-----+
 
     :param n: total number of windows
-    :return: dwindle generator
     :rtype: Iterator[FloatRect]
     """
     l, t, r, b = 0.0, 0.0, 1.0, 1.0
@@ -45,7 +54,7 @@ def dwindle(n: int) -> Iterator[FloatRect]:
 
 
 def widescreen_dwindle(n: int, master_ratio: float = 0.4) -> Iterator[FloatRect]:
-    """Returns a generator of dwindle layout, works greate for wide-screen monitor
+    """A wide-screen friendly dwindle Layout
 
     .. code-block:: text
 
@@ -60,7 +69,6 @@ def widescreen_dwindle(n: int, master_ratio: float = 0.4) -> Iterator[FloatRect]
         +-----------+-----------+-----+-----+
 
     :param n: total number of windows
-    :return: master_dwindle generator
     :rtype: Iterator[FloatRect]
     """
     if n == 0:
@@ -81,8 +89,16 @@ Number = Union[int, float]
 NumberRect = Tuple[Number, Number, Number, Number]
 
 
-def plug_rect(source: NumberRect, target: NumberRect) -> NumberRect:
-    """Plug the source rect inside the target rect and compute the new dimensions for the target rect"""
+def plug_rect(source: FloatRect, target: NumberRect) -> NumberRect:
+    """Plug the source rect into the target rect and compute the new dimensions,
+    you may plug a Relative Rect into a Physical Rect, but not the other way around.
+
+    :param source: the FloatRect to be moved
+    :param target: the container, either a FloatRect or Rect(physical pixels)
+    :returns: Rect or FloatRect depends on the type of the target
+    :rtype: NumberRect
+    """
+
     sl, st, sr, sb = source
     tl, tt, tr, tb = target
     tw = tr - tl

@@ -33,3 +33,7 @@ html_static_path = ["_static"]
 html_sidebars = {
     "**": ["globaltoc.html", "relations.html", "sourcelink.html", "searchbox.html"]
 }
+
+
+autodoc_member_order = "bysource"
+add_module_names = False

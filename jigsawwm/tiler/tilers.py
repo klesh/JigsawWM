@@ -1,4 +1,14 @@
-from functools import partial
+"""
+
+The `tiler` module is responsible for converting Layout to Physical Coordinates for arbitrary number of windows.
+
+`Rect` is a tuple with 4 elements (left/top/right/bottom) to describe a rectangle in pixels (integer)
+
+`Tiler` is a generator which generates Rects with specified Layout for given monitor work area and total number of windows
+
+`LayoutTiler` is similar to `Tiler` except the Layout was predefined
+
+"""
 from typing import Callable, Iterator, Tuple
 
 from .layouts import Layout, dwindle, plug_rect, widescreen_dwindle
@@ -14,7 +24,13 @@ LayoutTiler = Callable[[Rect, int], Iterator[Rect]]
 
 
 def direct_tiler(layout: Layout, work_area: Rect, total_windows: int) -> Iterator[Rect]:
-    """Generates physical Rects for work_area Rect with specified layout"""
+    """The default Tiler which maps specified `Layout` to physical work area directly
+
+    :param layout: a Layout generator
+    :param work_area: the monitor work area (taskbar excluded)
+    :param total_windows: total number of windows
+    :rtype: Iterator[Rect]
+    """
     rects = layout(total_windows)
     w = work_area[2] - work_area[0]
     h = work_area[3] - work_area[1]
@@ -33,8 +49,28 @@ def obs_tiler(
     obs_width: int = 1920,
     obs_height: int = 1080,
 ) -> Iterator[Rect]:
-    """Generates physical Rects for work_area Rect with specified layout, but leave a
-    reserved area on top right corner for OBS recording
+    """Useful for OBS screen recording, it would put the 1st and 2nd window to the left
+    and bottom, while all the other windows go to the top right corne with specified
+    layout as the area to be recorded.
+
+    .. code-block:: text
+
+        +-----------+-----------+-----------+
+        |           |           |           |
+        |           |           |     4     |
+        |           |     3     |           |
+        |     1     |           +-----+-----+
+        |    obs    |           |  5  |  6  |
+        |           |-----------------------|
+        |           |   2. script reader    |
+        +-----------+-----------------------+
+
+    :param layout: `Layout` for the top right corne (area to be recorded)
+    :param work_area: the monitor work area (taskbar excluded)
+    :param total_windows: total number of windows
+    :param obs_width: width for the top right corne (area to be recorded) in pixels
+    :param obs_height: height for the top right corne (area to be recorded) in pixels
+    :rtype: Iterator[Rect]
     """
     wl, wt, wr, wb = work_area
     scr_width, scr_height = wr - wl, wb - wt
@@ -57,9 +93,20 @@ def obs_tiler(
     yield from direct_tiler(layout, obs_rect, total_windows - 2)
 
 
-dwindle_layout_tiler: LayoutTiler = partial(direct_tiler, dwindle)
-widescreen_dwindle_layout_tiler: LayoutTiler = partial(direct_tiler, widescreen_dwindle)
-obs_dwindle_layout_tiler: LayoutTiler = partial(obs_tiler, dwindle)
+def dwindle_layout_tiler(*args, **kwargs) -> Iterator[Rect]:
+    """The dwindle layout tiler"""
+    direct_tiler(dwindle, *args, **kwargs)
+
+
+def widescreen_dwindle_layout_tiler(*args, **kwargs) -> Iterator[Rect]:
+    """The wide-screen dwindle layout tiler"""
+    direct_tiler(widescreen_dwindle, *args, **kwargs)
+
+
+def obs_dwindle_layout_tiler(*args, **kwargs) -> Iterator[Rect]:
+    """The obs dwindle layout tiler"""
+    obs_tiler(dwindle, *args, **kwargs)
+
 
 if __name__ == "__main__":
     print("direct dwindle")
