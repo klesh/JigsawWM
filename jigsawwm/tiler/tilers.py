@@ -95,17 +95,17 @@ def obs_tiler(
 
 def dwindle_layout_tiler(*args, **kwargs) -> Iterator[Rect]:
     """The dwindle layout tiler"""
-    direct_tiler(dwindle, *args, **kwargs)
+    return direct_tiler(dwindle, *args, **kwargs)
 
 
 def widescreen_dwindle_layout_tiler(*args, **kwargs) -> Iterator[Rect]:
     """The wide-screen dwindle layout tiler"""
-    direct_tiler(widescreen_dwindle, *args, **kwargs)
+    return direct_tiler(widescreen_dwindle, *args, **kwargs)
 
 
 def obs_dwindle_layout_tiler(*args, **kwargs) -> Iterator[Rect]:
     """The obs dwindle layout tiler"""
-    obs_tiler(dwindle, *args, **kwargs)
+    return obs_tiler(dwindle, *args, **kwargs)
 
 
 if __name__ == "__main__":
