@@ -9,7 +9,7 @@ from datetime import datetime
 from threading import Thread
 from tkinter import messagebox
 from traceback import print_exception
-from typing import Callable, Dict, Optional, Sequence
+from typing import Callable, Dict, Optional, Sequence, Union
 
 import pystray
 from PIL import Image
@@ -39,13 +39,16 @@ class Daemon:
 
     def error_handler(self, e: Exception):
         file = io.StringIO()
-        print_exception(e, file=file)
+        print_exception(e, e, None, file=file)
         text = file.getvalue()
         print(text, file=sys.stderr)
         messagebox.showerror("JigsawWM", text)
 
     def hotkey(
-        self, combkeys: Sequence[Vk] | str, target: Callable | str, swallow: bool = True
+        self,
+        combkeys: Union[Sequence[Vk], str],
+        target: Union[Callable, str],
+        swallow: bool = True,
     ):
         try:
             hotkey(combkeys, target, swallow, self.error_handler)

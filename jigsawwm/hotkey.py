@@ -1,7 +1,7 @@
 import enum
 from concurrent.futures import ThreadPoolExecutor
 from traceback import print_exception
-from typing import Callable, Dict, FrozenSet, Iterator, Optional, Sequence, Tuple
+from typing import Callable, Dict, FrozenSet, Iterator, Optional, Sequence, Tuple, Union
 
 from jigsawwm.w32.hook import KBDLLHOOKDATA, KBDLLHOOKMSGID, Hook
 from jigsawwm.w32.sendinput import (
@@ -31,6 +31,22 @@ class Modifier(enum.IntFlag):
     SHIFT = LSHIFT | RSHIFT
     WIN = LWIN | RWIN
 
+    @classmethod
+    def unfold(cls, mk: Union[str, int]) -> Iterator['Modifier']:
+        if not mk:
+            return
+        if isinstance(mk, str):
+            mk = cls[mk].value
+        first_alias = cls.CONTROL.value
+        if mk < first_alias:
+            yield cls(mk)
+            return
+        for v in cls.__members__.values():
+            if v >= first_alias:
+                return
+            if v & mk:
+                yield cls(v)
+
 
 def expand_combination(
     combkeys: Sequence[Vk],
@@ -40,7 +56,7 @@ def expand_combination(
     key = combkeys[index]
     if key.name in Modifier.__members__:
         is_last = index + 1 == len(combkeys)
-        for mk in Modifier[key.name]:
+        for mk in Modifier.unfold(key.name):
             new_combkeys = combkeys[:index] + [Vk[mk.name]]
             if is_last:
                 yield new_combkeys
@@ -66,8 +82,8 @@ _executor = ThreadPoolExecutor()
 
 
 def hotkey(
-    combkeys: Sequence[Vk] | str,
-    target: Callable | str,
+    combkeys: Union[Sequence[Vk], str],
+    target: Union[Callable, str],
     swallow: bool = True,
     error_handler: Callable[[Exception], None] = print_exception,
 ):
@@ -180,7 +196,7 @@ def keyboard_event_handler(msgid: KBDLLHOOKMSGID, msg: KBDLLHOOKDATA) -> bool:
             _modifier &= ~Modifier[vkey.name]
     elif msgid == KBDLLHOOKMSGID.WM_KEYDOWN:
         # see if combination registered
-        combination = frozenset((*map(lambda m: Vk[m.name], _modifier), vkey))
+        combination = frozenset((*map(lambda m: Vk[m.name], Modifier.unfold(_modifier)), vkey))
         fs = _hotkeys.get(combination)
         if fs is not None:
             func, swallow, counteract, error_handler = fs

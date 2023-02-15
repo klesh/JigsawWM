@@ -1,7 +1,7 @@
 import enum
+import typing
 from ctypes import *
 from ctypes.wintypes import *
-from typing import List
 
 user32 = WinDLL("user32", use_last_error=True)
 
@@ -69,7 +69,7 @@ class INPUT(Structure):
 SYNTHESIZED_ID = 123123123
 
 
-def send_input(*inputs: List[INPUT]):
+def send_input(*inputs: typing.List[INPUT]):
     global SYNTHESIZED_ID
     """Synthesizes keystrokes, mouse motions, and button clicks.
 
@@ -99,7 +99,7 @@ def send_input(*inputs: List[INPUT]):
         raise WinError(get_last_error())
 
 
-def is_synthesized(msg: KEYBDINPUT | MOUSEINPUT) -> bool:
+def is_synthesized(msg: typing.Union[KEYBDINPUT, MOUSEINPUT]) -> bool:
     global SYNTHESIZED_ID
     return msg.dwExtraInfo == SYNTHESIZED_ID
 
