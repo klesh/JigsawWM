@@ -12,7 +12,7 @@ def open_process_for_limited_query(pid: int) -> HANDLE:
 
     Ref: https://learn.microsoft.com/en-us/windows/win32/procthread/process-security-and-access-rights
 
-    :param pid: int
+    :param int pid: process id
     :return:  process handle
     :rtype: HANDLE
     """
@@ -26,7 +26,7 @@ def open_process_for_limited_query(pid: int) -> HANDLE:
 def is_elevated(pid: int) -> bool:
     """Check if specified process is elevated (run in Administrator Role)
 
-    :param pid: int
+    :param int pid: process id
     :return: `True` if elevated, `False` otherwise
     :rtype: bool
     """
@@ -58,7 +58,7 @@ def is_elevated(pid: int) -> bool:
 def get_exepath(pid: int) -> str:
     """Retrieves the full name of the executable image for the specified process.
 
-    :param pid: int
+    :param int pid: process id
     :return: the full path of the executable
     :rtype: str
     """

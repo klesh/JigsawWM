@@ -39,16 +39,36 @@ class IVirtualDesktopManager(IUnknown):
     ]
 
     def GetWindowDesktopId(self, hwnd: HWND) -> GUID:
+        """Retrieves virtual desktop id of the specified window handle,
+        it works only when ``hwnd`` is NOT elevated (Administrator)
+
+        :param HWND hwnd: window handle
+        :returns: desktop id
+        :rtype: comtypes.GUID
+        """
         desktop_id = GUID()
         _check(self.__com_GetWindowDesktopId(hwnd, pointer(desktop_id)))
         return desktop_id
 
     def IsWindowOnCurrentVirtualDesktop(self, hwnd: HWND) -> bool:
+        """Checks if ``hwnd`` belongs to the current desktop
+        it works only when ``hwnd`` is NOT elevated (Administrator)
+
+        :param HWND hwnd: window handle
+        :returns: True if window belongs to current virtual desktop
+        :rtype: bool
+        """
         value = BOOL()
         _check(self.__com_IsWindowOnCurrentVirtualDesktop(hwnd, pointer(value)))
         return value.value
 
     def MoveWindowToDesktop(self, hwnd: HWND, desktop_id: GUID):
+        """Moves window to desktop
+        it works only when ``hwnd`` is NOT elevated (Administrator)
+
+        :param HWND hwnd: window handle
+        :param GUID desktop_id: target virtual desktop id
+        """
         _check(self.__com_MoveWindowToDesktop(hwnd, pointer(desktop_id)))
 
 

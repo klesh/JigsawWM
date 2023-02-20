@@ -32,7 +32,7 @@ class Modifier(enum.IntFlag):
     WIN = LWIN | RWIN
 
     @classmethod
-    def unfold(cls, mk: Union[str, int]) -> Iterator['Modifier']:
+    def unfold(cls, mk: Union[str, int]) -> Iterator["Modifier"]:
         if not mk:
             return
         if isinstance(mk, str):
@@ -161,6 +161,7 @@ def parse_hotkey(combkeys: str) -> Sequence[Vk]:
 
 
 def combination_input(target: str) -> Callable:
+    """Converts key combination in text format to a Callable function"""
     target = parse_hotkey(target)
 
     def callback():
@@ -181,6 +182,8 @@ _modifier = Modifier(0)
 
 
 def keyboard_event_handler(msgid: KBDLLHOOKMSGID, msg: KBDLLHOOKDATA) -> bool:
+    """Handles keyboard events and call callback if the combination
+    had been registered"""
     global _hotkeys, _executor
     # skip key we sent out
     if is_synthesized(msg):
@@ -196,7 +199,9 @@ def keyboard_event_handler(msgid: KBDLLHOOKMSGID, msg: KBDLLHOOKDATA) -> bool:
             _modifier &= ~Modifier[vkey.name]
     elif msgid == KBDLLHOOKMSGID.WM_KEYDOWN:
         # see if combination registered
-        combination = frozenset((*map(lambda m: Vk[m.name], Modifier.unfold(_modifier)), vkey))
+        combination = frozenset(
+            (*map(lambda m: Vk[m.name], Modifier.unfold(_modifier)), vkey)
+        )
         fs = _hotkeys.get(combination)
         if fs is not None:
             func, swallow, counteract, error_handler = fs
@@ -210,6 +215,7 @@ def keyboard_event_handler(msgid: KBDLLHOOKMSGID, msg: KBDLLHOOKDATA) -> bool:
                             ki=KEYBDINPUT(wVk=key, dwFlags=KEYEVENTF.KEYUP),
                         )
                     )
+
             # wrap func with in try-catch for safty
             def wrapped_func():
                 try:

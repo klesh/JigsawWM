@@ -1,10 +1,10 @@
 """
 
-The `layout` module operates in Relative Coordinate, to that end, it defines 2 basic types:
+The ``layout`` module operates in Relative Coordinate, to that end, it defines 2 basic types:
 
-`FloatRect` is a tuple with 4 elements (left/top/right/bottom) to describe a rectangle in ratio form (0.0~1.0)
+``FloatRect`` is a tuple with 4 elements (left/top/right/bottom) to describe a rectangle in ratio form (0.0~1.0)
 
-`Layout` is a generator which generates FloatRects for given total number of windows
+``Layout`` is a generator which generates FloatRects for given total number of windows
 
 """
 

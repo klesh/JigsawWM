@@ -28,13 +28,13 @@ HOOKPROC = WINFUNCTYPE(LRESULT, c_int, WPARAM, LPARAM)
 # setup api
 
 
-def errcheck_bool(result, func, args):
+def _errcheck_bool(result, func, args):
     if not result:
         raise WinError(get_last_error())
     return args
 
 
-user32.SetWindowsHookExW.errcheck = errcheck_bool
+user32.SetWindowsHookExW.errcheck = _errcheck_bool
 user32.SetWindowsHookExW.restype = HHOOK
 user32.SetWindowsHookExW.argtypes = (
     c_int,  # _In_ idHook
@@ -225,7 +225,8 @@ class Hook(threading.Thread):
     ):
         """Install keyboard hook
 
-        :param callback: function to be called when key press/release
+        :param callback: function to be called when key press/release, return ``True`` to stop
+            propagation
         """
         self._queue.append(
             partial(self._install_hook, 13, KBDLLHOOKMSGID, KBDLLHOOKDATA, callback)
@@ -236,7 +237,9 @@ class Hook(threading.Thread):
     ):
         """Install mouse hook
 
-        :param callback: function to be called when mouse moved, bth pressed/release and scroll
+        :param callback: function to be called when mouse moved, bth pressed/release and scroll,
+ return ``True`` to stop
+            propagation
         """
         self._queue.append(
             partial(self._install_hook, 14, MSLLHOOKMSGID, MSLLHOOKDATA, callback)

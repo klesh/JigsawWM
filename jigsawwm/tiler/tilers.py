@@ -1,12 +1,12 @@
 """
 
-The `tiler` module is responsible for converting Layout to Physical Coordinates for arbitrary number of windows.
+The ``tiler`` module is responsible for converting Layout to Physical Coordinates for arbitrary number of windows.
 
-`Rect` is a tuple with 4 elements (left/top/right/bottom) to describe a rectangle in pixels (integer)
+``Rect`` is a tuple with 4 elements (left/top/right/bottom) to describe a rectangle in pixels (integer)
 
-`Tiler` is a generator which generates Rects with specified Layout for given monitor work area and total number of windows
+``Tiler`` is a generator which generates Rects with specified Layout for given monitor work area and total number of windows
 
-`LayoutTiler` is similar to `Tiler` except the Layout was predefined
+``LayoutTiler`` is similar to `Tiler` except the Layout was predefined
 
 """
 from typing import Callable, Iterator, Tuple

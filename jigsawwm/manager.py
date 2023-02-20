@@ -28,6 +28,11 @@ from jigsawwm.w32.window import (
 
 @dataclass
 class Theme:
+    """Theme is a set of preference packed together for users to switch easily,
+    typically, it consists of a LayoutTiler, Background, Gap between windows and
+    other options.
+    """
+
     # name of the theme
     name: str
     # layout tiler
@@ -47,6 +52,14 @@ class Theme:
 
 
 class MonitorState:
+    """MonitorState holds variables needed by a Monitor
+
+
+    :param VirtDeskState virtdesk_state: associated virtual desktop
+    :param Monitor monitor: associated system monitor
+    :param str theme: the active theme for the monitor in the virtual desktop
+    """
+
     virtdesk_state: "VirtDeskState"
     monitor: Monitor
     theme: Optional[str]
@@ -66,15 +79,20 @@ class MonitorState:
         self.last_active_window = None
 
     def get_theme(self) -> Theme:
-        """Retrieves theme for monitor"""
+        """Retrieves theme for monitor in current virtual desktop"""
         mgr = self.virtdesk_state.manager
         return mgr.themes[mgr.get_theme_index(self.theme)]
 
     def get_existing_windows(self) -> List[Window]:
-        # self.windows = list(filter(lambda w: w.exists(), self.windows))
+        """Retrieves current managed windows"""
         return self.windows
 
     def sync(self, windows: Set[Window], restrict=False):
+        """Synchronize managed windows with given actual windows currently visible and arrange them accordingly
+
+        :param Set[Window] windows: latest visible windows
+        :param bool restrict: optional, restrict windows to their specified rect no matter what
+        """
         theme = self.get_theme()
         old_list = self.windows
         new_list = []
@@ -101,7 +119,10 @@ class MonitorState:
         self.arrange(theme)
 
     def arrange(self, theme: Optional[Theme] = None):
-        """Arrange windows based on theme"""
+        """Arrange windows based on the theme
+
+        :param str theme: optional, fallback to theme of the instance
+        """
         theme = theme or self.get_theme()
         if theme.background is not None:
             self.set_background(theme)
@@ -112,7 +133,7 @@ class MonitorState:
         i = 0
         gap = theme.gap
         # print(work_area, theme.name, len(windows))
-        for (left, top, right, bottom) in theme.layout_tiler(work_area, len(windows)):
+        for left, top, right, bottom in theme.layout_tiler(work_area, len(windows)):
             window = windows[i]
             # add gap
             if gap:
@@ -149,6 +170,7 @@ class MonitorState:
             i += 1
 
     def set_background(self, theme: Theme):
+        """Set background for the monitor based on given theme"""
         monitors = list(get_monitors())
         idx = monitors.index(self.monitor)
         monitor_id = desktop_wallpaper.GetMonitorDevicePathAt(idx)
@@ -164,6 +186,12 @@ class MonitorState:
 
 
 class VirtDeskState:
+    """VirtDeskState holds variables needed by a Virtual Desktop
+
+    :param WindowManager manager: associated WindowManager
+    :param GUID desktop_id: virtual desktop id
+    """
+
     desktop_id: GUID
     manager: "WindowManager"
     managed_windows: Set[Window]
@@ -178,6 +206,12 @@ class VirtDeskState:
         self.last_active_window = None
 
     def get_monitor(self, monitor: Monitor) -> MonitorState:
+        """Retrieves the monitor state for the specified monitor in the virtual desktop
+
+        :param Monitor monitor: monitor
+        :returns: monitor state
+        :rtype: MonitorState
+        """
         monitor_state = self.monitors.get(monitor)
         if monitor_state is None:
             monitor_state = MonitorState(self, monitor)
@@ -185,6 +219,7 @@ class VirtDeskState:
         return monitor_state
 
     def get_managed_active_window(self) -> Optional[Window]:
+        """Retrieves the managed forground window if any"""
         window = get_active_window()
         if window is None:
             return None
@@ -193,6 +228,7 @@ class VirtDeskState:
         return window
 
     def get_last_managed_active_window(self) -> Optional[Window]:
+        """Retrieves the latest managed forground window if any"""
         if self.last_active_window and (
             self.last_active_window not in self.managed_windows
             or not self.last_active_window.exists()
@@ -218,13 +254,9 @@ class WindowManager:
     managed windows in a list, the first one in the list is called Master, it would
     normally take up most area of the screen while others occuppy the rest.
 
-    :param new_window_as_master: set the latest appeared window as the master
-    :param layout_tilers: specify available layout tilers
+    :param List[Theme] themes: all avaiable themes for user to switch
     :param ignore_exe_names: list of executable filenames that you don't want them
                              to be managed/arranged
-    :param gap: specify tha gap between windows and screen border, keep in mind it
-                is half of what you want, say you want 6 pixel between windows, set
-                it to 3.
     """
 
     _state: Dict[GUID, VirtDeskState]
@@ -336,6 +368,7 @@ class WindowManager:
             monitor_state.sync(windows, restrict=restrict)
 
     def arrange_all_monitors(self):
+        """Arrange all windows in all monitors to where their suppose to be"""
         virtdesk_state = self.try_get_virtdesk_state()
         if not virtdesk_state:
             return
@@ -343,6 +376,7 @@ class WindowManager:
             monitor.arrange()
 
     def activate(self, window: Window):
+        """Activate specified window"""
         virtdesk_state = self.try_get_virtdesk_state(window.handle)
         if not virtdesk_state:
             return
@@ -448,6 +482,7 @@ class WindowManager:
         self.activate(l[0])
 
     def get_theme_index(self, theme_name: str) -> int:
+        """Retrieves the index of given theme name, useful to switching theme"""
         i = len(self.themes) - 1
         while i > 0:
             if self.themes[i].name == theme_name:
@@ -456,6 +491,7 @@ class WindowManager:
         return i
 
     def switch_theme_by_offset(self, delta: int):
+        """Switch theme by offset"""
         virtdesk_state = self.try_get_virtdesk_state()
         if not virtdesk_state:
             return
@@ -470,14 +506,17 @@ class WindowManager:
         monitor_state.arrange()
 
     def prev_theme(self):
+        """Switch to previous theme in the themes list"""
         self.switch_theme_by_offset(-1)
 
     def next_theme(self):
+        """Switch to next theme in the themes list"""
         self.switch_theme_by_offset(+1)
 
     def get_monitor_state_pair(
         self, delta: int, virtdesk_state: Optional[VirtDeskState] = None
     ) -> Tuple[MonitorState, MonitorState]:
+        """Retrieves a pair of monitor_states, from cursor and its offset in the list"""
         virtdesk_state = virtdesk_state or self.try_get_virtdesk_state()
         if not virtdesk_state:
             return
@@ -491,6 +530,7 @@ class WindowManager:
         return src_monitor_state, dst_monitor_state
 
     def switch_monitor_by_offset(self, delta: int):
+        """Switch to another monitor by given offset"""
         _, dst_monitor_state = self.get_monitor_state_pair(delta)
         window = dst_monitor_state.last_active_window
         if window is None or not window.exists():
@@ -507,12 +547,15 @@ class WindowManager:
             )
 
     def prev_monitor(self):
+        """Switch to previous monitor"""
         self.switch_monitor_by_offset(-1)
 
     def next_monitor(self):
+        """Switch to next monitor"""
         self.switch_monitor_by_offset(+1)
 
     def move_to_monitor_by_offset(self, delta: int):
+        """Move active window to another monitor by offset"""
         virtdesk_state = self.try_get_virtdesk_state()
         if not virtdesk_state:
             return
@@ -533,9 +576,11 @@ class WindowManager:
             self.activate(next_window)
 
     def move_to_prev_monitor(self):
+        """Move active window to previous monitor"""
         self.move_to_monitor_by_offset(-1)
 
     def move_to_next_monitor(self):
+        """Move active window to next monitor"""
         self.move_to_monitor_by_offset(+1)
 
 

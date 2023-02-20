@@ -23,6 +23,10 @@ from jigsawwm.w32.winevent import WinEvent
 
 
 class Daemon:
+    """JigsawWM Daemon serivce, you must inherite this class and override the `setup` function
+    to configurate the Manager.
+    """
+
     _hook: Hook
     _timers: Dict[Callable, Thread] = {}
     _timer_thread: Thread
@@ -37,9 +41,10 @@ class Daemon:
         self._timer_thread = None
         self._trayicon = None
 
-    def error_handler(self, e: Exception):
+    def _error_handler(self, e: Exception):
         file = io.StringIO()
-        print_exception(e, e, None, file=file)
+        # print_exception(e, e, None, file=file)
+        print_exception(*sys.exc_info(), file=file)
         text = file.getvalue()
         print(text, file=sys.stderr)
         messagebox.showerror("JigsawWM", text)
@@ -50,34 +55,41 @@ class Daemon:
         target: Union[Callable, str],
         swallow: bool = True,
     ):
+        """Register a global hotkey
+
+        :param Union[Sequence[Vk], str] combkeys: key combination, i.e. ``[Vk.WIN, Vk.J]`` or ``Win + j``
+        :param Union[Callback, str] target: can be a callback function or another key combination
+        :param bool swallow: stop event propagation to prevent combkeys being processed by other programs
+        """
         try:
-            hotkey(combkeys, target, swallow, self.error_handler)
+            hotkey(combkeys, target, swallow, self._error_handler)
         except Exception as e:
-            self.error_handler(e)
+            self._error_handler(e)
 
     def start_hooks(self):
+        """Start all hooks"""
         self._hook.install_keyboard_hook(keyboard_event_handler)
         self._hook.install_winevent_hook(
-            self.winevent_callback,
+            self._winevent_callback,
             WinEvent.EVENT_OBJECT_SHOW,
             WinEvent.EVENT_OBJECT_HIDE,
         )
         self._hook.install_winevent_hook(
-            self.winevent_callback,
+            self._winevent_callback,
             WinEvent.EVENT_OBJECT_CLOAKED,
             WinEvent.EVENT_OBJECT_UNCLOAKED,
         )
         self._hook.install_winevent_hook(
-            self.winevent_callback,
+            self._winevent_callback,
             WinEvent.EVENT_SYSTEM_MINIMIZESTART,
             WinEvent.EVENT_SYSTEM_MINIMIZEEND,
         )
         self._hook.install_winevent_hook(
-            self.winevent_callback, WinEvent.EVENT_SYSTEM_MOVESIZEEND
+            self._winevent_callback, WinEvent.EVENT_SYSTEM_MOVESIZEEND
         )
         self._hook.start()
 
-    def winevent_callback(
+    def _winevent_callback(
         self,
         event: WinEvent,
         hwnd: HWND,
@@ -108,10 +120,17 @@ class Daemon:
         self._wm.sync(restrict=event == WinEvent.EVENT_SYSTEM_MOVESIZEEND)
 
     def stop_hooks(self):
+        """Stop all hooks"""
         self._hook.stop()
 
     def timer(self, interval: float, callback: Callable, once: Optional[bool] = False):
-        """Run callback function with a fixed time interval repeatedly"""
+        """Run callback function with a fixed time interval repeatedly
+
+        :param float interval: interval between calls
+        :param Callable callback: function to be called
+        :param bool once: function would be called only once
+        """
+
         # wrap func with in try-catch for safty
         def run():
             # global _timers
@@ -120,20 +139,23 @@ class Daemon:
                 try:
                     callback()
                 except Exception as e:
-                    self.error_handler(e)
+                    self._error_handler(e)
                 if once:
                     del self._timers[callback]
 
         self._timers[callback] = Thread(target=run)
 
     def start_timers(self):
+        """Start all timers"""
         for timer_thread in self._timers.values():
             timer_thread.start()
 
     def stop_timers(self):
+        """Stop all timers"""
         self._timers.clear()
 
     def start_trayicon(self):
+        """Start trayicon"""
         script_dir = os.path.dirname(__file__)
         icon_path = os.path.join(script_dir, "assets", "logo.png")
         icon = Image.open(icon_path)
@@ -149,17 +171,20 @@ class Daemon:
         self._trayicon.run_detached()
 
     def stop_trayicon(self):
+        """Stop trayicon"""
         self._trayicon.stop()
         self._trayicon = None
 
     def setup(self):
+        """To be overrided by the users to configure the Window Manager"""
         pass
 
     def start(self):
+        """Start daemon service"""
         try:
             self._wm = self.setup()
         except Exception as e:
-            self.error_handler(e)
+            self._error_handler(e)
             return
         self._started = True
         self.start_trayicon()
@@ -173,6 +198,7 @@ class Daemon:
                 break
 
     def stop(self):
+        """Stop daemon service"""
         self._started = False
         self.stop_hooks()
         self.stop_timers()

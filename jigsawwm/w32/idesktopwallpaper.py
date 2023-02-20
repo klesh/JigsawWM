@@ -73,49 +73,71 @@ class IDesktopWallpaper(IUnknown):
         ),
     ]
 
-    def SetWallpaper(self, monitorId: str, wallpaper: str):
-        self.__com_SetWallpaper(LPCWSTR(monitorId), LPCWSTR(wallpaper))
+    def SetWallpaper(self, monitor_path: str, wallpaper: str):
+        self.__com_SetWallpaper(LPCWSTR(monitor_path), LPCWSTR(wallpaper))
 
     def GetWallpaper(self, monitorId: Optional[str] = None) -> str:
-        """Gets the current desktop wallpaper.
+        """Retrieves wallpaper image path 
 
         Ref: https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-idesktopwallpaper-getwallpaper
+
+        :param str monitor_path: optional, the string returned by GetMonitorDevicePathAt, return desktop wallpaper if omitted
+        :returns: wallpaper image path
+        :rtype: str
         """
         wallpaper = LPWSTR()
         self.__com_GetWallpaper(LPCWSTR(monitorId), pointer(wallpaper))
         return wallpaper.value
 
-    def GetMonitorDevicePathAt(self, monitorIndex: int) -> str:
+    def GetMonitorDevicePathAt(self, monitor_index: int) -> str:
         """Retrieves the unique ID of one of the system's monitors.
 
         Ref: https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-idesktopwallpaper-getmonitordevicepathat
+        :param int monitor_index: monitor index
+        :returns: monitor path
+        :rtype: str
         """
         monitorId = LPWSTR()
-        self.__com_GetMonitorDevicePathAt(UINT(monitorIndex), pointer(monitorId))
+        self.__com_GetMonitorDevicePathAt(UINT(monitor_index), pointer(monitorId))
         return monitorId.value
 
     def GetMonitorDevicePathCount(self) -> int:
         """Retrieves the number of monitors that are associated with the system.
 
         Ref: https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-idesktopwallpaper-getmonitordevicepathcount
+
+        :returns: total number of available monitor (mirrored monitors excluded)
         """
         count = UINT()
         self.__com_GetMonitorDevicePathCount(pointer(count))
         return count.value
 
-    def GetMonitorRECT(self, monitorId: str) -> RECT:
+    def GetMonitorRECT(self, monitor_path: str) -> RECT:
         """Retrieves the display rectangle of the specified monitor.
 
         Ref: https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-idesktopwallpaper-getmonitorrect
+
+        :param str monitor_path: monitor path returned by GetMonitorDevicePathAt
+        :returns: display rectangle
+        :rtype: RECT
         """
         rect = RECT()
-        self.__com_GetMonitorRECT(LPCWSTR(monitorId), pointer(rect))
+        self.__com_GetMonitorRECT(LPCWSTR(monitor_path), pointer(rect))
         return rect
 
     def SetBackgroundColor(self, color: COLORREF):
+        """Sets the background color
+        
+        :param COLORREF color:  background color
+        """
         self.__com_SetBackgroundColor(color)
 
     def GetBackgroundColor(self) -> COLORREF:
+        """Retrieves current background color
+        
+        :returns: current desktop background color
+        :rtype: COLORREF
+        """
         color = COLORREF()
         self.__com_GetBackgroundColor(pointer(color))
         return color
@@ -128,11 +150,23 @@ desktop_wallpaper: IDesktopWallpaper = comtypes.CoCreateInstance(
 
 
 def hexstr2colorref(hexstr: str) -> COLORREF:
+    """Converts html color to Win32 COLORREF struct
+    
+    :param str hexstr: html color string
+    :returns: Win32 color struct
+    :rtype: COLORREF
+    """
     color = int(hexstr[1:], 16)
     return COLORREF(color & 0xFF00 | (color >> 16 & 0xFF) | ((color & 0xFF) << 16))
 
 
 def colorref2hexstr(color: COLORREF) -> str:
+    """Converts Win32 COLORREF struct to html color
+
+    :param COLORREF color: Win32 color struct
+    :returns: html color string
+    :rtype: str
+    """
     color = int(color.value)
     return "#%x%x%x" % (color & 0xFF, color >> 8 & 0xFF, color >> 16 & 0xFF)
 

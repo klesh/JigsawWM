@@ -2,6 +2,11 @@ import enum
 
 
 class Vk(enum.IntEnum):
+    """Win32 virtual key code
+    
+    Ref: https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
+
+    """
 
     LBUTTON = 0x01  # Left mouse button
     RBUTTON = 0x02  # Right mouse button

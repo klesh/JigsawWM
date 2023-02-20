@@ -87,6 +87,9 @@ def send_input(*inputs: typing.List[INPUT]):
     )
     ```
 
+    :param List[INPUT] inputs: list of keyboard/mouse inputs which
+        to be sent to system
+
     """
     for item in inputs:
         if item.ki:
@@ -100,6 +103,8 @@ def send_input(*inputs: typing.List[INPUT]):
 
 
 def is_synthesized(msg: typing.Union[KEYBDINPUT, MOUSEINPUT]) -> bool:
+    """Check if keyboard/mouse event is sent by this module
+    """
     global SYNTHESIZED_ID
     return msg.dwExtraInfo == SYNTHESIZED_ID
 

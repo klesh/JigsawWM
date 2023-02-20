@@ -20,9 +20,9 @@ dwmapi = WinDLL("dwmapi", use_last_error=True)
 def enum_windows(
     check: Optional[Callable[[HWND], EnumCheckResult]] = None
 ) -> List[HWND]:
-    """Returns a List of all top-level windows on the screen.
+    """Returns a List of all top-level windows on current desktop.
 
-    :param check: to determinate if a HWN should be added to list, or stop iteration
+    :param check: optional, to determinate if a HWN should be added to list, or stop iteration
 
     :return: list of window handles
     :rtype: List[HWND]
@@ -45,56 +45,68 @@ def enum_windows(
 
 
 def get_foreground_window() -> HWND:
+    """Retrieves foreground window handle"""
     return user32.GetForegroundWindow()
 
 
 def get_window_style(hwnd: HWND) -> WindowStyle:
+    """Retrieves style of the specified window handle"""
     return WindowStyle(user32.GetWindowLongA(hwnd, -16))
 
 
 def get_window_exstyle(hwnd: HWND) -> WindowExStyle:
+    """Retrieves ex-style of the specified window handle"""
     return WindowExStyle(user32.GetWindowLongA(hwnd, -20))
 
 
 def show_window(hwnd: HWND, cmd: ShowWindowCmd):
+    """Show window"""
     user32.ShowWindow(hwnd, cmd)
 
 
 def minimize_window(hwnd: HWND):
+    """Minimize window"""
     show_window(hwnd, ShowWindowCmd.SW_MINIMIZE)
 
 
 def maximize_window(hwnd: HWND):
+    """Maximize window"""
     show_window(hwnd, ShowWindowCmd.SW_MAXIMIZE)
 
 
 def restore_window(hwnd: HWND):
+    """Restore window"""
     show_window(hwnd, ShowWindowCmd.SW_RESTORE)
 
 
 def get_window_title(hwnd: HWND) -> str:
+    """Retrieves window title"""
     title = create_unicode_buffer(255)
     user32.GetWindowTextW(hwnd, title, 255)
     return str(title.value)
 
 
 def get_window_class_name(hwnd: HWND) -> str:
+    """Retrieves window class name"""
     buff = create_unicode_buffer(100)
     user32.GetClassNameW(hwnd, buff, 100)
     return str(buff.value)
 
 
 def get_window_pid(hwnd: HWND) -> DWORD:
+    """Retrieves id of the process that owns the window"""
     pid = DWORD()
     user32.GetWindowThreadProcessId(hwnd, pointer(pid))
     return pid
 
 
 def is_window_visible(hwnd: HWND) -> bool:
+    """Check if window is visible"""
     return bool(user32.IsWindowVisible(hwnd))
 
 
 def is_window_cloaked(hwnd: HWND) -> bool:
+    """Check if window is cloaked"""
     cloaked = INT()
     windll.dwmapi.DwmGetWindowAttribute(
         hwnd,
@@ -106,14 +118,17 @@ def is_window_cloaked(hwnd: HWND) -> bool:
 
 
 def is_window(hwnd: HWND) -> bool:
+    """Check if handle is a window handle"""
     return user32.IsWindow(hwnd)
 
 
 def is_top_level_window(hwnd: HWND) -> bool:
+    """Check if window is a top-level window"""
     return user32.IsTopLevelWindow(hwnd)
 
 
 def is_app_window(hwnd: HWND, style: Optional[WindowExStyle] = None) -> bool:
+    """Check if window is a app window (user mode / visible / resizable)"""
     style = style or get_window_style(hwnd)
     return bool(
         not is_window_cloaked(hwnd)
@@ -123,6 +138,7 @@ def is_app_window(hwnd: HWND, style: Optional[WindowExStyle] = None) -> bool:
 
 
 def is_manageable_window(hwnd: HWND) -> bool:
+    """Check if window is able to be managed by us"""
     style = get_window_style(hwnd)
     return bool(
         is_app_window(hwnd, style)
@@ -135,6 +151,7 @@ def is_manageable_window(hwnd: HWND) -> bool:
 
 
 def get_first_app_window() -> HWND:
+    """Retrieves any window from current desktop"""
     hwnd = get_foreground_window()
     if is_app_window(hwnd):
         return hwnd
@@ -150,6 +167,7 @@ def get_first_app_window() -> HWND:
 
 
 def get_window_extended_frame_bounds(hwnd: HWND) -> RECT:
+    """Retrieve extended frame bounds of the specified window"""
     bound = RECT()
     windll.dwmapi.DwmGetWindowAttribute(
         hwnd,
@@ -161,6 +179,7 @@ def get_window_extended_frame_bounds(hwnd: HWND) -> RECT:
 
 
 def get_window_rect(hwnd: HWND) -> RECT:
+    """Retrieves rect(position/size) of the specified window"""
     rect = RECT()
     if not user32.GetWindowRect(hwnd, pointer(rect)):
         raise WinError(get_last_error())
@@ -172,6 +191,7 @@ SET_WINDOW_RECT_FLAG = SWP_NOACTIVATE
 
 
 def set_window_rect(hwnd: HWND, rect: RECT):
+    """Move/resize specified window"""
     x, y, w, h = rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top
     if not user32.SetWindowPos(hwnd, None, x, y, w, h, SET_WINDOW_RECT_FLAG):
         raise WinError(get_last_error())
@@ -426,12 +446,14 @@ def set_active_window(window: Window) -> bool:
 
 
 def minimize_active_window():
+    """Minize active window"""
     window = get_active_window()
     if window:
         window.minimize()
 
 
 def toggle_maximize_active_window():
+    """Maximize/Unmaximize active window"""
     window = get_active_window()
     if window:
         window.toggle_maximize()

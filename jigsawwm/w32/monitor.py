@@ -52,10 +52,23 @@ def enum_display_monitors() -> List[HMONITOR]:
 
 
 def monitor_from_point(x: int, y: int) -> HMONITOR:
+    """Retrieves monitor from the specified coordinate
+    
+    :param int x: X
+    :param int y: Y
+    :returns: monitor handle
+    :rtype: HMONITOR
+    """
     return user32.MonitorFromPoint(POINT(x=x, y=y), 0)
 
 
 def monitor_from_window(hwnd: HWND) -> HMONITOR:
+    """Retrieves monitor from the specified window
+    
+    :param HWND hwn: window handle
+    :returns: monitor handle
+    :rtype: HMONITOR
+    """
     return user32.MonitorFromWindow(hwnd, 0)
 
 
@@ -116,6 +129,11 @@ class Monitor:
         return hash(self._hmon)
 
     def get_info(self) -> MONITORINFOEX:
+        """Retrieves monitor information
+        
+        :returns: monitor information
+        :rtype: MONITORINFOEX
+        """
         monitor_info = MONITORINFOEX()
         monitor_info.cbSize = sizeof(monitor_info)
         if not user32.GetMonitorInfoA(self._hmon, pointer(monitor_info)):
@@ -123,6 +141,11 @@ class Monitor:
         return monitor_info
 
     def get_scale_factor(self) -> DEVICE_SCALE_FACTOR:
+        """Retrieves monitor scale factor
+        
+        :returns: scale factor
+        :rtype: DEVICE_SCALE_FACTOR
+        """
         scale_factor = ULONG()
         if shcore.GetScaleFactorForMonitor(self._hmon, byref(scale_factor)) != 0:
             raise WinError(get_last_error())
@@ -130,10 +153,21 @@ class Monitor:
 
 
 def get_monitors() -> Iterator[Monitor]:
+    """Retrieves all display monitors(mirroring monitors are excluded)
+
+    :returns: system monitors
+    :rtype: Iterator[Monitor]
+    """
     return map(Monitor, enum_display_monitors())
 
 
 def get_monitor_central(monitor: Monitor) -> Tuple[int, int]:
+    """Retrieves coordinates of the center of specified monitor
+    
+    :param Monitor monitor: monitor
+    :returns: X/Y coorindates
+    :rtype: Tuple[int, int]
+    """
     rect = monitor.get_info().rcMonitor
     return (
         rect.left + (rect.right - rect.left) / 2,
@@ -142,20 +176,42 @@ def get_monitor_central(monitor: Monitor) -> Tuple[int, int]:
 
 
 def get_topo_sorted_monitors() -> List[Monitor]:
-    """Sort monitor from left to right, top to bottom by Central Points"""
+    """Sort monitor from left to right, top to bottom by Central Points
+    
+    :returns: list of monitors ordered by their central point, X and then Y
+    :rtype: List[Monitor]
+    """
     return sorted(get_monitors(), key=get_monitor_central)
 
 
 def get_monitor_from_point(x: int, y: int) -> Monitor:
+    """Retrieves monitor from X/Y coordinates
+    
+    :param int x: X coordinate
+    :param int y: Y coordinate
+    :returns: Monitor from specified point
+    :rtype: Monitor
+    """
     return Monitor(monitor_from_point(x, y))
 
 
 def get_monitor_from_cursor() -> Monitor:
+    """Retrieves monitor from cursor
+    
+    :returns: Monitor from current cursor
+    :rtype: Monitor
+    """
     pt = get_cursor_pos()
     return Monitor(monitor_from_point(pt.x, pt.y))
 
 
 def get_monitor_from_window(hwnd: HWND) -> Monitor:
+    """Retrieves monitor from window handle
+    
+    :param HWND hwnd: window handle
+    :returns: Monitor that owns specified window
+    :rtype: Monitor
+    """
     if hwnd:
         return Monitor(monitor_from_window(hwnd))
 
