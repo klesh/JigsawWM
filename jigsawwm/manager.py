@@ -495,9 +495,16 @@ class WindowManager:
         window = dst_monitor_state.last_active_window
         if window is None or not window.exists():
             windows = dst_monitor_state.get_existing_windows()
-            window = windows[0]
+            if windows:
+                window = windows[0]
         if window:
             self.activate(window)
+        else:
+            rect = dst_monitor_state.monitor.get_info().rcWork
+            set_cursor_pos(
+                rect.left + (rect.right - rect.left) / 2,
+                rect.top + (rect.bottom - rect.top) / 2,
+            )
 
     def prev_monitor(self):
         self.switch_monitor_by_offset(-1)
