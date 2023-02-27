@@ -15,6 +15,10 @@ from jigsawwm.w32.sendinput import (
 from jigsawwm.w32.vk import Vk
 
 
+def is_power_of_2(num: int) -> bool:
+    return num != 0 and num & (num - 1) == 0
+
+
 class Modifier(enum.IntFlag):
     """Keyboard modifier"""
 
@@ -37,12 +41,11 @@ class Modifier(enum.IntFlag):
             return
         if isinstance(mk, str):
             mk = cls[mk].value
-        first_alias = cls.CONTROL.value
-        if mk < first_alias:
+        if is_power_of_2(mk):
             yield cls(mk)
             return
         for v in cls.__members__.values():
-            if v >= first_alias:
+            if v >= cls.CONTROL:
                 return
             if v & mk:
                 yield cls(v)
