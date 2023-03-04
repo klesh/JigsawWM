@@ -11,7 +11,6 @@ from jigsawwm.w32.window import (
 
 class MyDaemon(Daemon):
     def setup(self):
-
         # setup the WindowManager
         wm = WindowManager(
             themes=[
@@ -22,6 +21,7 @@ class MyDaemon(Daemon):
                     # background=r"D:\Documents\wallpapers\IMG_20220816_102143.jpg",
                     gap=2,
                     strict=True,
+                    new_window_as_master=True,
                 ),
                 Theme(
                     name="OBS Dwindle",
@@ -54,7 +54,7 @@ class MyDaemon(Daemon):
         self.hotkey([Vk.WIN, Vk.SHIFT, Vk.K], wm.swap_prev)
         self.hotkey([Vk.WIN, Vk.N], minimize_active_window)
         self.hotkey([Vk.WIN, Vk.M], toggle_maximize_active_window)
-        self.hotkey("Win+/", wm.swap_master)
+        self.hotkey("Win+/", wm.set_master)
         self.hotkey("Win+q", "LAlt+F4")
         self.hotkey([Vk.WIN, Vk.SPACE], wm.next_theme)
         self.hotkey([Vk.WIN, Vk.U], wm.prev_monitor)

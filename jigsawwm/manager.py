@@ -428,8 +428,7 @@ class WindowManager:
         """Activate the managed window prior to the last activated managed window"""
         self.activate_by_offset(-1)
 
-    def swap_by_offset(self, offset: int):
-        """Swap current active managed window with its sibling by offset"""
+    def _reorder(self, reorderer: Callable[[List[Window], int], None]):
         virtdesk_state = self.try_get_virtdesk_state()
         if not virtdesk_state:
             return
@@ -441,12 +440,18 @@ class WindowManager:
             return
         if len(monitor_state.windows) < 2:
             return
-        l = monitor_state.windows
-        src_idx = l.index(src_window)
-        dst_idx = (src_idx + offset) % len(l)
-        l[src_idx], l[dst_idx] = l[dst_idx], l[src_idx]
+        reorderer(monitor_state.windows, monitor_state.windows.index(src_window))
         monitor_state.arrange()
         self.activate(src_window)
+
+    def swap_by_offset(self, offset: int):
+        """Swap current active managed window with its sibling by offset"""
+
+        def reorderer(windows: List[Window], src_idx: int):
+            dst_idx = (src_idx + offset) % len(windows)
+            windows[src_idx], windows[dst_idx] = windows[dst_idx], windows[src_idx]
+
+        self._reorder(reorderer)
 
     def swap_next(self):
         """Swap the current active managed window with its next in list"""
@@ -460,26 +465,33 @@ class WindowManager:
         """Swap the current active managed window with the Master or the second window
         in the list if it is Master already
         """
-        virtdesk_state = self.try_get_virtdesk_state()
-        if not virtdesk_state:
-            return
-        src_window = virtdesk_state.get_managed_active_window()
-        if not src_window:
-            return
-        monitor_state = virtdesk_state.find_owner(src_window)
-        if monitor_state is None:
-            return
-        l = monitor_state.windows
-        src_idx = l.index(src_window)
-        if len(l) < 2:
-            return
-        if src_idx == 0:
-            dst_idx = 1
-        else:
-            dst_idx = 0
-        l[src_idx], l[dst_idx] = l[dst_idx], l[src_idx]
-        monitor_state.arrange()
-        self.activate(l[0])
+
+        def reorderer(windows: List[Window], src_idx: int):
+            if src_idx == 0:
+                dst_idx = 1
+            else:
+                dst_idx = 0
+            windows[src_idx], windows[dst_idx] = windows[dst_idx], windows[src_idx]
+
+        self._reorder(reorderer)
+
+    def set_master(self):
+        """Set the active active managed window as the Master or the second window
+        in the list if it is Master already
+        """
+
+        def reorderer(windows: List[Window], src_idx: int):
+            src_window = windows[src_idx]
+            if src_idx == 0:
+                src_idx = 1
+                src_window = windows[1]
+            # shift elements from the beginning to the src_window
+            for i in reversed(range(1, src_idx + 1)):
+                windows[i] = windows[i - 1]
+            # assign new master
+            windows[0] = src_window
+
+        self._reorder(reorderer)
 
     def get_theme_index(self, theme_name: str) -> int:
         """Retrieves the index of given theme name, useful to switching theme"""
