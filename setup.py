@@ -1,7 +1,6 @@
-import re
 from setuptools import setup
 
 setup(
-    name="JigsawWM",
-    version="1.0.0",
+    name="jigsawwm",
+    version="1.0.1",
 )
