@@ -1,7 +1,6 @@
 # JigsawWM
 
-Jigsaw is the missing Dynamic Tiling Window Manager for MS Windows
-
+JigsawWM is a dynamic window manager for Windows10/11 just like the suckless dwm for the X.
 
 ## Demo
 
