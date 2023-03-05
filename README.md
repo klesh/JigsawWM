@@ -57,6 +57,11 @@ pip install git+https://github.com/klesh/JigsawWM.git
 2. Create a shortcut to your `.pyw` file. Done!
 
 
+## Document
+
+[Read the Docs](https://jigsawwm.readthedocs.io/en/latest/)
+
+
 ## Changelog
 
 ### 2023-02-02
