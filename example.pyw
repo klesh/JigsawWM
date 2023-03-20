@@ -1,5 +1,6 @@
 from jigsawwm.daemon import Daemon
 from jigsawwm.manager import Theme, WindowManager
+from jigsawwm.svcmgr import ServiceItem
 from jigsawwm.tiler import tilers
 from jigsawwm.w32.vk import Vk
 from jigsawwm.w32.window import (
@@ -65,6 +66,20 @@ class MyDaemon(Daemon):
 
         # setup trayicon menu
         # self.menu_items = [pystray.MenuItem("Arrange All", wm.arrange_all_monitors)]
+
+        # launch console programs (i.e. syncthing) at startup
+        self.service(
+            ServiceItem(
+                name="syncthing",
+                args=[
+                    r"C:\Programs\syncthing-windows-amd64-v1.23.2\syncthing.exe",
+                    "-no-browser",
+                    "-no-restart",
+                    "-no-upgrade",
+                ],
+                log_path=r"C:\Programs\syncthing-windows-amd64-v1.23.2\syncthing.log",
+            )
+        )
 
         return wm
 
