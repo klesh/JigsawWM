@@ -55,6 +55,7 @@ class ServiceEntry:
                 return ServiceStatus.STOPPED
             if self._process.poll() is None:
                 return ServiceStatus.RUNNING
+        return ServiceStatus.STOPPED
 
     def start(self):
         """Start the service"""
