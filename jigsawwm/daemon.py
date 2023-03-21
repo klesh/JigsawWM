@@ -16,7 +16,7 @@ from PIL import Image
 
 from jigsawwm.hotkey import hotkey, keyboard_event_handler
 from jigsawwm.manager import WindowManager
-from jigsawwm.svcmgr import ServiceItem, ServiceManager
+from jigsawwm.svcmgr import ServiceEntry, ServiceManager
 from jigsawwm.w32.hook import Hook
 from jigsawwm.w32.vk import Vk
 from jigsawwm.w32.window import Window, is_app_window, is_window
@@ -69,9 +69,9 @@ class Daemon:
         except Exception as e:
             self._error_handler(e)
 
-    def service(self, service_item: ServiceItem):
+    def service(self, service_entry: ServiceEntry):
         """Register a service"""
-        self._svcmgr.register(service_item)
+        self._svcmgr.register(service_entry)
 
     def start_hooks(self):
         """Start all hooks"""

@@ -1,6 +1,6 @@
 from jigsawwm.daemon import Daemon
 from jigsawwm.manager import Theme, WindowManager
-from jigsawwm.svcmgr import ServiceItem
+from jigsawwm.svcmgr import ServiceEntry
 from jigsawwm.tiler import tilers
 from jigsawwm.w32.vk import Vk
 from jigsawwm.w32.window import (
@@ -69,7 +69,7 @@ class MyDaemon(Daemon):
 
         # launch console programs (i.e. syncthing) at startup
         self.service(
-            ServiceItem(
+            ServiceEntry(
                 name="syncthing",
                 args=[
                     r"C:\Programs\syncthing-windows-amd64-v1.23.2\syncthing.exe",
