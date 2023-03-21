@@ -37,6 +37,14 @@ jigsawwm.manager module
    :undoc-members:
    :show-inheritance:
 
+jigsawwm.svcmgr module
+-----------------------
+
+.. automodule:: jigsawwm.svcmgr
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 jigsawwm.virtdeskstub module
 ----------------------------
 
