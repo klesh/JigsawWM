@@ -166,7 +166,7 @@ Functionalities:
 ### 2023-04-05
 
 - add `smartstart` feature
-- BREAKING CHAGEN: rename `svcmgr` to `services`
+- BREAKING CHANGE: rename `svcmgr` to `services`
 - adopt `pyproject.toml`
 
 ### 2023-03-21
