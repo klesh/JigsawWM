@@ -146,6 +146,14 @@ MyDaemon(Daemon)
 
 ```
 
+### Tray menu
+
+![tray menu](docs/img/tray_menu.png)
+
+Functionalities:
+
+1. Stop/start a `service` 
+2. Run a `smartstart` without condition
 
 
 ## Document
