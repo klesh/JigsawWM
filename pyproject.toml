@@ -1,0 +1,26 @@
+[project]
+name="jigsawwm"
+version="1.2.0"
+authors=[
+  { name="Klesh Wong", email="klesh@qq.com" },
+]
+description = "JigsawWM is a dynamic window manager for Windows10/11 just like the suckless dwm for the X"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+  "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+  "Operating System :: Unix",
+  "Operating System :: MacOS",
+  "Operating System :: POSIX :: BSD",
+]
+dynamic = ["dependencies"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+[project.urls]
+"Documentation" = "https://jigsawwm.readthedocs.io/en/latest/"
+"Source Code" = "https://github.com/klesh/JigsawWM"
+"Issue Tracker" = "https://github.com/klesh/JigsawWM/issues"

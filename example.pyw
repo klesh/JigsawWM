@@ -1,5 +1,11 @@
+import os
+from datetime import timedelta
+
+from mailcalaid.cal.holiday import ChinaHolidayBook
+
 from jigsawwm.daemon import Daemon
 from jigsawwm.manager import Theme, WindowManager
+from jigsawwm.smartstart import daily_once, open_chrome_fav_folder, smart_start
 from jigsawwm.svcmgr import ServiceEntry
 from jigsawwm.tiler import tilers
 from jigsawwm.w32.vk import Vk
@@ -67,7 +73,7 @@ class MyDaemon(Daemon):
         # setup trayicon menu
         # self.menu_items = [pystray.MenuItem("Arrange All", wm.arrange_all_monitors)]
 
-        # launch console programs (i.e. syncthing) at startup
+        # launch console programs (i.e. syncthing) as background service at startup
         self.service(
             ServiceEntry(
                 name="syncthing",
@@ -79,6 +85,38 @@ class MyDaemon(Daemon):
                 ],
                 log_path=r"C:\Programs\syncthing-windows-amd64-v1.23.2\syncthing.log",
             )
+        )
+
+        # launch apps smartly at startup
+        holiday_book = ChinaHolidayBook()
+
+        def open_worklog():
+            next_workday = holiday_book.next_workday()
+            latest_workday = holiday_book.latest_workday()
+            worklog_path = os.path.join(
+                os.path.expanduser("~/Documents/Sync/worklog"),
+                f"{next_workday.isoformat()}.md",
+            )
+            if not os.path.exists(worklog_path):
+                with open(worklog_path, "w") as f:
+                    prevdate = latest_workday.strftime("%m/%d")
+                    nextdate = next_workday.strftime("%m/%d")
+                    f.write(f"{prevdate}\n1. \n\n{nextdate}\n1. ")
+            os.startfile(worklog_path)
+
+        smart_start(
+            name="daily routine",
+            launch=lambda: open_chrome_fav_folder("bookmark_bar", "daily"),
+            condition=lambda: daily_once("daily websites"),
+        )
+        smart_start(
+            name="workhour routine",
+            launch=[
+                r"C:\Users\Klesh\AppData\Local\Feishu\Feishu.exe",
+                r"C:\Program Files\Mozilla Thunderbird\thunderbird.exe",
+                open_worklog,
+            ],
+            condition=lambda: holiday_book.is_workhour(extend=timedelta(hours=2)),
         )
 
         return wm

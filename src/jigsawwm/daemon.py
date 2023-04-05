@@ -16,6 +16,7 @@ from PIL import Image
 
 from jigsawwm.hotkey import hotkey, keyboard_event_handler
 from jigsawwm.manager import WindowManager
+from jigsawwm.smartstart import get_all_smart_start
 from jigsawwm.svcmgr import ServiceEntry, ServiceManager
 from jigsawwm.w32.hook import Hook
 from jigsawwm.w32.vk import Vk
@@ -175,8 +176,17 @@ class Daemon:
                 )
                 for service in self._svcmgr.get_all()
             ]
+            smartstart_menu_items = [
+                pystray.MenuItem(
+                    f"{smartstart.name}",
+                    smartstart.run_anyway,
+                )
+                for smartstart in get_all_smart_start()
+            ]
             return [
                 *self.menu_items,
+                *smartstart_menu_items,
+                pystray.Menu.SEPARATOR,
                 *service_menu_items,
                 pystray.Menu.SEPARATOR,
                 pystray.MenuItem("Exit", self.stop),

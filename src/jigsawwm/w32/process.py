@@ -1,8 +1,11 @@
+import os
 from ctypes import *
 from ctypes.wintypes import *
+from typing import List
 
 kernel32 = WinDLL("kernel32", use_last_error=True)
 advapi32 = WinDLL("advapi32", use_last_error=True)
+psapi = WinDLL("psapi", use_last_error=True)
 
 TOKEN_QUERY = DWORD(8)
 
@@ -72,3 +75,47 @@ def get_exepath(pid: int) -> str:
         raise WinError(get_last_error())
     kernel32.CloseHandle(hprc)
     return str(buff.value)
+
+
+def get_all_processes(total: int = 1024) -> List[DWORD]:
+    """Retrieves the process identifiers of all running processes.
+
+    :param in total: the number of processes to retrieve
+
+    :return: list of process identifiers
+    :rtype: List[DWORD]
+    """
+    buff = (DWORD * total)()
+    size = DWORD(sizeof(buff))
+    if not psapi.EnumProcesses(byref(buff), size, pointer(size)):
+        raise WinError(get_last_error())
+    return list(buff[: size.value // sizeof(DWORD)])
+
+
+def is_exe_running(exe: str, nameonly: bool = False) -> bool:
+    """Check if specified executable is running
+
+    :param str exe: executable name
+    :param bool nameonly: if `True`, only check the executable name, otherwise check the full path
+    :return: `True` if running, `False` otherwise
+    :rtype: bool
+    """
+    exe = exe.lower()
+    if nameonly:
+        exe = os.path.basename(exe)
+    for pid in get_all_processes():
+        try:
+            ppath = get_exepath(pid).lower()
+            if nameonly:
+                ppath = os.path.basename(ppath)
+            if exe == ppath:
+                return True
+        except:
+            pass
+    return False
+
+
+if __name__ == "__main__":
+    import sys
+
+    print(is_exe_running(sys.argv[1], bool(sys.argv[2])))
