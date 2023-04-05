@@ -41,6 +41,7 @@ def open_chrome_fav_folder(root, fav_folder):
 
 
 def daily_once(name: str):
+    """Returns True if the given name has not been called today"""
     today = datetime.today().date()
     state = get_state_manager()
     last_date = state.getdate("daily", name)
@@ -54,8 +55,15 @@ Launch = Union[str, Callable]
 
 @dataclass
 class SmartStartEntry:
+    """A smart start entry, which will only run when the condition is true
+
+    :param str name: the name of the entry
+    :param Union[Launch, List[Launch]] launch: the launch item
+    :param Callable condition: the condition to check
+    """
+
     name: str
-    launch: Launch
+    launch: Union[Launch, List[Launch]]
     condition: Callable[[], bool]
 
     def __call__(self):
@@ -64,6 +72,8 @@ class SmartStartEntry:
         self.run_anyway()
 
     def run_anyway(self):
+        """Runs the launch item regardless of the condition"""
+
         def launch(launch):
             if isinstance(launch, str):
                 if not is_exe_running(launch):
@@ -78,23 +88,30 @@ class SmartStartEntry:
             launch(self.launch)
 
 
-_all_smart_start: Dict[str, SmartStartEntry] = dict()
+class SmartStartManager:
+    _smartstarts: Dict[str, SmartStartEntry]
+
+    def __init__(self):
+        self._smartstarts = dict()
+
+    def register(
+        self,
+        entry=SmartStartEntry,
+    ):
+        """Registers a smart start entry"""
+        if entry.name in self._smartstarts:
+            raise ValueError(f"smart_start: {name} already exists")
+        self._smartstarts[entry.name] = entry
+        entry()
+
+    def get_all(self):
+        """Returns all smart start entries"""
+        return self._smartstarts.values()
 
 
-def smart_start(
-    name: str, launch: Union[Launch, List[Launch]], condition: Callable[[], bool]
-):
-    global _all_smart_start
-    if name in _all_smart_start:
-        raise ValueError(f"smart_start: {name} already exists")
-    entry = SmartStartEntry(name, launch, condition)
-    _all_smart_start[name] = entry
-    entry()
-
-
-def get_all_smart_start():
-    return _all_smart_start.values()
-
+smartstart = SmartStartManager()
+register_smartstart = smartstart.register
+get_smartstarts = smartstart.get_all
 
 if __name__ == "__main__":
     # open_chrome_fav_folder("bookmark_bar", "daily")

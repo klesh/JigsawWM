@@ -13,11 +13,11 @@ server.watch(
     shell([make, "html"], cwd=".."),
 )
 server.watch(
-    "jigsawwm/*.py",
+    "src/jigsawwm/*.py",
     shell([make, "html"], cwd=".."),
 )
 server.watch(
-    "jigsawwm/*/*.py",
+    "src/jigsawwm/*/*.py",
     shell([make, "html"], cwd=".."),
 )
 server.serve(root="docs/_build/html")

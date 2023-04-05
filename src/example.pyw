@@ -1,23 +1,29 @@
-import os
-from datetime import timedelta
-
-from mailcalaid.cal.holiday import ChinaHolidayBook
-
 from jigsawwm.daemon import Daemon
-from jigsawwm.manager import Theme, WindowManager
-from jigsawwm.smartstart import daily_once, open_chrome_fav_folder, smart_start
-from jigsawwm.svcmgr import ServiceEntry
-from jigsawwm.tiler import tilers
-from jigsawwm.w32.vk import Vk
-from jigsawwm.w32.window import (
-    inspect_active_window,
-    minimize_active_window,
-    toggle_maximize_active_window,
-)
 
 
 class MyDaemon(Daemon):
     def setup(self):
+        import os
+        from datetime import timedelta
+
+        from mailcalaid.cal.holiday import ChinaHolidayBook
+
+        from jigsawwm.manager import Theme, WindowManager
+        from jigsawwm.services import ServiceEntry, register_service
+        from jigsawwm.smartstart import (
+            SmartStartEntry,
+            daily_once,
+            open_chrome_fav_folder,
+            register_smartstart,
+        )
+        from jigsawwm.tiler import tilers
+        from jigsawwm.w32.vk import Vk
+        from jigsawwm.w32.window import (
+            inspect_active_window,
+            minimize_active_window,
+            toggle_maximize_active_window,
+        )
+
         # setup the WindowManager
         wm = WindowManager(
             themes=[
@@ -74,7 +80,7 @@ class MyDaemon(Daemon):
         # self.menu_items = [pystray.MenuItem("Arrange All", wm.arrange_all_monitors)]
 
         # launch console programs (i.e. syncthing) as background service at startup
-        self.service(
+        register_service(
             ServiceEntry(
                 name="syncthing",
                 args=[
@@ -91,6 +97,7 @@ class MyDaemon(Daemon):
         holiday_book = ChinaHolidayBook()
 
         def open_worklog():
+            """Open a worklog (markdown file) for today."""
             next_workday = holiday_book.next_workday()
             latest_workday = holiday_book.latest_workday()
             worklog_path = os.path.join(
@@ -104,19 +111,23 @@ class MyDaemon(Daemon):
                     f.write(f"{prevdate}\n1. \n\n{nextdate}\n1. ")
             os.startfile(worklog_path)
 
-        smart_start(
-            name="daily routine",
-            launch=lambda: open_chrome_fav_folder("bookmark_bar", "daily"),
-            condition=lambda: daily_once("daily websites"),
+        register_smartstart(
+            SmartStartEntry(
+                name="daily routine",
+                launch=lambda: open_chrome_fav_folder("bookmark_bar", "daily"),
+                condition=lambda: daily_once("daily websites"),
+            )
         )
-        smart_start(
-            name="workhour routine",
-            launch=[
-                r"C:\Users\Klesh\AppData\Local\Feishu\Feishu.exe",
-                r"C:\Program Files\Mozilla Thunderbird\thunderbird.exe",
-                open_worklog,
-            ],
-            condition=lambda: holiday_book.is_workhour(extend=timedelta(hours=2)),
+        register_smartstart(
+            SmartStartEntry(
+                name="workhour routine",
+                launch=[
+                    r"C:\Users\Klesh\AppData\Local\Feishu\Feishu.exe",
+                    r"C:\Program Files\Mozilla Thunderbird\thunderbird.exe",
+                    open_worklog,
+                ],
+                condition=lambda: holiday_book.is_workhour(extend=timedelta(hours=2)),
+            )
         )
 
         return wm

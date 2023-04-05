@@ -16,8 +16,8 @@ from PIL import Image
 
 from jigsawwm.hotkey import hotkey, keyboard_event_handler
 from jigsawwm.manager import WindowManager
-from jigsawwm.smartstart import get_all_smart_start
-from jigsawwm.svcmgr import ServiceEntry, ServiceManager
+from jigsawwm.services import get_services
+from jigsawwm.smartstart import get_smartstarts
 from jigsawwm.w32.hook import Hook
 from jigsawwm.w32.vk import Vk
 from jigsawwm.w32.window import Window, is_app_window, is_window
@@ -35,7 +35,6 @@ class Daemon:
     _trayicon: pystray.Icon
     _started: bool = False
     _wm: WindowManager
-    _svcmgr: ServiceManager
     menu_items: Sequence[pystray.MenuItem] = []
 
     def __init__(self):
@@ -43,7 +42,6 @@ class Daemon:
         self._timers = {}
         self._timer_thread = None
         self._trayicon = None
-        self._svcmgr = ServiceManager()
 
     def _error_handler(self, e: Exception):
         file = io.StringIO()
@@ -69,10 +67,6 @@ class Daemon:
             hotkey(combkeys, target, swallow, self._error_handler)
         except Exception as e:
             self._error_handler(e)
-
-    def service(self, service_entry: ServiceEntry):
-        """Register a service"""
-        self._svcmgr.register(service_entry)
 
     def start_hooks(self):
         """Start all hooks"""
@@ -174,14 +168,14 @@ class Daemon:
                     f"[{service.status_text}] {service.name}",
                     service.toggle,
                 )
-                for service in self._svcmgr.get_all()
+                for service in get_services()
             ]
             smartstart_menu_items = [
                 pystray.MenuItem(
                     f"{smartstart.name}",
                     smartstart.run_anyway,
                 )
-                for smartstart in get_all_smart_start()
+                for smartstart in get_smartstarts()
             ]
             return [
                 *self.menu_items,
@@ -215,9 +209,9 @@ class Daemon:
             self._wm = self.setup()
         except Exception as e:
             self._error_handler(e)
+            sys.exit(1)
             return
         self._started = True
-        self._svcmgr.start()
         self.start_trayicon()
         self.start_timers()
         self.start_hooks()
@@ -233,5 +227,4 @@ class Daemon:
         self.stop_hooks()
         self.stop_timers()
         self.stop_trayicon()
-        self._svcmgr.stop()
         self._started = False

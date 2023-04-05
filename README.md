@@ -29,7 +29,7 @@ pip install git+https://github.com/klesh/JigsawWM.git
 
 ### Step 1: Create a `.pyw` file as the "Configuration"
 
-1. Download the [example.pyw](example.pyw) to your local hard drive
+1. Download the [example.pyw](src/example.pyw) to your local hard drive
 2. Edit the code as you see fit
 3. Double-click the file and it should launch with a tray icon, or you may have to create a file association to the `Python` program
 4. Create a shortcut in your `Startup` folder if you like it
@@ -57,12 +57,113 @@ pip install git+https://github.com/klesh/JigsawWM.git
 2. Create a shortcut to your `.pyw` file. Done!
 
 
+## Useful features:
+
+### Services
+
+To run a console program (e.g. syncthing) in the background as a service
+
+```python
+from jigsawwm.daemon import Daemon
+
+class MyDaemon(Daemon):
+    def setup(self):
+        from jigsawwm.services import ServiceEntry, register_service
+        register_service(
+            ServiceEntry(
+                name="syncthing",
+                args=[
+                    r"C:\Programs\syncthing-windows-amd64-v1.23.2\syncthing.exe",
+                    "-no-browser",
+                    "-no-restart",
+                    "-no-upgrade",
+                ],
+                log_path=r"C:\Programs\syncthing-windows-amd64-v1.23.2\syncthing.log",
+            )
+        )
+
+MyDaemon(Daemon)
+```
+
+### Smart Start
+
+To launch apps/tasks at login conditionally
+
+1. Say I have a folder named `daily` in my Chrome bookmark bar, I would like it to be opened automatically upon booting up my computer first time each day.
+```python
+from jigsawwm.daemon import Daemon
+
+class MyDaemon(Daemon):
+    def setup(self):
+        from jigsawwm.smartstart import (
+            SmartStartEntry,
+            daily_once,
+            open_chrome_fav_folder,
+            register_smartstart,
+        )
+        register_smartstart(
+            SmartStartEntry(
+                name="daily routine",
+                launch=lambda: open_chrome_fav_folder("bookmark_bar", "daily"),
+                condition=lambda: daily_once("daily websites"),
+            )
+        )
+
+MyDaemon(Daemon)
+```
+2. I would like a couple of apps/tasks to be launched automatically if I boot up my computer within work hours.
+```python
+
+        holiday_book = ChinaHolidayBook()
+
+        def open_worklog():
+            """Open worklog (a markdown file) for today (create if it doesn't exist yet)."""
+            next_workday = holiday_book.next_workday()
+            latest_workday = holiday_book.latest_workday()
+            worklog_path = os.path.join(
+                os.path.expanduser("~/Documents/Sync/worklog"),
+                f"{next_workday.isoformat()}.md",
+            )
+            if not os.path.exists(worklog_path):
+                with open(worklog_path, "w") as f:
+                    prevdate = latest_workday.strftime("%m/%d")
+                    nextdate = next_workday.strftime("%m/%d")
+                    f.write(f"{prevdate}\n1. \n\n{nextdate}\n1. ")
+            os.startfile(worklog_path)
+
+        register_smartstart(
+            SmartStartEntry(
+                name="workhour routine",
+                launch=[
+                    r"C:\Users\Klesh\AppData\Local\Feishu\Feishu.exe",
+                    r"C:\Program Files\Mozilla Thunderbird\thunderbird.exe",
+                    open_worklog,
+                ],
+                # in case I might boot up the computer a little bit earlier
+                condition=lambda: holiday_book.is_workhour(extend=timedelta(hours=2)),
+            )
+        )
+
+```
+
+
+
 ## Document
 
 [Read the Docs](https://jigsawwm.readthedocs.io/en/latest/)
 
 
 ## Changelog
+
+### 2023-04-05
+
+- add `smartstart` feature
+- BREAKING CHAGEN: rename `svcmgr` to `services`
+- adopt `pyproject.toml`
+
+### 2023-03-21
+
+- add `svcmgr` feature
 
 ### 2023-02-02
 

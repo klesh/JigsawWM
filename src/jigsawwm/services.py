@@ -122,6 +122,7 @@ class ServiceManager:
             if self.find_by_name(service.name):
                 raise ValueError(f"Service {service.name} already exists")
             self._services.append(service)
+            service.start()
 
     def start(self):
         """Starts all services that have autostart enabled"""
@@ -140,3 +141,11 @@ class ServiceManager:
         """Retrieves a copy of all registered services"""
         with self._lock:
             return self._services.copy()
+
+
+svcmgr = ServiceManager()
+
+register_service = svcmgr.register
+get_services = svcmgr.get_all
+start_services = svcmgr.start
+stop_services = svcmgr.stop

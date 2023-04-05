@@ -37,10 +37,26 @@ jigsawwm.manager module
    :undoc-members:
    :show-inheritance:
 
-jigsawwm.svcmgr module
------------------------
+jigsawwm.services module
+------------------------
 
-.. automodule:: jigsawwm.svcmgr
+.. automodule:: jigsawwm.services
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+jigsawwm.smartstart module
+--------------------------
+
+.. automodule:: jigsawwm.smartstart
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+jigsawwm.state module
+---------------------
+
+.. automodule:: jigsawwm.state
    :members:
    :undoc-members:
    :show-inheritance:

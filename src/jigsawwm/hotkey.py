@@ -186,7 +186,8 @@ _modifier = Modifier(0)
 
 def keyboard_event_handler(msgid: KBDLLHOOKMSGID, msg: KBDLLHOOKDATA) -> bool:
     """Handles keyboard events and call callback if the combination
-    had been registered"""
+    had been registered
+    """
     global _hotkeys, _executor
     # skip key we sent out
     if is_synthesized(msg):
