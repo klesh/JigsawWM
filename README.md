@@ -89,7 +89,7 @@ MyDaemon(Daemon)
 
 To launch apps/tasks at login conditionally
 
-1. Say I have a folder named `daily` in my Chrome bookmark bar, I would like it to be opened automatically upon booting up my computer first time each day.
+1. What if I would like a folder named `daily` in my Chrome Bookmark Bar to be opened automatically on my first boot-up every day?
 ```python
 from jigsawwm.daemon import Daemon
 
@@ -111,7 +111,7 @@ class MyDaemon(Daemon):
 
 MyDaemon(Daemon)
 ```
-2. I would like a couple of apps/tasks to be launched automatically if I boot up my computer within work hours.
+2. What if I would like a couple of apps to be launched when I boot up the computer within work hours?
 ```python
 
         holiday_book = ChinaHolidayBook()
