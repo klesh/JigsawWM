@@ -31,6 +31,23 @@ class KEYBDINPUT(Structure):
     )
 
 
+class MOUSEEVENTF(enum.IntFlag):
+    ABSOLUTE = 0x8000
+    HWHEEL = 0x01000
+    MOVE = 0x0001
+    MOVE_NOCOALESCE = 0x2000
+    LEFTDOWN = 0x0002
+    LEFTUP = 0x0004
+    RIGHTDOWN = 0x0008
+    RIGHTUP = 0x0010
+    MIDDLEDOWN = 0x0020
+    MIDDLEUP = 0x0040
+    VIRTUALDESK = 0x4000
+    WHEEL = 0x0800
+    XDOWN = 0x0080
+    XUP = 0x0100
+
+
 class MOUSEINPUT(Structure):
     _fields_ = (
         ("dx", LONG),
@@ -92,6 +109,8 @@ def send_input(*inputs: typing.List[INPUT]):
 
     """
     for item in inputs:
+        if item is None:
+            continue
         if item.ki:
             item.ki.dwExtraInfo = SYNTHESIZED_ID
         elif item.mi:
@@ -103,8 +122,7 @@ def send_input(*inputs: typing.List[INPUT]):
 
 
 def is_synthesized(msg: typing.Union[KEYBDINPUT, MOUSEINPUT]) -> bool:
-    """Check if keyboard/mouse event is sent by this module
-    """
+    """Check if keyboard/mouse event is sent by this module"""
     global SYNTHESIZED_ID
     return msg.dwExtraInfo == SYNTHESIZED_ID
 

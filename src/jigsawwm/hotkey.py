@@ -3,12 +3,20 @@ from concurrent.futures import ThreadPoolExecutor
 from traceback import print_exception
 from typing import Callable, Dict, FrozenSet, Iterator, Optional, Sequence, Tuple, Union
 
-from jigsawwm.w32.hook import KBDLLHOOKDATA, KBDLLHOOKMSGID, Hook
+from jigsawwm.w32.hook import (
+    KBDLLHOOKDATA,
+    KBDLLHOOKMSGID,
+    MSLLHOOKDATA,
+    MSLLHOOKMSGID,
+    Hook,
+)
 from jigsawwm.w32.sendinput import (
     INPUT,
     INPUTTYPE,
     KEYBDINPUT,
     KEYEVENTF,
+    MOUSEEVENTF,
+    MOUSEINPUT,
     is_synthesized,
     send_input,
 )
@@ -30,6 +38,8 @@ class Modifier(enum.IntFlag):
     RMENU = enum.auto()
     RSHIFT = enum.auto()
     RWIN = enum.auto()
+    XBUTTON1 = enum.auto()
+    XBUTTON2 = enum.auto()
     CONTROL = LCONTROL | RCONTROL
     MENU = LMENU | RMENU
     SHIFT = LSHIFT | RSHIFT
@@ -169,22 +179,65 @@ def combination_input(target: str) -> Callable:
 
     def callback():
         for key in target:
-            send_input(INPUT(type=INPUTTYPE.KEYBOARD, ki=KEYBDINPUT(wVk=key)))
+            send_input(vk_to_input(key, pressed=True))
         for key in reversed(target):
-            send_input(
-                INPUT(
-                    type=INPUTTYPE.KEYBOARD,
-                    ki=KEYBDINPUT(wVk=key, dwFlags=KEYEVENTF.KEYUP),
-                )
-            )
+            send_input(vk_to_input(key, pressed=False))
 
     return callback
+
+
+def vk_to_input(vk: Vk, pressed: bool) -> Optional[INPUT]:
+    if vk > Vk.KB_BOUND:
+        return
+    if vk < Vk.MS_BOUND:
+        dwFlags = 0
+        mouseData = 0
+        if vk == Vk.LBUTTON:
+            if pressed:
+                dwFlags = MOUSEEVENTF.LEFTDOWN
+            else:
+                dwFlags = MOUSEEVENTF.LEFTUP
+        elif vk == Vk.RBUTTON:
+            if pressed:
+                dwFlags = MOUSEEVENTF.RIGHTDOWN
+            else:
+                dwFlags = MOUSEEVENTF.RIGHTUP
+        elif vk == Vk.MBUTTON:
+            if pressed:
+                dwFlags = MOUSEEVENTF.MIDDLEDOWN
+            else:
+                dwFlags = MOUSEEVENTF.MIDDLEUP
+        elif vk == Vk.XBUTTON1:
+            if pressed:
+                dwFlags = MOUSEEVENTF.XUP
+                mouseData = 1
+            else:
+                dwFlags = MOUSEEVENTF.MIDDLEUP
+                mouseData = 1
+        elif vk == Vk.XBUTTON2:
+            if pressed:
+                dwFlags = MOUSEEVENTF.XUP
+                mouseData = 2
+            else:
+                dwFlags = MOUSEEVENTF.MIDDLEUP
+                mouseData = 2
+        return INPUT(
+            type=INPUTTYPE.MOUSE,
+            mi=MOUSEINPUT(dwFlags=dwFlags, mouseData=mouseData),
+        )
+    else:
+        return INPUT(
+            type=INPUTTYPE.KEYBOARD,
+            ki=KEYBDINPUT(wVk=vk, dwFlags=0 if pressed else KEYEVENTF.KEYUP),
+        )
 
 
 _modifier = Modifier(0)
 
 
-def keyboard_event_handler(msgid: KBDLLHOOKMSGID, msg: KBDLLHOOKDATA) -> bool:
+def input_event_handler(
+    msgid: Union[KBDLLHOOKMSGID, MSLLHOOKMSGID], msg: Union[KBDLLHOOKDATA, MSLLHOOKDATA]
+) -> bool:
     """Handles keyboard events and call callback if the combination
     had been registered
     """
@@ -192,16 +245,58 @@ def keyboard_event_handler(msgid: KBDLLHOOKMSGID, msg: KBDLLHOOKDATA) -> bool:
     # skip key we sent out
     if is_synthesized(msg):
         return False
-    global _modifier, _hotkeys
-    vkey = Vk(msg.vkCode)
-    # print(msgid.name, vkey.name, msg.dwExtraInfo)
-    if vkey.name in Modifier.__members__:
-        # update modifier state if
+    # convert keyboard/mouse event to a unified virtual key representation
+    vkey = None
+    pressed = None
+    if isinstance(msgid, KBDLLHOOKMSGID):
+        vkey = Vk(msg.vkCode)
         if msgid == KBDLLHOOKMSGID.WM_KEYDOWN:
-            _modifier |= Modifier[vkey.name]
+            pressed = True
         elif msgid == KBDLLHOOKMSGID.WM_KEYUP:
+            pressed = False
+    elif isinstance(msgid, MSLLHOOKMSGID):
+        if msgid == MSLLHOOKMSGID.WM_LBUTTONDOWN:
+            vkey = Vk.LBUTTON
+            pressed = True
+        elif msgid == MSLLHOOKMSGID.WM_LBUTTONUP:
+            vkey = Vk.LBUTTON
+            pressed = False
+        elif msgid == MSLLHOOKMSGID.WM_RBUTTONDOWN:
+            vkey = Vk.RBUTTON
+            pressed = True
+        elif msgid == MSLLHOOKMSGID.WM_RBUTTONUP:
+            vkey = Vk.RBUTTON
+            pressed = False
+        elif msgid == MSLLHOOKMSGID.WM_MBUTTONDOWN:
+            vkey = Vk.MBUTTON
+            pressed = True
+        elif msgid == MSLLHOOKMSGID.WM_MBUTTONUP:
+            vkey = Vk.MBUTTON
+            pressed = False
+        elif msgid == MSLLHOOKMSGID.WM_XBUTTONDOWN:
+            vkey = Vk.XBUTTON1 if msg.flags == 1 else Vk.XBUTTON2
+            pressed = True
+        elif msgid == MSLLHOOKMSGID.WM_XBUTTONUP:
+            vkey = Vk.XBUTTON1 if msg.flags == 1 else Vk.XBUTTON2
+            pressed = False
+        elif msgid == MSLLHOOKMSGID.WM_MOUSEWHEEL:
+            delta = msg.get_wheel_delta()
+            if delta > 0:
+                vkey = Vk.WHEEL_UP
+            else:
+                vkey = Vk.WHEEL_DOWN
+            pressed = True
+    # skip events that out of our interest
+    if vkey is None or pressed is None:
+        return
+    global _modifier, _hotkeys
+    if vkey.name in Modifier.__members__:
+        # update modifier state (pressed, released)
+        if pressed:
+            _modifier |= Modifier[vkey.name]
+        else:
             _modifier &= ~Modifier[vkey.name]
-    elif msgid == KBDLLHOOKMSGID.WM_KEYDOWN:
+    elif pressed:
         # see if combination registered
         combination = frozenset(
             (*map(lambda m: Vk[m.name], Modifier.unfold(_modifier)), vkey)
@@ -210,16 +305,11 @@ def keyboard_event_handler(msgid: KBDLLHOOKMSGID, msg: KBDLLHOOKDATA) -> bool:
         if fs is not None:
             func, swallow, counteract, error_handler = fs
             if counteract:
-                # send key up for combination to avoid confliction if the func
-                # call send_input
+                # send key up for combination to avoid confliction in case the hooked func call send_input
                 for key in combination:
-                    send_input(
-                        INPUT(
-                            type=INPUTTYPE.KEYBOARD,
-                            ki=KEYBDINPUT(wVk=key, dwFlags=KEYEVENTF.KEYUP),
-                        )
-                    )
-
+                    if key < Vk.MS_BOUND or key > Vk.KB_BOUND:
+                        continue
+                    send_input(vk_to_input(key, pressed=False))
             # wrap func with in try-catch for safty
             def wrapped_func():
                 try:
@@ -227,7 +317,9 @@ def keyboard_event_handler(msgid: KBDLLHOOKMSGID, msg: KBDLLHOOKDATA) -> bool:
                 except Exception as e:
                     error_handler(e)
 
+            # execute hook in a separate thread for performance
             _executor.submit(wrapped_func)
+            # tell other apps to ignore this event
             return swallow
 
 
@@ -239,9 +331,12 @@ if __name__ == "__main__":
         print("hello world")
 
     hotkey([Vk.LWIN, Vk.B], delay_hello, True)
+    # hotkey([Vk.XBUTTON1, Vk.LBUTTON], delay_hello, True)
+    hotkey([Vk.XBUTTON2, Vk.LBUTTON], delay_hello, True)
 
     hook = Hook()
-    hook.install_keyboard_hook(keyboard_event_handler)
+    hook.install_keyboard_hook(input_event_handler)
+    hook.install_mouse_hook(input_event_handler)
     hook.start()
 
     while True:

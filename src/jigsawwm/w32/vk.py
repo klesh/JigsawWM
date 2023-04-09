@@ -3,7 +3,7 @@ import enum
 
 class Vk(enum.IntEnum):
     """Win32 virtual key code
-    
+
     Ref: https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
 
     """
@@ -14,6 +14,7 @@ class Vk(enum.IntEnum):
     MBUTTON = 0x04  # Middle mouse button (three-button mouse)
     XBUTTON1 = 0x05  # X1 mouse button
     XBUTTON2 = 0x06  # X2 mouse button
+    MS_BOUND = 0x07  # Maximum number of mouse buttons supported
     #  0x07  # Undefined
     BACK = 0x08  # BACKSPACE key
     TAB = 0x09  # TAB key
@@ -209,8 +210,12 @@ class Vk(enum.IntEnum):
     NONAME = 0xFC  # Reserved
     PA1 = 0xFD  # PA1 key
     OEM_CLEAR = 0xFE  # Clear key
+    KB_BOUND = 0xFF  # Clear key
 
     UNKNOWN = 0x00
+
+    WHEEL_UP = 0x1000
+    WHEEL_DOWN = 0x1001
 
     @classmethod
     def _missing_(cls, value):

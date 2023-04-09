@@ -1,4 +1,5 @@
 import enum
+import struct
 import threading
 import time
 from ctypes import *
@@ -97,7 +98,10 @@ class KBDLLHOOKDATA(Structure):
 
 
 class MSLLHOOKMSGID(enum.IntEnum):
-    """Mouse event msgid"""
+    """Mouse event msgid
+
+    Ref: https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-xbuttondown
+    """
 
     WM_MOUSEMOVE = 0x0200
     WM_LBUTTONDOWN = 0x0201
@@ -108,6 +112,8 @@ class MSLLHOOKMSGID(enum.IntEnum):
     WM_MBUTTONUP = 0x0208
     WM_MOUSEWHEEL = 0x020A
     WM_MOUSEHWHEEL = 0x020E
+    WM_XBUTTONDOWN = 0x020B
+    WM_XBUTTONUP = 0x020C
 
 
 class MSLLHOOKDATA(Structure):
@@ -126,6 +132,14 @@ class MSLLHOOKDATA(Structure):
         ("time", DWORD),
         ("dwExtraInfo", ULONG_PTR),
     )
+
+    def get_wheel_delta(self) -> int:
+        """Get mouse wheel delta
+
+        Ref: https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-mousewheel
+        """
+        delta = self.mouseData >> 16
+        return struct.unpack("h", delta.to_bytes(2, "little"))[0]
 
 
 # wrap them all inside Hook class
@@ -237,9 +251,9 @@ class Hook(threading.Thread):
     ):
         """Install mouse hook
 
-        :param callback: function to be called when mouse moved, bth pressed/release and scroll,
- return ``True`` to stop
-            propagation
+               :param callback: function to be called when mouse moved, bth pressed/release and scroll,
+        return ``True`` to stop
+                   propagation
         """
         self._queue.append(
             partial(self._install_hook, 14, MSLLHOOKMSGID, MSLLHOOKDATA, callback)
@@ -306,14 +320,21 @@ if __name__ == "__main__":
         )
 
     def mouse(msgid: MSLLHOOKMSGID, msg: MSLLHOOKDATA) -> bool:
-        msg = (
-            (msg.pt.x, msg.pt.y),
-            msg.mouseData,
-            msg.flags,
-            msg.time,
-            msg.dwExtraInfo,
+        print(
+            "{:15s}: {}".format(
+                msgid.name,
+                (
+                    (msg.pt.x, msg.pt.y),
+                    msg.mouseData,
+                    msg.flags,
+                    msg.time,
+                    msg.dwExtraInfo,
+                ),
+            )
         )
-        print("{:15s}: {}".format(msgid.name, msg))
+        if msgid == MSLLHOOKMSGID.WM_MOUSEWHEEL:
+            # print("delta: {}".format(user32.GET_WHEEL_DELTA_WPARAM(msgid)))
+            print("delta: {}".format(msg.get_wheel_delta()))
 
     def winevent(
         event: WinEvent,
@@ -352,8 +373,12 @@ if __name__ == "__main__":
     # hook.install_winevent_hook(
     #     winevent, WinEvent.EVENT_OBJECT_CREATE, WinEvent.EVENT_OBJECT_DESTROY
     # )
-    hook.install_winevent_hook(winevent, WinEvent.EVENT_MIN, WinEvent.EVENT_MAX)
+    # hook.install_winevent_hook(winevent, WinEvent.EVENT_MIN, WinEvent.EVENT_MAX)
+    hook.install_winevent_hook(
+        winevent, WinEvent.EVENT_OBJECT_SELECTION, WinEvent.EVENT_OBJECT_SELECTIONWITHIN
+    )
     # hook.install_keyboard_hook(keyboard)
+    # hook.install_mouse_hook(mouse)
     hook.start()
 
     while True:

@@ -75,6 +75,12 @@ class MyDaemon(Daemon):
         self.hotkey([Vk.WIN, Vk.SHIFT, Vk.U], wm.move_to_prev_monitor)
         self.hotkey([Vk.WIN, Vk.SHIFT, Vk.I], wm.move_to_next_monitor)
         self.hotkey([Vk.WIN, Vk.CONTROL, Vk.I], inspect_active_window)
+        # forward button + middle button = ctrl + w (close tab)
+        self.hotkey([Vk.XBUTTON2, Vk.LBUTTON], "LControl+w")
+        # forward button + whell up  = ctrl + page up (previous tab)
+        self.hotkey([Vk.XBUTTON2, Vk.WHEEL_UP], "LControl+prior")
+        # forward button + whell down  = ctrl + page down (next tab)
+        self.hotkey([Vk.XBUTTON2, Vk.WHEEL_DOWN], "LControl+next")
 
         # setup trayicon menu
         # self.menu_items = [pystray.MenuItem("Arrange All", wm.arrange_all_monitors)]

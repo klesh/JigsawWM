@@ -51,6 +51,9 @@ pip install git+https://github.com/klesh/JigsawWM.git
 - `Win + Shift + i`: move active window to next monitor
 - `Win + Shift + u`: move active window to previous monitor
 - `Win + Control + i`: inspect active window
+- `Mouse Forward + Left Button`: send `Ctrl + w` (close tab in Chrome and other apps)
+- `Mouse Forward + Wheel Up`: send `Ctrl + PageUp` (previous tab in Chrome and other apps)
+- `Mouse Forward + Wheel Down`: send `Ctrl + PageDown` (next tab in Chrome and other apps)
 
 ### Step 3: Launch at startup
 
@@ -163,6 +166,10 @@ Functionalities:
 
 
 ## Changelog
+
+### 2023-04-07
+
+- hotkey support mouse buttons, forward/backward buttons as modifier
 
 ### 2023-04-05
 

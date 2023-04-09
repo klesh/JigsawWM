@@ -14,7 +14,7 @@ from typing import Callable, Dict, List, Optional, Sequence, Union
 import pystray
 from PIL import Image
 
-from jigsawwm.hotkey import hotkey, keyboard_event_handler
+from jigsawwm.hotkey import hotkey, input_event_handler
 from jigsawwm.manager import WindowManager
 from jigsawwm.services import get_services
 from jigsawwm.smartstart import get_smartstarts
@@ -70,7 +70,8 @@ class Daemon:
 
     def start_hooks(self):
         """Start all hooks"""
-        self._hook.install_keyboard_hook(keyboard_event_handler)
+        self._hook.install_keyboard_hook(input_event_handler)
+        self._hook.install_mouse_hook(input_event_handler)
         self._hook.install_winevent_hook(
             self._winevent_callback,
             WinEvent.EVENT_OBJECT_SHOW,
