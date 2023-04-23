@@ -375,7 +375,14 @@ if __name__ == "__main__":
     # )
     # hook.install_winevent_hook(winevent, WinEvent.EVENT_MIN, WinEvent.EVENT_MAX)
     hook.install_winevent_hook(
-        winevent, WinEvent.EVENT_OBJECT_SELECTION, WinEvent.EVENT_OBJECT_SELECTIONWITHIN
+        winevent,
+        WinEvent.EVENT_OBJECT_TEXTSELECTIONCHANGED,
+        WinEvent.EVENT_OBJECT_TEXTSELECTIONCHANGED,
+    )
+    hook.install_winevent_hook(
+        winevent,
+        WinEvent.EVENT_SYSTEM_CAPTURESTART,
+        WinEvent.EVENT_SYSTEM_CAPTUREEND,
     )
     # hook.install_keyboard_hook(keyboard)
     # hook.install_mouse_hook(mouse)

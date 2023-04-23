@@ -57,7 +57,9 @@ class MyDaemon(Daemon):
                 "PotPlayerMini64.exe",
                 "mintty.exe",
                 "openvpn-gui.exe",
+                "Cloudflare WARP.exe",
             ],
+            force_managed_exe_names=["Lens.exe"],
         )
 
         # setup hotkeys

@@ -1,8 +1,8 @@
 import json
 import os
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Callable, Dict, List, Union
+from datetime import datetime, time
+from typing import Callable, Dict, List, Optional, Union
 
 from jigsawwm.state import get_state_manager
 from jigsawwm.w32.process import is_exe_running
@@ -40,9 +40,12 @@ def open_chrome_fav_folder(root, fav_folder):
     open_folder(folder)
 
 
-def daily_once(name: str):
+def daily_once(name: str, day_start: Optional[time] = time(hour=8)):
     """Returns True if the given name has not been called today"""
-    today = datetime.today().date()
+    now = datetime.now().astimezone()
+    if now.time() < day_start:
+        return False
+    today = now.date()
     state = get_state_manager()
     last_date = state.getdate("daily", name)
     state.setdate("daily", name, today)
@@ -100,7 +103,7 @@ class SmartStartManager:
     ):
         """Registers a smart start entry"""
         if entry.name in self._smartstarts:
-            raise ValueError(f"smart_start: {name} already exists")
+            raise ValueError(f"smart_start: {entry.name} already exists")
         self._smartstarts[entry.name] = entry
         entry()
 

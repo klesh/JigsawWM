@@ -137,12 +137,17 @@ def is_app_window(hwnd: HWND, style: Optional[WindowExStyle] = None) -> bool:
     )
 
 
-def is_manageable_window(hwnd: HWND) -> bool:
+def is_manageable_window(
+    hwnd: HWND,
+    is_force_managed: Optional[Callable[[HWND], bool]] = None,
+) -> bool:
     """Check if window is able to be managed by us"""
+    is_force_managed = is_force_managed or (lambda hwnd: False)
+    #  or is_force_managed(hwnd)
     style = get_window_style(hwnd)
     return bool(
         is_app_window(hwnd, style)
-        and get_window_title(hwnd)
+        and (get_window_title(hwnd) or is_force_managed(hwnd))
         and WindowStyle.MAXIMIZEBOX & style
         and WindowStyle.MINIMIZEBOX & style
         and WindowStyle.VISIBLE in style
@@ -373,13 +378,15 @@ def get_app_windows() -> Iterator[Window]:
     )
 
 
-def get_manageable_windows() -> Iterator[Window]:
+def get_manageable_windows(
+    is_force_managed: Optional[Callable[[HWND], bool]] = None,
+) -> Iterator[Window]:
     """Get all manageable windows of specified/current desktop"""
     return map(
         Window,
         enum_windows(
             lambda hwnd: EnumCheckResult.CAPTURE
-            if is_manageable_window(hwnd)
+            if is_manageable_window(hwnd, is_force_managed)
             else EnumCheckResult.SKIP
         ),
     )
@@ -493,6 +500,8 @@ def inspect_window(hwnd: HWND, file=sys.stdout):
     print("rect         :", rect.left, rect.top, rect.right, rect.bottom, file=file)
     bound = window.get_extended_frame_bounds()
     print("bound        :", bound.left, bound.top, bound.right, bound.bottom, file=file)
+    print("is_app_window:", is_app_window(hwnd), file=file)
+    print("is_manageable:", is_manageable_window(hwnd), file=file)
 
 
 def inspect_active_window():

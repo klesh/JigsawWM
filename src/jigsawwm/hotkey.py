@@ -1,7 +1,7 @@
-import enum
 from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 from traceback import print_exception
-from typing import Callable, Dict, FrozenSet, Iterator, Optional, Sequence, Tuple, Union
+from typing import Callable, Dict, FrozenSet, Sequence, Tuple, Union
 
 from jigsawwm.w32.hook import (
     KBDLLHOOKDATA,
@@ -11,75 +11,12 @@ from jigsawwm.w32.hook import (
     Hook,
 )
 from jigsawwm.w32.sendinput import (
-    INPUT,
-    INPUTTYPE,
-    KEYBDINPUT,
-    KEYEVENTF,
-    MOUSEEVENTF,
-    MOUSEINPUT,
     is_synthesized,
+    send_combination,
     send_input,
+    vk_to_input,
 )
-from jigsawwm.w32.vk import Vk
-
-
-def is_power_of_2(num: int) -> bool:
-    return num != 0 and num & (num - 1) == 0
-
-
-class Modifier(enum.IntFlag):
-    """Keyboard modifier"""
-
-    LCONTROL = enum.auto()
-    LMENU = enum.auto()
-    LSHIFT = enum.auto()
-    LWIN = enum.auto()
-    RCONTROL = enum.auto()
-    RMENU = enum.auto()
-    RSHIFT = enum.auto()
-    RWIN = enum.auto()
-    XBUTTON1 = enum.auto()
-    XBUTTON2 = enum.auto()
-    CONTROL = LCONTROL | RCONTROL
-    MENU = LMENU | RMENU
-    SHIFT = LSHIFT | RSHIFT
-    WIN = LWIN | RWIN
-
-    @classmethod
-    def unfold(cls, mk: Union[str, int]) -> Iterator["Modifier"]:
-        if not mk:
-            return
-        if isinstance(mk, str):
-            mk = cls[mk].value
-        if is_power_of_2(mk):
-            yield cls(mk)
-            return
-        for v in cls.__members__.values():
-            if v >= cls.CONTROL:
-                return
-            if v & mk:
-                yield cls(v)
-
-
-def expand_combination(
-    combkeys: Sequence[Vk],
-    index: Optional[int] = 0,
-) -> Iterator[Sequence[Vk]]:
-    """Expand `Ctrl+s` to `LCtrl+s` and `RCtrl+s`, so on and so forth"""
-    key = combkeys[index]
-    if key.name in Modifier.__members__:
-        is_last = index + 1 == len(combkeys)
-        for mk in Modifier.unfold(key.name):
-            new_combkeys = combkeys[:index] + [Vk[mk.name]]
-            if is_last:
-                yield new_combkeys
-            else:
-                yield from expand_combination(
-                    new_combkeys + combkeys[index + 1 :], index + 1
-                )
-    else:
-        yield combkeys
-
+from jigsawwm.w32.vk import Modifier, Vk, expand_combination, parse_combination
 
 # print("MENU+s", list(expand_combination([Vk.MENU, Vk.S])))
 # print("LMENU+s", list(expand_combination([Vk.LMENU, Vk.S])))
@@ -116,120 +53,20 @@ def hotkey(
     global _hotkeys
     # parse combkeys if it is string
     if isinstance(combkeys, str):
-        combkeys = parse_hotkey(combkeys)
+        combkeys = parse_combination(combkeys)
     # check if combination valid
     if not combkeys:
         raise Exception("empty combination")
     # turn target to function if it is string
     counteract = False
     if isinstance(target, str):
-        target = combination_input(target)
+        target = partial(send_combination, parse_combination(target))
         counteract = True
     count = len(list(filter(lambda vk: vk.name not in Modifier.__members__, combkeys)))
     if count != 1:
         raise Exception("require 1 and only 1 triggering key")
     for ck in expand_combination(combkeys):
         _hotkeys[frozenset(ck)] = (target, swallow, counteract, error_handler)
-
-
-_vk_aliases: Dict[str, Vk] = {
-    "LCTRL": Vk.LCONTROL,
-    "LALT": Vk.LMENU,
-    "RCTRL": Vk.RCONTROL,
-    "RALT": Vk.RMENU,
-    "CTRL": Vk.CONTROL,
-    "MENU": Vk.MENU,
-    "-": Vk.OEM_MINUS,
-    "=": Vk.OEM_PLUS,
-    ";": Vk.OEM_1,
-    "/": Vk.OEM_2,
-    "`": Vk.OEM_3,
-    "[": Vk.OEM_4,
-    "\\": Vk.OEM_5,
-    "]": Vk.OEM_6,
-    "'": Vk.OEM_7,
-    ",": Vk.OEM_COMMA,
-    ".": Vk.OEM_PERIOD,
-}
-
-
-def parse_hotkey(combkeys: str) -> Sequence[Vk]:
-    """Converts combination in plain text ("Ctrl+s") to Sequence[Vk] ([Vk.CONTROL, Vk.S])"""
-    parsed = []
-    if not combkeys:
-        return parsed
-    global _vk_aliases
-    for key_name in combkeys.split("+"):
-        key = None
-        key_name = key_name.strip().upper()
-        # try alias
-        key = _vk_aliases.get(key_name)
-        # try name
-        if key is None:
-            if key_name not in Vk.__members__:
-                raise Exception(f"invalid key: {key_name}")
-            key = Vk[key_name]
-        parsed.append(key)
-    return parsed
-
-
-def combination_input(target: str) -> Callable:
-    """Converts key combination in text format to a Callable function"""
-    target = parse_hotkey(target)
-
-    def callback():
-        for key in target:
-            send_input(vk_to_input(key, pressed=True))
-        for key in reversed(target):
-            send_input(vk_to_input(key, pressed=False))
-
-    return callback
-
-
-def vk_to_input(vk: Vk, pressed: bool) -> Optional[INPUT]:
-    if vk > Vk.KB_BOUND:
-        return
-    if vk < Vk.MS_BOUND:
-        dwFlags = 0
-        mouseData = 0
-        if vk == Vk.LBUTTON:
-            if pressed:
-                dwFlags = MOUSEEVENTF.LEFTDOWN
-            else:
-                dwFlags = MOUSEEVENTF.LEFTUP
-        elif vk == Vk.RBUTTON:
-            if pressed:
-                dwFlags = MOUSEEVENTF.RIGHTDOWN
-            else:
-                dwFlags = MOUSEEVENTF.RIGHTUP
-        elif vk == Vk.MBUTTON:
-            if pressed:
-                dwFlags = MOUSEEVENTF.MIDDLEDOWN
-            else:
-                dwFlags = MOUSEEVENTF.MIDDLEUP
-        elif vk == Vk.XBUTTON1:
-            if pressed:
-                dwFlags = MOUSEEVENTF.XUP
-                mouseData = 1
-            else:
-                dwFlags = MOUSEEVENTF.MIDDLEUP
-                mouseData = 1
-        elif vk == Vk.XBUTTON2:
-            if pressed:
-                dwFlags = MOUSEEVENTF.XUP
-                mouseData = 2
-            else:
-                dwFlags = MOUSEEVENTF.MIDDLEUP
-                mouseData = 2
-        return INPUT(
-            type=INPUTTYPE.MOUSE,
-            mi=MOUSEINPUT(dwFlags=dwFlags, mouseData=mouseData),
-        )
-    else:
-        return INPUT(
-            type=INPUTTYPE.KEYBOARD,
-            ki=KEYBDINPUT(wVk=vk, dwFlags=0 if pressed else KEYEVENTF.KEYUP),
-        )
 
 
 _modifier = Modifier(0)

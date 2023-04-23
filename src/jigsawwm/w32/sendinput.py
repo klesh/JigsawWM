@@ -3,6 +3,8 @@ import typing
 from ctypes import *
 from ctypes.wintypes import *
 
+from .vk import Vk
+
 user32 = WinDLL("user32", use_last_error=True)
 
 ULONG_PTR = LPARAM
@@ -125,6 +127,61 @@ def is_synthesized(msg: typing.Union[KEYBDINPUT, MOUSEINPUT]) -> bool:
     """Check if keyboard/mouse event is sent by this module"""
     global SYNTHESIZED_ID
     return msg.dwExtraInfo == SYNTHESIZED_ID
+
+
+def vk_to_input(vk: Vk, pressed: bool) -> typing.Optional[INPUT]:
+    if vk > Vk.KB_BOUND:
+        return
+    if vk < Vk.MS_BOUND:
+        dwFlags = 0
+        mouseData = 0
+        if vk == Vk.LBUTTON:
+            if pressed:
+                dwFlags = MOUSEEVENTF.LEFTDOWN
+            else:
+                dwFlags = MOUSEEVENTF.LEFTUP
+        elif vk == Vk.RBUTTON:
+            if pressed:
+                dwFlags = MOUSEEVENTF.RIGHTDOWN
+            else:
+                dwFlags = MOUSEEVENTF.RIGHTUP
+        elif vk == Vk.MBUTTON:
+            if pressed:
+                dwFlags = MOUSEEVENTF.MIDDLEDOWN
+            else:
+                dwFlags = MOUSEEVENTF.MIDDLEUP
+        elif vk == Vk.XBUTTON1:
+            if pressed:
+                dwFlags = MOUSEEVENTF.XUP
+                mouseData = 1
+            else:
+                dwFlags = MOUSEEVENTF.MIDDLEUP
+                mouseData = 1
+        elif vk == Vk.XBUTTON2:
+            if pressed:
+                dwFlags = MOUSEEVENTF.XUP
+                mouseData = 2
+            else:
+                dwFlags = MOUSEEVENTF.MIDDLEUP
+                mouseData = 2
+        return INPUT(
+            type=INPUTTYPE.MOUSE,
+            mi=MOUSEINPUT(dwFlags=dwFlags, mouseData=mouseData),
+        )
+    else:
+        return INPUT(
+            type=INPUTTYPE.KEYBOARD,
+            ki=KEYBDINPUT(wVk=vk, dwFlags=0 if pressed else KEYEVENTF.KEYUP),
+        )
+
+
+def send_combination(comb: typing.Sequence[Vk]):
+    # press keys in combination in order
+    for key in comb:
+        send_input(vk_to_input(key, pressed=True))
+    # release keys in combination in reverse order
+    for key in reversed(comb):
+        send_input(vk_to_input(key, pressed=False))
 
 
 if __name__ == "__main__":

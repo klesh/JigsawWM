@@ -1,4 +1,5 @@
 import enum
+import typing
 
 
 class Vk(enum.IntEnum):
@@ -220,3 +221,101 @@ class Vk(enum.IntEnum):
     @classmethod
     def _missing_(cls, value):
         return cls.UNKNOWN
+
+
+VkAliases: typing.Dict[str, Vk] = {
+    "LCTRL": Vk.LCONTROL,
+    "LALT": Vk.LMENU,
+    "RCTRL": Vk.RCONTROL,
+    "RALT": Vk.RMENU,
+    "CTRL": Vk.CONTROL,
+    "MENU": Vk.MENU,
+    "-": Vk.OEM_MINUS,
+    "=": Vk.OEM_PLUS,
+    ";": Vk.OEM_1,
+    "/": Vk.OEM_2,
+    "`": Vk.OEM_3,
+    "[": Vk.OEM_4,
+    "\\": Vk.OEM_5,
+    "]": Vk.OEM_6,
+    "'": Vk.OEM_7,
+    ",": Vk.OEM_COMMA,
+    ".": Vk.OEM_PERIOD,
+}
+
+
+def is_power_of_2(num: int) -> bool:
+    return num != 0 and num & (num - 1) == 0
+
+
+class Modifier(enum.IntFlag):
+    """Keyboard/Mouse modifier"""
+
+    LCONTROL = enum.auto()
+    LMENU = enum.auto()
+    LSHIFT = enum.auto()
+    LWIN = enum.auto()
+    RCONTROL = enum.auto()
+    RMENU = enum.auto()
+    RSHIFT = enum.auto()
+    RWIN = enum.auto()
+    XBUTTON1 = enum.auto()
+    XBUTTON2 = enum.auto()
+    CONTROL = LCONTROL | RCONTROL
+    MENU = LMENU | RMENU
+    SHIFT = LSHIFT | RSHIFT
+    WIN = LWIN | RWIN
+
+    @classmethod
+    def unfold(cls, mk: typing.Union[str, int]) -> typing.Iterator["Modifier"]:
+        if not mk:
+            return
+        if isinstance(mk, str):
+            mk = cls[mk].value
+        if is_power_of_2(mk):
+            yield cls(mk)
+            return
+        for v in cls.__members__.values():
+            if v >= cls.CONTROL:
+                return
+            if v & mk:
+                yield cls(v)
+
+
+def parse_combination(combkeys: str) -> typing.Sequence[Vk]:
+    """Converts combination in plain text ("Ctrl+s") to Sequence[Vk] ([Vk.CONTROL, Vk.S])"""
+    parsed = []
+    if not combkeys:
+        return parsed
+    for key_name in combkeys.split("+"):
+        key = None
+        key_name = key_name.strip().upper()
+        # try alias
+        key = VkAliases.get(key_name)
+        # try name
+        if key is None:
+            if key_name not in Vk.__members__:
+                raise Exception(f"invalid key: {key_name}")
+            key = Vk[key_name]
+        parsed.append(key)
+    return parsed
+
+
+def expand_combination(
+    combkeys: typing.Sequence[Vk],
+    index: typing.Optional[int] = 0,
+) -> typing.Iterator[typing.Sequence[Vk]]:
+    """Expand `Ctrl+s` to `LCtrl+s` and `RCtrl+s`, so on and so forth"""
+    key = combkeys[index]
+    if key.name in Modifier.__members__:
+        is_last = index + 1 == len(combkeys)
+        for mk in Modifier.unfold(key.name):
+            new_combkeys = combkeys[:index] + [Vk[mk.name]]
+            if is_last:
+                yield new_combkeys
+            else:
+                yield from expand_combination(
+                    new_combkeys + combkeys[index + 1 :], index + 1
+                )
+    else:
+        yield combkeys

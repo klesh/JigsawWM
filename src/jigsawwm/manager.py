@@ -262,11 +262,13 @@ class WindowManager:
     _state: Dict[GUID, VirtDeskState]
     themes: List[Theme]
     ignore_exe_names: Set[str]
+    force_managed_exe_names: Set[str]
 
     def __init__(
         self,
         themes: List[Theme] = None,
         ignore_exe_names: Set[str] = None,
+        force_managed_exe_names: Set[str] = None,
     ):
         self._state = {}
         self.themes = themes or [
@@ -287,6 +289,7 @@ class WindowManager:
             ),
         ]
         self.ignore_exe_names = set(ignore_exe_names or [])
+        self.force_managed_exe_names = set(force_managed_exe_names or [])
         self.theme = self.themes[0].name
         self.sync(init=True)
 
@@ -334,9 +337,16 @@ class WindowManager:
         exepath = window.exe
         return not exepath or path.basename(exepath) in self.ignore_exe_names
 
+    def is_force_managed(self, hwnd: HWND) -> bool:
+        try:
+            exepath = Window(hwnd).exe
+            return exepath and path.basename(exepath) in self.force_managed_exe_names
+        except:
+            return False
+
     def sync(self, init=False, restrict=False) -> bool:
         """Update manager state(monitors, windows) to match OS's and arrange windows if it is changed"""
-        manageable_windows = list(get_manageable_windows())
+        manageable_windows = list(get_manageable_windows(self.is_force_managed))
         if not manageable_windows:
             return
         virtdesk_state = self.try_get_virtdesk_state(manageable_windows[0].handle)
