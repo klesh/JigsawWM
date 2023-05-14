@@ -275,18 +275,20 @@ class Hook(threading.Thread):
             )
         )
 
+    def process_hooks(self):
+        # install pending hooks
+        while self._queue:
+            install_hook = self._queue.pop()
+            hook, proc = install_hook()
+            self._installed_hooks[hook] = proc
+
     def run(self):
         """Start hooking, all installed hooks would not actually work until
         this method invoked. You may install new hooks thereafter"""
         # IMPORTANT: the hook must be installed in the thread!
         msg = MSG()
         while True:
-            # install pending hooks
-            while self._queue:
-                install_hook = self._queue.pop()
-                hook, proc = install_hook()
-                self._installed_hooks[hook] = proc
-
+            self.process_hooks()
             bRet = user32.GetMessageW(byref(msg), None, 0, 0)
             if not bRet:
                 break
