@@ -169,9 +169,14 @@ def vk_to_input(vk: Vk, pressed: bool) -> typing.Optional[INPUT]:
             mi=MOUSEINPUT(dwFlags=dwFlags, mouseData=mouseData),
         )
     else:
+        dwFlags = 0
+        if not pressed:
+            dwFlags |= KEYEVENTF.KEYUP
+        if vk >= vk.PRIOR and vk <= vk.HELP:
+            dwFlags |= KEYEVENTF.EXTENDEDKEY
         return INPUT(
             type=INPUTTYPE.KEYBOARD,
-            ki=KEYBDINPUT(wVk=vk, dwFlags=0 if pressed else KEYEVENTF.KEYUP),
+            ki=KEYBDINPUT(wVk=vk, dwFlags=dwFlags),
         )
 
 
@@ -185,15 +190,29 @@ def send_combination(comb: typing.Sequence[Vk]):
 
 
 if __name__ == "__main__":
+    import time
+
     from .vk import Vk
+
+    time.sleep(3)
 
     send_input(
         INPUT(
             type=INPUTTYPE.KEYBOARD,
-            ki=KEYBDINPUT(wVk=Vk.A),
+            ki=KEYBDINPUT(wVk=Vk.LSHIFT),
         ),
         INPUT(
             type=INPUTTYPE.KEYBOARD,
-            ki=KEYBDINPUT(wVk=Vk.A, dwFlags=KEYEVENTF.KEYUP),
+            ki=KEYBDINPUT(wVk=Vk.INSERT, dwFlags=KEYEVENTF.EXTENDEDKEY),
+        ),
+        INPUT(
+            type=INPUTTYPE.KEYBOARD,
+            ki=KEYBDINPUT(
+                wVk=Vk.INSERT, dwFlags=KEYEVENTF.KEYUP | KEYEVENTF.EXTENDEDKEY
+            ),
+        ),
+        INPUT(
+            type=INPUTTYPE.KEYBOARD,
+            ki=KEYBDINPUT(wVk=Vk.LSHIFT, dwFlags=KEYEVENTF.KEYUP),
         ),
     )
