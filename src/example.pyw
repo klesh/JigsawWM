@@ -58,6 +58,7 @@ class MyDaemon(Daemon):
                 "mintty.exe",
                 "openvpn-gui.exe",
                 "Cloudflare WARP.exe",
+                "MediaInfo.exe",
             ],
             force_managed_exe_names=["Lens.exe"],
         )
