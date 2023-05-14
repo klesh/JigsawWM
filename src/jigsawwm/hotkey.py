@@ -36,6 +36,7 @@ def hotkey(
     target: Union[Callable, str],
     swallow: bool = True,
     error_handler: Callable[[Exception], None] = print_exception,
+    counteract: bool = False,
 ):
     """Register a system hotkey
     check `jigsawwm.w32.vk.Vk` for virtual key names
@@ -58,7 +59,6 @@ def hotkey(
     if not combkeys:
         raise Exception("empty combination")
     # turn target to function if it is string
-    counteract = False
     if isinstance(target, str):
         target = partial(send_combination, parse_combination(target))
         counteract = True
@@ -147,6 +147,7 @@ def input_event_handler(
                     if key < Vk.MS_BOUND or key > Vk.KB_BOUND:
                         continue
                     send_input(vk_to_input(key, pressed=False))
+
             # wrap func with in try-catch for safty
             def wrapped_func():
                 try:
