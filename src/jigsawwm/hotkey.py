@@ -111,10 +111,10 @@ def input_event_handler(
             vkey = Vk.MBUTTON
             pressed = False
         elif msgid == MSLLHOOKMSGID.WM_XBUTTONDOWN:
-            vkey = Vk.XBUTTON1 if msg.flags == 1 else Vk.XBUTTON2
+            vkey = Vk.XBUTTON1 if msg.hiword() == 1 else Vk.XBUTTON2
             pressed = True
         elif msgid == MSLLHOOKMSGID.WM_XBUTTONUP:
-            vkey = Vk.XBUTTON1 if msg.flags == 1 else Vk.XBUTTON2
+            vkey = Vk.XBUTTON1 if msg.hiword() == 1 else Vk.XBUTTON2
             pressed = False
         elif msgid == MSLLHOOKMSGID.WM_MOUSEWHEEL:
             delta = msg.get_wheel_delta()

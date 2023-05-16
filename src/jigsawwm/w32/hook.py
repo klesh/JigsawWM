@@ -141,6 +141,12 @@ class MSLLHOOKDATA(Structure):
         delta = self.mouseData >> 16
         return struct.unpack("h", delta.to_bytes(2, "little"))[0]
 
+    def hiword(self) -> int:
+        return WORD(self.mouseData >> 16).value
+
+    def loword(self) -> int:
+        return WORD(self.mouseData & 0xFFFF).value
+
 
 # wrap them all inside Hook class
 
@@ -323,15 +329,15 @@ if __name__ == "__main__":
 
     def mouse(msgid: MSLLHOOKMSGID, msg: MSLLHOOKDATA) -> bool:
         print(
-            "{:15s}: {}".format(
+            "{:15s}  x: {:3d} y: {:3d} hi: {:5x} lo: {:5x} flags: {:3x} extra: {:6x} t: {:d}".format(
                 msgid.name,
-                (
-                    (msg.pt.x, msg.pt.y),
-                    msg.mouseData,
-                    msg.flags,
-                    msg.time,
-                    msg.dwExtraInfo,
-                ),
+                msg.pt.x,
+                msg.pt.y,
+                int(msg.hiword()),
+                int(msg.loword()),
+                msg.flags,
+                msg.dwExtraInfo,
+                msg.time,
             )
         )
         if msgid == MSLLHOOKMSGID.WM_MOUSEWHEEL:
@@ -376,18 +382,18 @@ if __name__ == "__main__":
     #     winevent, WinEvent.EVENT_OBJECT_CREATE, WinEvent.EVENT_OBJECT_DESTROY
     # )
     # hook.install_winevent_hook(winevent, WinEvent.EVENT_MIN, WinEvent.EVENT_MAX)
-    hook.install_winevent_hook(
-        winevent,
-        WinEvent.EVENT_OBJECT_TEXTSELECTIONCHANGED,
-        WinEvent.EVENT_OBJECT_TEXTSELECTIONCHANGED,
-    )
-    hook.install_winevent_hook(
-        winevent,
-        WinEvent.EVENT_SYSTEM_CAPTURESTART,
-        WinEvent.EVENT_SYSTEM_CAPTUREEND,
-    )
+    # hook.install_winevent_hook(
+    #     winevent,
+    #     WinEvent.EVENT_OBJECT_TEXTSELECTIONCHANGED,
+    #     WinEvent.EVENT_OBJECT_TEXTSELECTIONCHANGED,
+    # )
+    # hook.install_winevent_hook(
+    #     winevent,
+    #     WinEvent.EVENT_SYSTEM_CAPTURESTART,
+    #     WinEvent.EVENT_SYSTEM_CAPTUREEND,
+    # )
     # hook.install_keyboard_hook(keyboard)
-    # hook.install_mouse_hook(mouse)
+    hook.install_mouse_hook(mouse)
     hook.start()
 
     while True:
