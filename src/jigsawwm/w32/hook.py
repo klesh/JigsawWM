@@ -1,5 +1,4 @@
 import enum
-import struct
 import threading
 import time
 from ctypes import *
@@ -138,8 +137,7 @@ class MSLLHOOKDATA(Structure):
 
         Ref: https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-mousewheel
         """
-        delta = self.mouseData >> 16
-        return struct.unpack("h", delta.to_bytes(2, "little"))[0]
+        return SHORT(self.mouseData >> 16).value
 
     def hiword(self) -> int:
         return WORD(self.mouseData >> 16).value
