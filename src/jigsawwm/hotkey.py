@@ -1,3 +1,4 @@
+import time
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from traceback import print_exception
@@ -69,6 +70,22 @@ def hotkey(
         _hotkeys[frozenset(ck)] = (target, swallow, counteract, error_handler)
 
 
+# holding hotkey
+_last_pressed_key: Vk = None
+_last_pressed_time: float = 0
+_holding_hotkeys: Dict[Vk, Tuple[float, Callable, Callable[[Exception], None]]] = {}
+
+
+def holding_hotkey(
+    key: Vk,
+    callback: Callable,
+    min_hold_time: float = 0.5,
+    error_handler: Callable[[Exception], None] = print_exception,
+):
+    global _holding_hotkeys
+    _holding_hotkeys[key] = (min_hold_time, callback, error_handler)
+
+
 _modifier = Modifier(0)
 
 
@@ -78,7 +95,6 @@ def input_event_handler(
     """Handles keyboard events and call callback if the combination
     had been registered
     """
-    global _hotkeys, _executor
     # skip key we sent out
     if is_synthesized(msg):
         return False
@@ -126,7 +142,29 @@ def input_event_handler(
     # skip events that out of our interest
     if vkey is None or pressed is None:
         return
-    global _modifier, _hotkeys
+    global _modifier, _hotkeys, _executor, _last_pressed_key, _last_pressed_time
+
+    # check if holding key matches
+    if pressed:
+        _last_pressed_key = vkey
+        _last_pressed_time = time.time()
+    elif _last_pressed_key == vkey and vkey in _holding_hotkeys:
+        # check if holding time is long enough
+        min_hold_time, func, error_handler = _holding_hotkeys[vkey]
+        if time.time() - _last_pressed_time >= min_hold_time:
+            # wrap func with in try-catch for safty
+            def wrapped_func():
+                try:
+                    func()
+                except Exception as e:
+                    error_handler(e)
+
+            # execute hook in a separate thread for performance
+            _executor.submit(wrapped_func)
+        _last_pressed_key = None
+        _last_pressed_time = 0
+
+    # then check if combination matches
     if vkey.name in Modifier.__members__:
         # update modifier state (pressed, released)
         if pressed:
@@ -163,14 +201,16 @@ def input_event_handler(
 
 if __name__ == "__main__":
     import time
+    from functools import partial
 
     def delay_hello():
         time.sleep(1)
         print("hello world")
 
-    hotkey([Vk.LWIN, Vk.B], delay_hello, True)
+    # hotkey([Vk.LWIN, Vk.B], delay_hello, True)
     # hotkey([Vk.XBUTTON1, Vk.LBUTTON], delay_hello, True)
     hotkey([Vk.XBUTTON2, Vk.LBUTTON], delay_hello, True)
+    holding_hotkey(Vk.XBUTTON2, partial(print, "holding X2"))
 
     hook = Hook()
     hook.install_keyboard_hook(input_event_handler)
