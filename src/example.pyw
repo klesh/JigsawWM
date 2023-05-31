@@ -3,7 +3,6 @@ from jigsawwm.daemon import Daemon
 
 class MyDaemon(Daemon):
     def setup(self):
-        import os
         from datetime import timedelta
 
         from mailcalaid.cal.holiday import ChinaHolidayBook
@@ -72,7 +71,7 @@ class MyDaemon(Daemon):
         self.hotkey([Vk.WIN, Vk.M], toggle_maximize_active_window)
         self.hotkey("Win+/", wm.set_master)
         self.hotkey("Win+q", "LAlt+F4")
-        self.hotkey([Vk.WIN, Vk.SPACE], wm.next_theme)
+        # self.hotkey([Vk.WIN, Vk.SPACE], wm.next_theme)
         self.hotkey([Vk.WIN, Vk.U], wm.prev_monitor)
         self.hotkey([Vk.WIN, Vk.I], wm.next_monitor)
         self.hotkey([Vk.WIN, Vk.SHIFT, Vk.U], wm.move_to_prev_monitor)
@@ -105,20 +104,20 @@ class MyDaemon(Daemon):
         # launch apps smartly at startup
         holiday_book = ChinaHolidayBook()
 
-        def open_worklog():
-            """Open a worklog (markdown file) for today."""
-            next_workday = holiday_book.next_workday()
-            latest_workday = holiday_book.latest_workday()
-            worklog_path = os.path.join(
-                os.path.expanduser("~/Documents/Sync/worklog"),
-                f"{next_workday.isoformat()}.md",
-            )
-            if not os.path.exists(worklog_path):
-                with open(worklog_path, "w") as f:
-                    prevdate = latest_workday.strftime("%m/%d")
-                    nextdate = next_workday.strftime("%m/%d")
-                    f.write(f"{prevdate}\n1. \n\n{nextdate}\n1. ")
-            os.startfile(worklog_path)
+        # def open_worklog():
+        #     """Open a worklog (markdown file) for today."""
+        #     next_workday = holiday_book.next_workday()
+        #     latest_workday = holiday_book.latest_workday()
+        #     worklog_path = os.path.join(
+        #         os.path.expanduser("~/Documents/Sync/worklog"),
+        #         f"{next_workday.isoformat()}.md",
+        #     )
+        #     if not os.path.exists(worklog_path):
+        #         with open(worklog_path, "w") as f:
+        #             prevdate = latest_workday.strftime("%m/%d")
+        #             nextdate = next_workday.strftime("%m/%d")
+        #             f.write(f"{prevdate}\n1. \n\n{nextdate}\n1. ")
+        #     os.startfile(worklog_path)
 
         register_smartstart(
             SmartStartEntry(
@@ -133,7 +132,8 @@ class MyDaemon(Daemon):
                 launch=[
                     r"C:\Users\Klesh\AppData\Local\Feishu\Feishu.exe",
                     r"C:\Program Files\Mozilla Thunderbird\thunderbird.exe",
-                    open_worklog,
+                    r"C:\Users\Klesh\AppData\Local\Obsidian\Obsidian.exe",
+                    # open_worklog,
                 ],
                 condition=lambda: holiday_book.is_workhour(extend=timedelta(hours=2)),
             )

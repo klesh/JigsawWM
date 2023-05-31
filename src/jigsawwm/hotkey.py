@@ -144,11 +144,21 @@ def input_event_handler(
         return
     global _modifier, _hotkeys, _executor, _last_pressed_key, _last_pressed_time
 
+    swallow = False
+    is_hodling_hotkey = vkey in _holding_hotkeys
     # check if holding key matches
     if pressed:
-        _last_pressed_key = vkey
-        _last_pressed_time = time.time()
-    elif _last_pressed_key == vkey and vkey in _holding_hotkeys:
+        if _last_pressed_key is None and is_hodling_hotkey:
+            # swallow key press event if holding key registered
+            _last_pressed_key = vkey
+            _last_pressed_time = time.time()
+            swallow = True
+        elif _last_pressed_key is not None and _last_pressed_key != vkey:
+            # resend last keypress if another key is pressed
+            send_input(vk_to_input(_last_pressed_key, pressed=False))
+            _last_pressed_key = None
+            _last_pressed_time = None
+    elif _last_pressed_key == vkey and is_hodling_hotkey:
         # check if holding time is long enough
         min_hold_time, func, error_handler = _holding_hotkeys[vkey]
         if time.time() - _last_pressed_time >= min_hold_time:
@@ -161,8 +171,11 @@ def input_event_handler(
 
             # execute hook in a separate thread for performance
             _executor.submit(wrapped_func)
+            swallow = True
         _last_pressed_key = None
-        _last_pressed_time = 0
+        _last_pressed_time = None
+        if swallow:
+            return True
 
     # then check if combination matches
     if vkey.name in Modifier.__members__:
@@ -196,7 +209,7 @@ def input_event_handler(
             # execute hook in a separate thread for performance
             _executor.submit(wrapped_func)
             # tell other apps to ignore this event
-            return swallow
+    return swallow
 
 
 if __name__ == "__main__":
