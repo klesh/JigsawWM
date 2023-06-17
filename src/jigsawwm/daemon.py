@@ -18,7 +18,7 @@ from jigsawwm.hotkey import hotkey, input_event_handler
 from jigsawwm.manager import WindowManager
 from jigsawwm.services import get_services
 from jigsawwm.smartstart import get_smartstarts
-from jigsawwm.w32.hook import Hook
+from jigsawwm.w32 import hook
 from jigsawwm.w32.vk import Vk
 from jigsawwm.w32.window import Window, is_app_window, is_window
 from jigsawwm.w32.winevent import WinEvent
@@ -29,7 +29,6 @@ class Daemon:
     to configurate the Manager.
     """
 
-    _hook: Hook
     _timers: Dict[Callable, Thread] = {}
     _timer_thread: Thread
     _trayicon: pystray.Icon
@@ -38,7 +37,6 @@ class Daemon:
     menu_items: Sequence[pystray.MenuItem] = []
 
     def __init__(self):
-        self._hook = Hook()
         self._timers = {}
         self._timer_thread = None
         self._trayicon = None
@@ -70,27 +68,27 @@ class Daemon:
 
     def start_hooks(self):
         """Start all hooks"""
-        self._hook.install_keyboard_hook(input_event_handler)
-        self._hook.install_mouse_hook(input_event_handler)
-        self._hook.install_winevent_hook(
-            self._winevent_callback,
+        hook.hook_winevent(
             WinEvent.EVENT_OBJECT_SHOW,
             WinEvent.EVENT_OBJECT_HIDE,
-        )
-        self._hook.install_winevent_hook(
             self._winevent_callback,
+        )
+        hook.hook_winevent(
             WinEvent.EVENT_OBJECT_CLOAKED,
             WinEvent.EVENT_OBJECT_UNCLOAKED,
-        )
-        self._hook.install_winevent_hook(
             self._winevent_callback,
+        )
+        hook.hook_winevent(
             WinEvent.EVENT_SYSTEM_MINIMIZESTART,
             WinEvent.EVENT_SYSTEM_MINIMIZEEND,
+            self._winevent_callback,
         )
-        self._hook.install_winevent_hook(
-            self._winevent_callback, WinEvent.EVENT_SYSTEM_MOVESIZEEND
+        hook.hook_winevent(
+            WinEvent.EVENT_SYSTEM_MOVESIZEEND,
+            WinEvent.EVENT_SYSTEM_MOVESIZEEND,
+            self._winevent_callback,
         )
-        self._hook.start()
+        hook.hook_keyboard(hook.exit_on_key_q)
 
     def _winevent_callback(
         self,
@@ -121,10 +119,6 @@ class Daemon:
             )
         )
         self._wm.sync(restrict=event == WinEvent.EVENT_SYSTEM_MOVESIZEEND)
-
-    def stop_hooks(self):
-        """Stop all hooks"""
-        self._hook.stop()
 
     def timer(self, interval: float, callback: Callable, once: Optional[bool] = False):
         """Run callback function with a fixed time interval repeatedly
@@ -193,7 +187,7 @@ class Daemon:
             menu=pystray.Menu(dynamic_menu),
         )
         self._trayicon = tray_icon
-        self._trayicon.run_detached()
+        self._trayicon.run()
 
     def stop_trayicon(self):
         """Stop trayicon"""
@@ -213,15 +207,15 @@ class Daemon:
             sys.exit(1)
             return
         self._started = True
-        self.start_trayicon()
         self.start_timers()
         self.start_hooks()
-        while self._started:
-            try:
-                time.sleep(1)
-            except KeyboardInterrupt:
-                self.stop()
-                break
+        self.start_trayicon()
+        # while self._started:
+        #     try:
+        #         time.sleep(1)
+        #     except KeyboardInterrupt:
+        #         self.stop()
+        #         break
 
     def stop(self):
         """Stop daemon service"""

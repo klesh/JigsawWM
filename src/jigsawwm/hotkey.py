@@ -4,13 +4,7 @@ from functools import partial
 from traceback import print_exception
 from typing import Callable, Dict, FrozenSet, Sequence, Tuple, Union
 
-from jigsawwm.w32.hook import (
-    KBDLLHOOKDATA,
-    KBDLLHOOKMSGID,
-    MSLLHOOKDATA,
-    MSLLHOOKMSGID,
-    Hook,
-)
+from jigsawwm.w32 import hook
 from jigsawwm.w32.sendinput import (
     is_synthesized,
     send_combination,
@@ -19,16 +13,10 @@ from jigsawwm.w32.sendinput import (
 )
 from jigsawwm.w32.vk import Modifier, Vk, expand_combination, parse_combination
 
-# print("MENU+s", list(expand_combination([Vk.MENU, Vk.S])))
-# print("LMENU+s", list(expand_combination([Vk.LMENU, Vk.S])))
-# print("MENU+SHIFT+s", list(expand_combination([Vk.MENU, Vk.SHIFT, Vk.S])))
-# print("F1", list(expand_combination([Vk.F1])))
-# exit()
-
-# { combination: (func, swallow, counteract) }
 _hotkeys: Dict[
     FrozenSet[Vk], Tuple[Callable, bool, bool, Callable[[Exception], None]]
 ] = {}
+# for executing callback function
 _executor = ThreadPoolExecutor()
 
 
@@ -52,13 +40,12 @@ def hotkey(
         i.e. "RWin+Space"
     :param swallow: stop combination being process by other apps
     """
-    global _hotkeys
     # parse combkeys if it is string
     if isinstance(combkeys, str):
         combkeys = parse_combination(combkeys)
     # check if combination valid
     if not combkeys:
-        raise Exception("empty combination")
+        raise ValueError("empty combination")
     # turn target to function if it is string
     if isinstance(target, str):
         target = partial(send_combination, parse_combination(target))
@@ -90,7 +77,8 @@ _modifier = Modifier(0)
 
 
 def input_event_handler(
-    msgid: Union[KBDLLHOOKMSGID, MSLLHOOKMSGID], msg: Union[KBDLLHOOKDATA, MSLLHOOKDATA]
+    msgid: Union[hook.KBDLLHOOKMSGID, hook.MSLLHOOKMSGID],
+    msg: Union[hook.KBDLLHOOKDATA, hook.MSLLHOOKDATA],
 ) -> bool:
     """Handles keyboard events and call callback if the combination
     had been registered
@@ -101,38 +89,38 @@ def input_event_handler(
     # convert keyboard/mouse event to a unified virtual key representation
     vkey = None
     pressed = None
-    if isinstance(msgid, KBDLLHOOKMSGID):
+    if isinstance(msgid, hook.KBDLLHOOKMSGID):
         vkey = Vk(msg.vkCode)
-        if msgid == KBDLLHOOKMSGID.WM_KEYDOWN:
+        if msgid == hook.KBDLLHOOKMSGID.WM_KEYDOWN:
             pressed = True
-        elif msgid == KBDLLHOOKMSGID.WM_KEYUP:
+        elif msgid == hook.KBDLLHOOKMSGID.WM_KEYUP:
             pressed = False
-    elif isinstance(msgid, MSLLHOOKMSGID):
-        if msgid == MSLLHOOKMSGID.WM_LBUTTONDOWN:
+    elif isinstance(msgid, hook.MSLLHOOKMSGID):
+        if msgid == hook.MSLLHOOKMSGID.WM_LBUTTONDOWN:
             vkey = Vk.LBUTTON
             pressed = True
-        elif msgid == MSLLHOOKMSGID.WM_LBUTTONUP:
+        elif msgid == hook.MSLLHOOKMSGID.WM_LBUTTONUP:
             vkey = Vk.LBUTTON
             pressed = False
-        elif msgid == MSLLHOOKMSGID.WM_RBUTTONDOWN:
+        elif msgid == hook.MSLLHOOKMSGID.WM_RBUTTONDOWN:
             vkey = Vk.RBUTTON
             pressed = True
-        elif msgid == MSLLHOOKMSGID.WM_RBUTTONUP:
+        elif msgid == hook.MSLLHOOKMSGID.WM_RBUTTONUP:
             vkey = Vk.RBUTTON
             pressed = False
-        elif msgid == MSLLHOOKMSGID.WM_MBUTTONDOWN:
+        elif msgid == hook.MSLLHOOKMSGID.WM_MBUTTONDOWN:
             vkey = Vk.MBUTTON
             pressed = True
-        elif msgid == MSLLHOOKMSGID.WM_MBUTTONUP:
+        elif msgid == hook.MSLLHOOKMSGID.WM_MBUTTONUP:
             vkey = Vk.MBUTTON
             pressed = False
-        elif msgid == MSLLHOOKMSGID.WM_XBUTTONDOWN:
+        elif msgid == hook.MSLLHOOKMSGID.WM_XBUTTONDOWN:
             vkey = Vk.XBUTTON1 if msg.hiword() == 1 else Vk.XBUTTON2
             pressed = True
-        elif msgid == MSLLHOOKMSGID.WM_XBUTTONUP:
+        elif msgid == hook.MSLLHOOKMSGID.WM_XBUTTONUP:
             vkey = Vk.XBUTTON1 if msg.hiword() == 1 else Vk.XBUTTON2
             pressed = False
-        elif msgid == MSLLHOOKMSGID.WM_MOUSEWHEEL:
+        elif msgid == hook.MSLLHOOKMSGID.WM_MOUSEWHEEL:
             delta = msg.get_wheel_delta()
             if delta > 0:
                 vkey = Vk.WHEEL_UP
@@ -212,6 +200,10 @@ def input_event_handler(
     return swallow
 
 
+# install hook
+hook.hook_keyboard(input_event_handler)
+hook.hook_mouse(input_event_handler)
+
 if __name__ == "__main__":
     import time
     from functools import partial
@@ -220,19 +212,9 @@ if __name__ == "__main__":
         time.sleep(1)
         print("hello world")
 
-    # hotkey([Vk.LWIN, Vk.B], delay_hello, True)
+    hotkey([Vk.LWIN, Vk.B], delay_hello, True)
     # hotkey([Vk.XBUTTON1, Vk.LBUTTON], delay_hello, True)
-    hotkey([Vk.XBUTTON2, Vk.LBUTTON], delay_hello, True)
-    holding_hotkey(Vk.XBUTTON2, partial(print, "holding X2"))
+    # hotkey([Vk.XBUTTON2, Vk.LBUTTON], delay_hello, True)
+    # holding_hotkey(Vk.XBUTTON2, partial(print, "holding X2"))
 
-    hook = Hook()
-    hook.install_keyboard_hook(input_event_handler)
-    hook.install_mouse_hook(input_event_handler)
-    hook.start()
-
-    while True:
-        try:
-            time.sleep(1)
-        except KeyboardInterrupt:
-            hook.stop()
-            break
+    hook.message_loop()
