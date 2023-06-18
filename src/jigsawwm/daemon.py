@@ -14,7 +14,7 @@ from typing import Callable, Dict, List, Optional, Sequence, Union
 import pystray
 from PIL import Image
 
-from jigsawwm.hotkey import hotkey, input_event_handler
+from jigsawwm.hotkey import hotkey, install_hotkey_hooks
 from jigsawwm.manager import WindowManager
 from jigsawwm.services import get_services
 from jigsawwm.smartstart import get_smartstarts
@@ -89,6 +89,7 @@ class Daemon:
             self._winevent_callback,
         )
         hook.hook_keyboard(hook.exit_on_key_q)
+        install_hotkey_hooks()
 
     def _winevent_callback(
         self,
@@ -219,7 +220,6 @@ class Daemon:
 
     def stop(self):
         """Stop daemon service"""
-        self.stop_hooks()
         self.stop_timers()
         self.stop_trayicon()
         self._started = False
