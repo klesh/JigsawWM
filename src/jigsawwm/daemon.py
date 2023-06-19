@@ -3,6 +3,7 @@ import sys
 sys.coinit_flags = 0x0
 import io
 import os.path
+import signal
 import time
 from ctypes.wintypes import DWORD, HWND, LONG
 from datetime import datetime
@@ -22,6 +23,8 @@ from jigsawwm.w32 import hook
 from jigsawwm.w32.vk import Vk
 from jigsawwm.w32.window import Window, is_app_window, is_window
 from jigsawwm.w32.winevent import WinEvent
+
+signal.signal(signal.SIGINT, signal.SIG_DFL)
 
 
 class Daemon:
@@ -88,7 +91,6 @@ class Daemon:
             WinEvent.EVENT_SYSTEM_MOVESIZEEND,
             self._winevent_callback,
         )
-        hook.hook_keyboard(hook.exit_on_key_q)
         install_hotkey_hooks()
 
     def _winevent_callback(

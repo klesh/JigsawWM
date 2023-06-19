@@ -1,4 +1,5 @@
 import enum
+import logging
 import threading
 import time
 from ctypes import *
@@ -8,6 +9,8 @@ from typing import Callable, Optional, Tuple
 
 from .vk import Vk
 from .winevent import HWINEVENTHOOK, WINEVENTHOOKPROC, WinEvent
+
+logger = logging.getLogger(__name__)
 
 user32 = WinDLL("user32", use_last_error=True)
 
@@ -260,8 +263,9 @@ def hook_mouse(cb: Callable[[MSLLHOOKMSGID, MSLLHOOKDATA], bool]) -> HANDLE:
 
 def message_loop():
     """For debugging purpose"""
-    print("press 'q' to exit")
-    hook_keyboard(exit_on_key_q)
+    import signal
+
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
     msg = byref(MSG())
     while True:
         bRet = user32.GetMessageW(msg, None, 0, 0)
@@ -273,17 +277,13 @@ def message_loop():
         user32.DispatchMessageW(msg)
 
 
-def exit_on_key_q(msgid: KBDLLHOOKMSGID, msg: KBDLLHOOKDATA):
-    """For debugging purpose"""
-    if msgid == KBDLLHOOKMSGID.WM_KEYDOWN and msg.vkCode == Vk.Q:
-        user32.PostQuitMessage()
-
-
 if __name__ == "__main__":
     import sys
     from datetime import datetime
 
     from . import window
+
+    logging.basicConfig(level=logging.DEBUG)
 
     def keyboard(msgid: KBDLLHOOKMSGID, msg: KBDLLHOOKDATA) -> bool:
         print(
