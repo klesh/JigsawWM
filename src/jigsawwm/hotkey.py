@@ -2,8 +2,19 @@ import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from functools import partial
+from threading import Lock
 from traceback import print_exception
-from typing import Callable, Dict, FrozenSet, Optional, Sequence, Set, Tuple, Union
+from typing import (
+    Callable,
+    Dict,
+    FrozenSet,
+    List,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Union,
+)
 
 from jigsawwm.w32 import hook
 from jigsawwm.w32.sendinput import (
@@ -48,10 +59,8 @@ class Holding:
 class Hotkeys:
     combinations: Dict[FrozenSet[Vk], Combination]
     holdkeys: Dict[Vk, Holding]
-    last_holding: Optional[Tuple[Vk, int]] = None
-    last_holded: Optional[Holding] = None
-    pressed_keys: Set[Vk]
-    queue: Sequence[Tuple[Vk, bool]]
+    pressed_keys: Dict[Vk, int]
+    queue: List[Tuple[Vk, bool]]
     modifiers = [
         Vk.LSHIFT,
         Vk.LCONTROL,
@@ -63,14 +72,16 @@ class Hotkeys:
         Vk.RWIN,
     ]
     extra_modifers: Set[Vk]
-    holding_future: Optional[Future] = None
+    held = set()
+    _lock: Lock
 
     def __init__(self):
         self.combinations = {}
         self.holdkeys = {}
-        self.pressed_keys = set()
+        self.pressed_keys = dict()
         self.queue = []
         self.extra_modifers = set()
+        self._lock = Lock()
 
     def combination(self, comb: Combination):
         self.combinations[frozenset(comb.keys)] = comb
@@ -79,7 +90,9 @@ class Hotkeys:
             for key in comb.keys[:-1]:
                 if key not in self.modifiers:
                     if key in self.holdkeys:
-                        raise ValueError("cannot register a combination with holdkey")
+                        raise ValueError(
+                            "cannot register a combination with holdkey as modifier"
+                        )
                     self.extra_modifers.add(key)
 
     def holding(self, holdkey: Holding):
@@ -106,48 +119,46 @@ class Hotkeys:
         if pressed:
             # update press state
             if key < Vk.KB_BOUND:
-                self.pressed_keys.add(key)
+                self.pressed_keys[key] = time.time_ns()
             # holding key
-            if self.last_holding and self.last_holding[0] != key:
-                resend, self.queue = self.queue, []
-                if self.holding_future:
-                    self.holding_future.cancel()
-                    self.holding_future = None
-            elif key in self.holdkeys:
-                self.last_holding = (key, time.time_ns())
+            if key in self.holdkeys:
                 holdkey = self.holdkeys[key]
                 swallow = holdkey.swallow
-                if holdkey.down:
 
-                    def holding_timer():
-                        time.sleep(holdkey.term_s)
-                        holdkey.down()
-                        self.last_holded = holdkey
-                        # lock
-                        if holdkey.swallow:
-                            # we should swallow the next key up
-                            pass
-                        if holdkey.up:
-                            # it should be triggered when key is release
-                            # if no other event happen inbetween
-                            pass
+                def holding_timer():
+                    time.sleep(holdkey.term_s)
+                    pressed_ts = self.pressed_keys.get(key)
+                    if pressed_ts and time.time_ns() - pressed_ts > holdkey.term_ns:
+                        with self._lock:
+                            # mark the key as held
+                            self.held.add(key)
+                            if holdkey.swallow and key in self.extra_modifers:
+                                self.queue.remove((key, True))
+                            if holdkey.down:
+                                _executor.submit(holdkey.down)
 
-                    self.holding_future = _executor.submit(holding_timer)
+                _executor.submit(holding_timer)
+
             # combination match
             else:
-                comb = self.combinations.get(frozenset(self.pressed_keys))
+                comb = self.combinations.get(frozenset(self.pressed_keys.keys()))
                 if comb:
                     swallow = comb.swallow
         else:
             # preserve the potential hotkey match
-            comb = self.combinations.get(frozenset(self.pressed_keys))
+            comb = self.combinations.get(frozenset(self.pressed_keys.keys()))
             # update the state
             if key < Vk.KB_BOUND:
-                self.pressed_keys.remove(key)
-            if self.last_holded and self.last_holded.key == key:
-                _executor.submit(self.last_holded.up)
-                swallow = self.last_holded.swallow
-                self.queue = []
+                self.pressed_keys.pop(key)
+            if key in self.held:
+                holdkey = self.holdkeys[key]
+                swallow = holdkey.swallow
+                with self._lock:
+                    self.held.remove(key)
+                    if holdkey.swallow and key in self.extra_modifers:
+                        self.queue.pop()
+                if holdkey.up:
+                    _executor.submit(holdkey.up)
             else:
                 # BINGO if the last key matched
                 if comb and comb.keys[-1] == key:
@@ -155,7 +166,8 @@ class Hotkeys:
                     _executor.submit(comb.callback)
                 elif self.queue:
                     swallow = True
-                    resend, self.queue = self.queue, []
+                    with self._lock:
+                        resend, self.queue = self.queue, []
         return swallow, resend
 
 

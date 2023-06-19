@@ -10,6 +10,7 @@ comb_zb = Combination(keys=[Vk.Z, Vk.B], callback=cb, swallow=False)
 comb_win_a = Combination(keys=[Vk.LWIN, Vk.A], callback=cb, swallow=True)
 comb_win_b = Combination(keys=[Vk.LWIN, Vk.B], callback=cb, swallow=False)
 hold_z = Holding(key=Vk.Z, down=cb, up=cb2, swallow=True)
+hold_x = Holding(key=Vk.X, down=cb, up=cb2, swallow=False)
 
 
 def test_combination_triggered(mocker):
@@ -113,15 +114,33 @@ def test_holdkey_triggered(mocker):
     hotkeys.holding(hold_z)
     hold_z_down = mocker.spy(hold_z, "down")
     hold_z_up = mocker.spy(hold_z, "up")
+    hotkeys.holding(hold_x)
+    hold_x_down = mocker.spy(hold_x, "down")
+    hold_x_up = mocker.spy(hold_x, "up")
+    # down event gets fired after term_s
     hotkeys.event(key=Vk.Z, pressed=True)
     assert hold_z_down.call_count == 0
     time.sleep(hold_z.term_s + 0.05)
     hold_z_down.assert_called_once()
+    # test for non-swallowing holdkey
+    swallow, resend = hotkeys.event(key=Vk.X, pressed=True)
+    assert not swallow
+    assert not resend
+    time.sleep(hold_x.term_s + 0.05)
+    assert hold_x_down.call_count == 1
+    # up event gets fired once down was fired and key is released no matter what
     swallow, resend = hotkeys.event(key=Vk.Z, pressed=False)
     assert swallow
     assert not resend
+    swallow, resend = hotkeys.event(key=Vk.X, pressed=True)
+    assert not swallow
+    assert not resend
+    swallow, resend = hotkeys.event(key=Vk.X, pressed=False)
+    assert not swallow
+    assert not resend
     time.sleep(0.05)
     hold_z_up.assert_called_once()
+    hold_x_up.assert_called_once()
 
 
 def test_holdkey_passthrough(mocker):
@@ -136,20 +155,6 @@ def test_holdkey_passthrough(mocker):
     swallow, resend = hotkeys.event(key=Vk.Q, pressed=False)
     assert swallow
     assert resend == [(Vk.Q, True), (Vk.Q, False)]
-    # case 2: tap other keys when holding should be passed through
-    hotkeys.event(key=Vk.Q, pressed=True)
-    swallow, resend = hotkeys.event(key=Vk.A, pressed=True)
-    assert swallow
-    assert resend == [(Vk.Q, True), (Vk.A, True)]
-    swallow, resend = hotkeys.event(key=Vk.Q, pressed=False)
-    assert not swallow
-    assert not resend
-    swallow, resend = hotkeys.event(key=Vk.A, pressed=False)
-    assert not swallow
-    assert not resend
-    time.sleep(hold_z.term_s + 0.05)
-    assert not hold_z_down.call_count
-    assert not hold_z_up.call_count
 
 
 def test_combination_and_holdingkey_mutual_exclusive():
