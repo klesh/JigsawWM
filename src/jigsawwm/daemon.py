@@ -15,7 +15,7 @@ from typing import Callable, Dict, List, Optional, Sequence, Union
 import pystray
 from PIL import Image
 
-from jigsawwm.hotkey import hotkey, install_hotkey_hooks
+from jigsawwm import hotkey
 from jigsawwm.manager import WindowManager
 from jigsawwm.services import get_services
 from jigsawwm.smartstart import get_smartstarts
@@ -43,6 +43,7 @@ class Daemon:
         self._timers = {}
         self._timer_thread = None
         self._trayicon = None
+        hotkey.set_error_handler(self._error_handler)
 
     def _error_handler(self, e: Exception):
         file = io.StringIO()
@@ -65,7 +66,7 @@ class Daemon:
         :param bool swallow: stop event propagation to prevent combkeys being processed by other programs
         """
         try:
-            hotkey(combkeys, target, swallow, self._error_handler)
+            hotkey.hotkey(combkeys, target, swallow)
         except Exception as e:
             self._error_handler(e)
 
@@ -91,7 +92,7 @@ class Daemon:
             WinEvent.EVENT_SYSTEM_MOVESIZEEND,
             self._winevent_callback,
         )
-        install_hotkey_hooks()
+        hotkey.install_hotkey_hooks()
 
     def _winevent_callback(
         self,

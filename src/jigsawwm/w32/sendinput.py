@@ -113,7 +113,7 @@ def send_input(*inputs: typing.List[INPUT]):
     for item in inputs:
         if item is None:
             continue
-        if item.ki:
+        if item.type == INPUTTYPE.KEYBOARD:
             item.ki.dwExtraInfo = SYNTHESIZED_ID
         elif item.mi:
             item.mi.dwExtraInfo = SYNTHESIZED_ID
@@ -129,10 +129,8 @@ def is_synthesized(msg: typing.Union[KEYBDINPUT, MOUSEINPUT]) -> bool:
     return msg.dwExtraInfo == SYNTHESIZED_ID
 
 
-def vk_to_input(vk: Vk, pressed: bool) -> typing.Optional[INPUT]:
-    if vk > Vk.KB_BOUND:
-        return
-    if vk < Vk.MS_BOUND:
+def vk_to_input(vk: Vk, pressed: bool = None) -> typing.Optional[INPUT]:
+    if vk < Vk.MS_BOUND or vk > Vk.KB_BOUND:
         dwFlags = 0
         mouseData = 0
         if vk == Vk.LBUTTON:
@@ -151,19 +149,23 @@ def vk_to_input(vk: Vk, pressed: bool) -> typing.Optional[INPUT]:
             else:
                 dwFlags = MOUSEEVENTF.MIDDLEUP
         elif vk == Vk.XBUTTON1:
+            mouseData = 0x0001
             if pressed:
-                dwFlags = MOUSEEVENTF.XUP
-                mouseData = 1
+                dwFlags = MOUSEEVENTF.XDOWN
             else:
-                dwFlags = MOUSEEVENTF.MIDDLEUP
-                mouseData = 1
+                dwFlags = MOUSEEVENTF.XUP
         elif vk == Vk.XBUTTON2:
+            mouseData = 0x0002
             if pressed:
-                dwFlags = MOUSEEVENTF.XUP
-                mouseData = 2
+                dwFlags = MOUSEEVENTF.XDOWN
             else:
-                dwFlags = MOUSEEVENTF.MIDDLEUP
-                mouseData = 2
+                dwFlags = MOUSEEVENTF.XUP
+        elif vk == Vk.WHEEL_UP:
+            mouseData = 120
+            dwFlags = MOUSEEVENTF.WHEEL
+        elif vk == Vk.WHEEL_DOWN:
+            mouseData = -120
+            dwFlags = MOUSEEVENTF.WHEEL
         return INPUT(
             type=INPUTTYPE.MOUSE,
             mi=MOUSEINPUT(dwFlags=dwFlags, mouseData=mouseData),
@@ -194,25 +196,29 @@ if __name__ == "__main__":
 
     from .vk import Vk
 
-    time.sleep(3)
+    # time.sleep(3)
 
     send_input(
-        INPUT(
-            type=INPUTTYPE.KEYBOARD,
-            ki=KEYBDINPUT(wVk=Vk.LSHIFT),
-        ),
-        INPUT(
-            type=INPUTTYPE.KEYBOARD,
-            ki=KEYBDINPUT(wVk=Vk.INSERT, dwFlags=KEYEVENTF.EXTENDEDKEY),
-        ),
-        INPUT(
-            type=INPUTTYPE.KEYBOARD,
-            ki=KEYBDINPUT(
-                wVk=Vk.INSERT, dwFlags=KEYEVENTF.KEYUP | KEYEVENTF.EXTENDEDKEY
-            ),
-        ),
-        INPUT(
-            type=INPUTTYPE.KEYBOARD,
-            ki=KEYBDINPUT(wVk=Vk.LSHIFT, dwFlags=KEYEVENTF.KEYUP),
-        ),
+        vk_to_input(Vk.WHEEL_UP),
+        # vk_to_input(Vk.WHEEL_DOWN),
+        # vk_to_input(Vk.XBUTTON2, pressed=True),
+        # vk_to_input(Vk.XBUTTON2, pressed=False),
+        # INPUT(
+        #     type=INPUTTYPE.KEYBOARD,
+        #     ki=KEYBDINPUT(wVk=Vk.LSHIFT),
+        # ),
+        # INPUT(
+        #     type=INPUTTYPE.KEYBOARD,
+        #     ki=KEYBDINPUT(wVk=Vk.INSERT, dwFlags=KEYEVENTF.EXTENDEDKEY),
+        # ),
+        # INPUT(
+        #     type=INPUTTYPE.KEYBOARD,
+        #     ki=KEYBDINPUT(
+        #         wVk=Vk.INSERT, dwFlags=KEYEVENTF.KEYUP | KEYEVENTF.EXTENDEDKEY
+        #     ),
+        # ),
+        # INPUT(
+        #     type=INPUTTYPE.KEYBOARD,
+        #     ki=KEYBDINPUT(wVk=Vk.LSHIFT, dwFlags=KEYEVENTF.KEYUP),
+        # ),
     )

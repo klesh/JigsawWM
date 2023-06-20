@@ -1,23 +1,23 @@
 import time
 
-from jigsawwm.hotkey import Combination, Holding, Hotkeys
+from jigsawwm.hotkey import Holdkey, Hotkey, Hotkeys
 from jigsawwm.w32.vk import Vk
 
 cb = lambda: 1
 cb2 = lambda: 2
-comb_za = Combination(keys=[Vk.Z, Vk.A], callback=cb, swallow=True)
-comb_zb = Combination(keys=[Vk.Z, Vk.B], callback=cb, swallow=False)
-comb_win_a = Combination(keys=[Vk.LWIN, Vk.A], callback=cb, swallow=True)
-comb_win_b = Combination(keys=[Vk.LWIN, Vk.B], callback=cb, swallow=False)
-hold_z = Holding(key=Vk.Z, down=cb, up=cb2, swallow=True)
-hold_x = Holding(key=Vk.X, down=cb, up=cb2, swallow=False)
+hotkey_za = Hotkey(keys=[Vk.Z, Vk.A], callback=cb, swallow=True)
+hotkey_zb = Hotkey(keys=[Vk.Z, Vk.B], callback=cb, swallow=False)
+hotkey_win_a = Hotkey(keys=[Vk.LWIN, Vk.A], callback=cb, swallow=True)
+hotkey_ctrl_b = Hotkey(keys=[Vk.LCONTROL, Vk.B], callback=cb, swallow=False)
+hold_z = Holdkey(key=Vk.Z, down=cb, up=cb2, swallow=True)
+hold_x = Holdkey(key=Vk.X, down=cb, up=cb2, swallow=False)
 
 
 def test_combination_triggered(mocker):
     hotkeys = Hotkeys()
-    hotkeys.combination(comb_za)
+    hotkeys.hotkey(hotkey_za)
     # case 1: combination triggered
-    za_callback = mocker.spy(comb_za, "callback")
+    za_callback = mocker.spy(hotkey_za, "callback")
     hotkeys.event(key=Vk.Z, pressed=True)
     hotkeys.event(key=Vk.A, pressed=True)
     hotkeys.event(key=Vk.A, pressed=False)
@@ -35,8 +35,8 @@ def test_combination_triggered(mocker):
 
 def test_combinations_passthrough():
     hotkeys = Hotkeys()
-    hotkeys.combination(comb_za)
-    hotkeys.combination(comb_zb)
+    hotkeys.hotkey(hotkey_za)
+    hotkeys.hotkey(hotkey_zb)
     # case 1: last key in combinations should be passed through
     swallow, resend = hotkeys.event(key=Vk.A, pressed=True)
     assert not swallow
@@ -80,7 +80,7 @@ def test_combinations_passthrough():
         assert not swallow
         assert not resend
     # case 5: combination with modifiers
-    hotkeys.combination(comb_win_a)
+    hotkeys.hotkey(hotkey_win_a)
     swallow, resend = hotkeys.event(key=Vk.LWIN, pressed=True)
     assert not swallow
     assert not resend
@@ -89,13 +89,13 @@ def test_combinations_passthrough():
     assert not resend
     swallow, resend = hotkeys.event(key=Vk.A, pressed=False)
     assert swallow
-    assert not resend
+    assert resend == [(Vk.NONAME, False)]
     swallow, resend = hotkeys.event(key=Vk.LWIN, pressed=False)
     assert not swallow
     assert not resend
     # case 6: combination with modifiers without swallowing
-    hotkeys.combination(comb_win_b)
-    swallow, resend = hotkeys.event(key=Vk.LWIN, pressed=True)
+    hotkeys.hotkey(hotkey_ctrl_b)
+    swallow, resend = hotkeys.event(key=Vk.LCONTROL, pressed=True)
     assert not swallow
     assert not resend
     swallow, resend = hotkeys.event(key=Vk.B, pressed=True)
@@ -104,17 +104,17 @@ def test_combinations_passthrough():
     swallow, resend = hotkeys.event(key=Vk.B, pressed=False)
     assert not swallow
     assert not resend
-    swallow, resend = hotkeys.event(key=Vk.LWIN, pressed=False)
+    swallow, resend = hotkeys.event(key=Vk.LCONTROL, pressed=False)
     assert not swallow
     assert not resend
 
 
 def test_holdkey_triggered(mocker):
     hotkeys = Hotkeys()
-    hotkeys.holding(hold_z)
+    hotkeys.holdkey(hold_z)
     hold_z_down = mocker.spy(hold_z, "down")
     hold_z_up = mocker.spy(hold_z, "up")
-    hotkeys.holding(hold_x)
+    hotkeys.holdkey(hold_x)
     hold_x_down = mocker.spy(hold_x, "down")
     hold_x_up = mocker.spy(hold_x, "up")
     # down event gets fired after term_s
@@ -145,7 +145,7 @@ def test_holdkey_triggered(mocker):
 
 def test_holdkey_passthrough(mocker):
     hotkeys = Hotkeys()
-    hotkeys.holding(Holding(Vk.Q, down=cb, up=cb2, swallow=True))
+    hotkeys.holdkey(Holdkey(Vk.Q, down=cb, up=cb2, swallow=True))
     hold_z_down = mocker.spy(hold_z, "down")
     hold_z_up = mocker.spy(hold_z, "up")
     # case 1: tapping the holding key should be passed through
