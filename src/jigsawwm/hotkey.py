@@ -184,7 +184,8 @@ class Hotkeys:
                             self.queue = []
                     if swallow:
                         for k in comb.keys[:-1]:
-                            self.swallow_keys.add(k)
+                            if k in self.extra_modifers:
+                                self.swallow_keys.add(k)
                 elif self.queue:
                     swallow = True
                     with self._lock:
@@ -334,10 +335,10 @@ if __name__ == "__main__":
 
     # hotkey([Vk.LWIN, Vk.B], delay_hello, True)
     # hotkey([Vk.LCONTROL, Vk.B], delay_hello, True)
-    # hotkey([Vk.XBUTTON2, Vk.LBUTTON], delay_hello, True)
-    # hotkey([Vk.XBUTTON2, Vk.LBUTTON], delay_hello, True)
+    # hotkey([Vk.XBUTTON1, Vk.LBUTTON], delay_hello, True)
+    hotkey([Vk.XBUTTON2, Vk.LBUTTON], partial(print, "hello"), True)
     # holding_hotkey(Vk.XBUTTON2, partial(print, "holding X2"))
-    hotkey([Vk.XBUTTON2, Vk.WHEEL_UP], partial(print, "X2 + WHEEL_UP"))
+    # hotkey([Vk.XBUTTON2, Vk.WHEEL_UP], partial(print, "X2 + WHEEL_UP"))
 
     install_hotkey_hooks()
     hook.message_loop()
