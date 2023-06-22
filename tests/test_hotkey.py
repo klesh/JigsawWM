@@ -5,6 +5,7 @@ from jigsawwm.w32.vk import Vk
 
 cb = lambda: 1
 cb2 = lambda: 2
+cb3 = lambda: 3
 hotkey_za = Hotkey(keys=[Vk.Z, Vk.A], callback=cb, swallow=True)
 hotkey_zb = Hotkey(keys=[Vk.Z, Vk.B], callback=cb, swallow=False)
 hotkey_win_a = Hotkey(keys=[Vk.LWIN, Vk.A], callback=cb, swallow=True)
@@ -27,7 +28,9 @@ def test_combination_triggered(mocker):
     # case 2: combination not triggered
     hotkeys.event(key=Vk.Z, pressed=True)
     hotkeys.event(key=Vk.A, pressed=True)
-    hotkeys.event(key=Vk.Z, pressed=False)
+    swallow, resend = hotkeys.event(key=Vk.Z, pressed=False)
+    assert swallow
+    assert resend == [(Vk.Z, True), (Vk.A, True), (Vk.Z, False)]
     hotkeys.event(key=Vk.A, pressed=False)
     time.sleep(0.01)
     za_callback.assert_called_once()
@@ -132,30 +135,29 @@ def test_holdkey_triggered(mocker):
     swallow, resend = hotkeys.event(key=Vk.Z, pressed=False)
     assert swallow
     assert not resend
-    swallow, resend = hotkeys.event(key=Vk.X, pressed=True)
-    assert not swallow
-    assert not resend
     swallow, resend = hotkeys.event(key=Vk.X, pressed=False)
     assert not swallow
     assert not resend
+    assert not hotkeys.queue
     time.sleep(0.05)
     hold_z_up.assert_called_once()
     hold_x_up.assert_called_once()
 
 
-def test_holdkey_passthrough(mocker):
+def test_holdkey_tap(mocker):
     hotkeys = Hotkeys()
-    hotkeys.holdkey(Holdkey(Vk.Q, down=cb, up=cb2, swallow=True))
-    hold_z_down = mocker.spy(hold_z, "down")
-    hold_z_up = mocker.spy(hold_z, "up")
-    # case 1: tapping the holding key should be passed through
+    hold_tap_q = Holdkey(Vk.Q, down=cb, up=cb2, tap=cb3, swallow=True)
+    hotkeys.holdkey(hold_tap_q)
+    hold_tap_q_down = mocker.spy(hold_tap_q, "down")
+    hold_tap_q_up = mocker.spy(hold_tap_q, "up")
+    hold_tap_q_tap = mocker.spy(hold_tap_q, "tap")
     swallow, resend = hotkeys.event(key=Vk.Q, pressed=True)
     assert swallow
     assert not resend
     swallow, resend = hotkeys.event(key=Vk.Q, pressed=False)
     assert swallow
-    assert resend == [(Vk.Q, True), (Vk.Q, False)]
-
-
-def test_combination_and_holdingkey_mutual_exclusive():
-    pass
+    assert not resend
+    time.sleep(0.05)
+    hold_tap_q_down.assert_not_called()
+    hold_tap_q_up.assert_not_called()
+    hold_tap_q_tap.assert_called_once()
