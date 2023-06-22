@@ -1,6 +1,6 @@
 import time
 
-from jigsawwm.hotkey import Holdkey, Hotkey, Hotkeys
+from jigsawwm.jmk import Holdtap, Hotkey, Jmk
 from jigsawwm.w32.vk import Vk
 
 cb = lambda: 1
@@ -10,12 +10,12 @@ hotkey_za = Hotkey(keys=[Vk.Z, Vk.A], callback=cb, swallow=True)
 hotkey_zb = Hotkey(keys=[Vk.Z, Vk.B], callback=cb, swallow=False)
 hotkey_win_a = Hotkey(keys=[Vk.LWIN, Vk.A], callback=cb, swallow=True)
 hotkey_ctrl_b = Hotkey(keys=[Vk.LCONTROL, Vk.B], callback=cb, swallow=False)
-hold_z = Holdkey(key=Vk.Z, down=cb, up=cb2, swallow=True)
-hold_x = Holdkey(key=Vk.X, down=cb, up=cb2, swallow=False)
+hold_z = Holdtap(key=Vk.Z, down=cb, up=cb2, swallow=True)
+hold_x = Holdtap(key=Vk.X, down=cb, up=cb2, swallow=False)
 
 
 def test_combination_triggered(mocker):
-    hotkeys = Hotkeys()
+    hotkeys = Jmk()
     hotkeys.hotkey(hotkey_za)
     # case 1: combination triggered
     za_callback = mocker.spy(hotkey_za, "callback")
@@ -37,7 +37,7 @@ def test_combination_triggered(mocker):
 
 
 def test_combinations_passthrough():
-    hotkeys = Hotkeys()
+    hotkeys = Jmk()
     hotkeys.hotkey(hotkey_za)
     hotkeys.hotkey(hotkey_zb)
     # case 1: last key in combinations should be passed through
@@ -113,11 +113,11 @@ def test_combinations_passthrough():
 
 
 def test_holdkey_triggered(mocker):
-    hotkeys = Hotkeys()
-    hotkeys.holdkey(hold_z)
+    hotkeys = Jmk()
+    hotkeys.holdtap(hold_z)
     hold_z_down = mocker.spy(hold_z, "down")
     hold_z_up = mocker.spy(hold_z, "up")
-    hotkeys.holdkey(hold_x)
+    hotkeys.holdtap(hold_x)
     hold_x_down = mocker.spy(hold_x, "down")
     hold_x_up = mocker.spy(hold_x, "up")
     # down event gets fired after term_s
@@ -145,9 +145,9 @@ def test_holdkey_triggered(mocker):
 
 
 def test_holdkey_tap(mocker):
-    hotkeys = Hotkeys()
-    hold_tap_q = Holdkey(Vk.Q, down=cb, up=cb2, tap=cb3, swallow=True)
-    hotkeys.holdkey(hold_tap_q)
+    hotkeys = Jmk()
+    hold_tap_q = Holdtap(Vk.Q, down=cb, up=cb2, tap=cb3, swallow=True)
+    hotkeys.holdtap(hold_tap_q)
     hold_tap_q_down = mocker.spy(hold_tap_q, "down")
     hold_tap_q_up = mocker.spy(hold_tap_q, "up")
     hold_tap_q_tap = mocker.spy(hold_tap_q, "tap")

@@ -24,7 +24,7 @@ from jigsawwm.w32.sendinput import (
     send_input,
     vk_to_input,
 )
-from jigsawwm.w32.vk import Vk, expand_combination, parse_combination
+from jigsawwm.w32.vk import Vk, expand_combination, parse_combination, parse_key
 
 logger = logging.getLogger(__name__)
 # for executing callback function
@@ -39,7 +39,7 @@ class Hotkey:
 
 
 @dataclass
-class Holdkey:
+class Holdtap:
     key: Vk
     down: Optional[Callable] = None
     up: Optional[Callable] = None
@@ -56,9 +56,9 @@ class Holdkey:
         return self.term * 1e-3
 
 
-class Hotkeys:
+class Jmk:
     combinations: Dict[FrozenSet[Vk], Hotkey]
-    holdkeys: Dict[Vk, Holdkey]
+    holdkeys: Dict[Vk, Holdtap]
     pressed_keys: Dict[Vk, int]
     queue: List[Tuple[Vk, bool]]
     modifiers = [
@@ -97,7 +97,7 @@ class Hotkeys:
                         )
                     self.extra_modifers.add(key)
 
-    def holdkey(self, holdkey: Holdkey):
+    def holdtap(self, holdkey: Holdtap):
         if holdkey.key in self.extra_modifers or holdkey.key in self.modifiers:
             raise ValueError(
                 "cannot register a holdkey that is a modifier or used in combinations"
@@ -141,6 +141,7 @@ class Hotkeys:
                     if pressed_ts and time.time_ns() - pressed_ts > holdkey.term_ns:
                         # trigger the down callback if specified
                         if holdkey.down:
+                            logger.debug("triggering holdkey %s down callback", key)
                             _executor.submit(self.execute, holdkey.down)
                         # mark the key as held
                         self.held.add(key)
@@ -169,10 +170,14 @@ class Hotkeys:
                 swallow = holdkey.swallow
                 # trigger the up callback only if the key is held long enough
                 if key in self.held:
+                    logger.debug("triggering holdkey %s up callback", key)
                     _executor.submit(self.execute, holdkey.up)
                     self.held.remove(key)
                 elif holdkey.tap:
+                    logger.debug("triggering holdkey %s tap callback", key)
                     _executor.submit(self.execute, holdkey.tap)
+                else:
+                    resend = [(key, True), (key, False)]
                 with self._lock:
                     self.queue = [k for k in self.queue if k[0] != key]
             else:
@@ -206,16 +211,16 @@ class Hotkeys:
         return swallow, resend
 
 
-_hotkeys = Hotkeys()
+core = Jmk()
 
 
 def set_error_handler(handler: Callable[[Exception], None]):
-    _hotkeys.error_handler = handler
+    core.error_handler = handler
 
 
 def hotkey(
-    combkeys: Union[Sequence[Vk], str],
-    target: Union[Callable, str],
+    combination: Union[Sequence[Vk], str],
+    target: Union[Callable, Union[Sequence[Vk], str]],
     swallow: bool = True,
 ):
     """Register a system hotkey
@@ -229,37 +234,60 @@ def hotkey(
         Callable:   the function would be executed
         str:        the str would be treated as a combination and send accordingly.
         i.e. "RWin+Space"
-    :param swallow: stop combination being process by other apps
+    :param swallow: stop combination being processed by other apps
     """
     # parse combkeys if it is string
-    if isinstance(combkeys, str):
-        combkeys = parse_combination(combkeys)
+    if isinstance(combination, str):
+        combination = parse_combination(combination)
     # check if combination valid
-    if not combkeys:
+    if not combination:
         raise ValueError("empty combination")
     # turn target to function if it is string
     if isinstance(target, str):
-        target = partial(send_combination, parse_combination(target))
+        target = parse_combination(target)
+    if isinstance(target, Sequence):
+        target = partial(send_combination, target)
 
     # count = len(list(filter(lambda vk: vk.name not in Modifier.__members__, combkeys)))
     # if count != 1:
     #     raise Exception("require 1 and only 1 triggering key")
-    if len(combkeys) == 0:
+    if len(combination) == 0:
         raise ValueError("empty combination")
-    for ck in expand_combination(combkeys):
-        _hotkeys.hotkey(Hotkey(keys=ck, callback=target, swallow=swallow))
+    for ck in expand_combination(combination):
+        core.hotkey(Hotkey(keys=ck, callback=target, swallow=swallow))
 
 
-def holding_hotkey(
-    key: Vk,
-    up: Callable = None,
-    down: Callable = None,
-    tap: Callable = None,
+def holdtap(
+    key: Union[Vk, str],
+    hold: Union[Callable, Union[Vk, str]] = None,
+    tap: Union[Callable, Union[Vk, str]] = None,
     term: int = 200,
     swallow: bool = True,
 ):
-    _hotkeys.holdkey(
-        Holdkey(key=key, up=up, down=down, term=term, swallow=swallow, tap=tap)
+    """Register a holdtap key
+
+    :param key: VirtualKey | str, the key to be intercepted
+    :param hold: Callable | Vk | str, the function to be executed or key to be sent when the key is held longer than `term`
+    :param tap: Callable | Vk | str, the function to be executed or key to be sent when the key is tapped
+    :param term: int, the time in ms to trigger the hold callback
+    :param swallow: bool, stop key being processed by other apps
+    """
+    if not hold and not tap:
+        raise ValueError("hold and tap cannot be both None")
+    if isinstance(key, str):
+        key = parse_key(key)
+    if isinstance(hold, str):
+        hold = parse_key(hold)
+    up, down = None, None
+    if hold:
+        up = partial(send_input, vk_to_input(hold, False))
+        down = partial(send_input, vk_to_input(hold, True))
+    if isinstance(tap, str):
+        tap = parse_key(tap)
+        tap = partial(send_input, vk_to_input(tap, True), vk_to_input(tap, False))
+
+    core.holdtap(
+        Holdtap(key=key, up=up, down=down, term=term, swallow=swallow, tap=tap)
     )
 
 
@@ -318,7 +346,7 @@ def input_event_handler(
     if vkey is None or pressed is None:
         return
 
-    swallow, resend = _hotkeys.event(vkey, pressed)
+    swallow, resend = core.event(vkey, pressed)
     logger.debug(
         "key: %s, pressed: %s, swallow: %s, resend: %s",
         vkey.name,
@@ -364,8 +392,9 @@ if __name__ == "__main__":
     #     swallow=False,
     # )
     # hotkey([Vk.XBUTTON2, Vk.WHEEL_UP], partial(print, "X2 + WHEEL_UP"))
-    hotkey("Q+W", partial(print, "Q+W"), True)
-    hotkey("E+R", partial(print, "E+R"), False)
+    # hotkey("Q+W", partial(print, "Q+W"), True)
+    # hotkey("E+R", partial(print, "E+R"), False)
+    holdtap(Vk.CAPITAL, hold=Vk.LCONTROL, tap="`")
 
     install_hotkey_hooks()
     hook.message_loop()

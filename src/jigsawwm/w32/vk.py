@@ -282,22 +282,25 @@ class Modifier(enum.IntFlag):
                 yield cls(v)
 
 
+def parse_key(key: str) -> Vk:
+    key_name = key.strip().upper()
+    # try alias
+    key = VkAliases.get(key_name)
+    # try name
+    if key is None:
+        if key_name not in Vk.__members__:
+            raise Exception(f"invalid key: {key_name}")
+        return Vk[key_name]
+    return key
+
+
 def parse_combination(combkeys: str) -> typing.Sequence[Vk]:
     """Converts combination in plain text ("Ctrl+s") to Sequence[Vk] ([Vk.CONTROL, Vk.S])"""
     parsed = []
     if not combkeys:
         return parsed
     for key_name in combkeys.split("+"):
-        key = None
-        key_name = key_name.strip().upper()
-        # try alias
-        key = VkAliases.get(key_name)
-        # try name
-        if key is None:
-            if key_name not in Vk.__members__:
-                raise Exception(f"invalid key: {key_name}")
-            key = Vk[key_name]
-        parsed.append(key)
+        parsed.append(parse_key(key_name))
     return parsed
 
 

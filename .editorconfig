@@ -1,5 +1,5 @@
 # 4 space indentation
-[*.{py,java,r,R}]
+[*.{py,pyw,java,r,R}]
 indent_style = space
 indent_size = 4
 

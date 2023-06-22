@@ -191,34 +191,66 @@ def send_combination(comb: typing.Sequence[Vk]):
         send_input(vk_to_input(key, pressed=False))
 
 
+def send_text(text: str):
+    b = text.encode("utf_16_le")
+    for i in range(0, len(b), 2):
+        code = b[i] | b[i + 1] << 8
+        send_input(
+            INPUT(
+                type=INPUTTYPE.KEYBOARD,
+                ki=KEYBDINPUT(dwFlags=KEYEVENTF.UNICODE, wScan=code),
+            ),
+            INPUT(
+                type=INPUTTYPE.KEYBOARD,
+                ki=KEYBDINPUT(dwFlags=KEYEVENTF.UNICODE | KEYEVENTF.KEYUP, wScan=code),
+            ),
+        )
+
+
 if __name__ == "__main__":
     import time
 
     from .vk import Vk
 
-    # time.sleep(3)
+    # print(hex(ord("😂")))
+    # encodings = [
+    #     "utf_32",
+    #     "utf_32_be",
+    #     "utf_32_le",
+    #     "utf_16",
+    #     "utf_16_be",
+    #     "utf_16_le",
+    #     "utf_7",
+    #     "utf_8",
+    #     "utf_8_sig",
+    # ]
+    # for e in encodings:
+    #     b = "😄".encode(e)
+    #     print(e.ljust(20), " ".join("{:02x}".format(x) for x in b))
+    time.sleep(3)
+    send_text("hello😂您好")
 
-    send_input(
-        vk_to_input(Vk.WHEEL_UP),
-        # vk_to_input(Vk.WHEEL_DOWN),
-        # vk_to_input(Vk.XBUTTON2, pressed=True),
-        # vk_to_input(Vk.XBUTTON2, pressed=False),
-        # INPUT(
-        #     type=INPUTTYPE.KEYBOARD,
-        #     ki=KEYBDINPUT(wVk=Vk.LSHIFT),
-        # ),
-        # INPUT(
-        #     type=INPUTTYPE.KEYBOARD,
-        #     ki=KEYBDINPUT(wVk=Vk.INSERT, dwFlags=KEYEVENTF.EXTENDEDKEY),
-        # ),
-        # INPUT(
-        #     type=INPUTTYPE.KEYBOARD,
-        #     ki=KEYBDINPUT(
-        #         wVk=Vk.INSERT, dwFlags=KEYEVENTF.KEYUP | KEYEVENTF.EXTENDEDKEY
-        #     ),
-        # ),
-        # INPUT(
-        #     type=INPUTTYPE.KEYBOARD,
-        #     ki=KEYBDINPUT(wVk=Vk.LSHIFT, dwFlags=KEYEVENTF.KEYUP),
-        # ),
-    )
+    # send_input(
+    #     vk_to_input(Vk.WHEEL_UP),
+    #     vk_to_input(Vk.WHEEL_DOWN),
+    #     vk_to_input(Vk.XBUTTON2, pressed=True),
+    #     vk_to_input(Vk.XBUTTON2, pressed=False),
+    #     INPUT(
+    #         type=INPUTTYPE.KEYBOARD,
+    #         ki=KEYBDINPUT(wVk=Vk.LSHIFT),
+    #     ),
+    #     INPUT(
+    #         type=INPUTTYPE.KEYBOARD,
+    #         ki=KEYBDINPUT(wVk=Vk.INSERT, dwFlags=KEYEVENTF.EXTENDEDKEY),
+    #     ),
+    #     INPUT(
+    #         type=INPUTTYPE.KEYBOARD,
+    #         ki=KEYBDINPUT(
+    #             wVk=Vk.INSERT, dwFlags=KEYEVENTF.KEYUP | KEYEVENTF.EXTENDEDKEY
+    #         ),
+    #     ),
+    #     INPUT(
+    #         type=INPUTTYPE.KEYBOARD,
+    #         ki=KEYBDINPUT(wVk=Vk.LSHIFT, dwFlags=KEYEVENTF.KEYUP),
+    #     ),
+    # )
