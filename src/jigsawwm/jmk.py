@@ -188,7 +188,7 @@ class Jmk:
                     logger.debug("triggering hotkey %s callback", hotkey.keys)
                     _executor.submit(self.execute, hotkey.callback)
                     # send a key up to interrupt the combination
-                    if Vk.LWIN in hotkey.keys or Vk.RWIN in hotkey.keys:
+                    if len(hotkey.keys) == 2 and hotkey.keys[0] in (Vk.LWIN, Vk.RWIN):
                         # to prevent the start menu from popping up
                         resend = [(Vk.NONAME, False)]
                     if swallow:

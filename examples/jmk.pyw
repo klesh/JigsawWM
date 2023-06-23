@@ -7,9 +7,6 @@ from jigsawwm.w32.window import minimize_active_window, toggle_maximize_active_w
 
 
 def send_today_date():
-    import time
-
-    time.sleep(0.01)
     send_text(datetime.now().strftime("%Y-%m-%d"))
 
 
@@ -31,8 +28,8 @@ class JmkService(daemon.Service):
         self.jmk_group.hotkey([Vk.XBUTTON2, Vk.WHEEL_UP], "LControl+prior")
         # forward button + wheel down  = ctrl + page down (next tab)
         self.jmk_group.hotkey([Vk.XBUTTON2, Vk.WHEEL_DOWN], "LControl+next")
-        # press Win+Alt+d to enter today's date
-        self.jmk_group.hotkey("Win+Alt+d", send_today_date)
+        # press Win+Shift+d to enter today's date
+        self.jmk_group.hotkey("Win+Shift+d", send_today_date)
         # map capslock to ctrl when held and `  when tapped
         self.jmk_group.holdtap(Vk.CAPITAL, tap="`", hold="LControl")
         # Win+n to minimize active window

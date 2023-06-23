@@ -182,7 +182,15 @@ def vk_to_input(vk: Vk, pressed: bool = None) -> typing.Optional[INPUT]:
         )
 
 
+def reset_modifiers():
+    send_input(
+        vk_to_input(key, pressed=False)
+        for key in [Vk.LSHIFT, Vk.RSHIFT, Vk.LCONTROL, Vk.RCONTROL, Vk.LMENU, Vk.RMENU]
+    )
+
+
 def send_combination(comb: typing.Sequence[Vk]):
+    # reset_modifiers()
     # press keys in combination in order
     for key in comb:
         send_input(vk_to_input(key, pressed=True))
@@ -192,6 +200,9 @@ def send_combination(comb: typing.Sequence[Vk]):
 
 
 def send_text(text: str):
+    """Send unicode text including emojis to active window. NOTE: do NOT use this in side
+    a Hotkey with ALT modifier, it won't work and I don't know how to mitigate(sending ALT up didn't work).
+    """
     b = text.encode("utf_16_le")
     for i in range(0, len(b), 2):
         code = b[i] | b[i + 1] << 8
