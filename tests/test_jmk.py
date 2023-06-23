@@ -161,3 +161,30 @@ def test_holdkey_tap(mocker):
     hold_tap_q_down.assert_not_called()
     hold_tap_q_up.assert_not_called()
     hold_tap_q_tap.assert_called_once()
+
+
+def test_alt_hotkey(mocker):
+    win_alt_d = Hotkey(keys=[Vk.RWIN, Vk.RMENU, Vk.D], callback=cb, swallow=True)
+    win_alt_d_cb = mocker.spy(win_alt_d, "callback")
+    hotkeys = Jmk()
+    hotkeys.hotkey(win_alt_d)
+    swallow, resend = hotkeys.event(key=Vk.RWIN, pressed=True)
+    assert not swallow
+    assert not resend
+    swallow, resend = hotkeys.event(key=Vk.RMENU, pressed=True)
+    assert not swallow
+    assert not resend
+    swallow, resend = hotkeys.event(key=Vk.D, pressed=True)
+    assert swallow
+    assert not resend
+    swallow, resend = hotkeys.event(key=Vk.D, pressed=False)
+    assert swallow
+    assert resend == [(Vk.NONAME, False)]
+    swallow, resend = hotkeys.event(key=Vk.RMENU, pressed=False)
+    assert not swallow
+    assert not resend
+    swallow, resend = hotkeys.event(key=Vk.RWIN, pressed=False)
+    assert not swallow
+    assert not resend
+    time.sleep(0.05)
+    assert win_alt_d_cb.call_count == 1

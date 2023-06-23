@@ -225,11 +225,20 @@ class Vk(enum.IntEnum):
 
 VkAliases: typing.Dict[str, Vk] = {
     "LCTRL": Vk.LCONTROL,
+    "LCTL": Vk.LCONTROL,
     "LALT": Vk.LMENU,
+    "LSFT": Vk.LSHIFT,
+    "LSUPER": Vk.LWIN,
     "RCTRL": Vk.RCONTROL,
+    "RCTL": Vk.RCONTROL,
     "RALT": Vk.RMENU,
+    "RSFT": Vk.RSHIFT,
+    "RSUPER": Vk.RWIN,
     "CTRL": Vk.CONTROL,
     "MENU": Vk.MENU,
+    "ALT": Vk.MENU,
+    "SFT": Vk.SHIFT,
+    "SUPER": Vk.WIN,
     "-": Vk.OEM_MINUS,
     "=": Vk.OEM_PLUS,
     ";": Vk.OEM_1,
@@ -244,42 +253,42 @@ VkAliases: typing.Dict[str, Vk] = {
 }
 
 
-def is_power_of_2(num: int) -> bool:
-    return num != 0 and num & (num - 1) == 0
+# def is_power_of_2(num: int) -> bool:
+#     return num != 0 and num & (num - 1) == 0
 
 
-class Modifier(enum.IntFlag):
-    """Keyboard/Mouse modifier"""
+# class Modifier(enum.IntFlag):
+#     """Keyboard/Mouse modifier"""
 
-    LCONTROL = enum.auto()
-    LMENU = enum.auto()
-    LSHIFT = enum.auto()
-    LWIN = enum.auto()
-    RCONTROL = enum.auto()
-    RMENU = enum.auto()
-    RSHIFT = enum.auto()
-    RWIN = enum.auto()
-    XBUTTON1 = enum.auto()
-    XBUTTON2 = enum.auto()
-    CONTROL = LCONTROL | RCONTROL
-    MENU = LMENU | RMENU
-    SHIFT = LSHIFT | RSHIFT
-    WIN = LWIN | RWIN
+#     LCONTROL = enum.auto()
+#     LMENU = enum.auto()
+#     LSHIFT = enum.auto()
+#     LWIN = enum.auto()
+#     RCONTROL = enum.auto()
+#     RMENU = enum.auto()
+#     RSHIFT = enum.auto()
+#     RWIN = enum.auto()
+#     XBUTTON1 = enum.auto()
+#     XBUTTON2 = enum.auto()
+#     CONTROL = LCONTROL | RCONTROL
+#     MENU = LMENU | RMENU
+#     SHIFT = LSHIFT | RSHIFT
+#     WIN = LWIN | RWIN
 
-    @classmethod
-    def unfold(cls, mk: typing.Union[str, int]) -> typing.Iterator["Modifier"]:
-        if not mk:
-            return
-        if isinstance(mk, str):
-            mk = cls[mk].value
-        if is_power_of_2(mk):
-            yield cls(mk)
-            return
-        for v in cls.__members__.values():
-            if v >= cls.CONTROL:
-                return
-            if v & mk:
-                yield cls(v)
+#     @classmethod
+#     def unfold(cls, mk: typing.Union[str, int]) -> typing.Iterator["Modifier"]:
+#         if not mk:
+#             return
+#         if isinstance(mk, str):
+#             mk = cls[mk].value
+#         if is_power_of_2(mk):
+#             yield cls(mk)
+#             return
+#         for v in cls.__members__.values():
+#             if v >= cls.CONTROL:
+#                 return
+#             if v & mk:
+#                 yield cls(v)
 
 
 def parse_key(key: str) -> Vk:
@@ -304,16 +313,25 @@ def parse_combination(combkeys: str) -> typing.Sequence[Vk]:
     return parsed
 
 
+_key_expansions = {
+    Vk.CONTROL: [Vk.LCONTROL, Vk.RCONTROL],
+    Vk.MENU: [Vk.LMENU, Vk.RMENU],
+    Vk.SHIFT: [Vk.LSHIFT, Vk.RSHIFT],
+    Vk.WIN: [Vk.LWIN, Vk.RWIN],
+}
+
+
 def expand_combination(
     combkeys: typing.Sequence[Vk],
     index: typing.Optional[int] = 0,
 ) -> typing.Iterator[typing.Sequence[Vk]]:
     """Expand `Ctrl+s` to `LCtrl+s` and `RCtrl+s`, so on and so forth"""
     key = combkeys[index]
-    if key.name in Modifier.__members__:
+    expansions = _key_expansions.get(key)
+    if expansions:
         is_last = index + 1 == len(combkeys)
-        for mk in Modifier.unfold(key.name):
-            new_combkeys = combkeys[:index] + [Vk[mk.name]]
+        for mk in expansions:
+            new_combkeys = combkeys[:index] + [mk]
             if is_last:
                 yield new_combkeys
             else:

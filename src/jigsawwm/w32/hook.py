@@ -4,8 +4,7 @@ import threading
 import time
 from ctypes import *
 from ctypes.wintypes import *
-from functools import partial
-from typing import Callable, Optional, Tuple
+from typing import Callable
 
 from .vk import Vk
 from .winevent import HWINEVENTHOOK, WINEVENTHOOKPROC, WinEvent
@@ -172,6 +171,17 @@ def hook(hook_id, wparam_type, lparam_type, cb) -> HANDLE:
     return hook
 
 
+def unhook(hook: HANDLE):
+    """Unhook"""
+    global _hooks
+    if hook in _hooks:
+        _hooks.pop(hook)
+        user32.UnhookWindowsHookEx(hook)
+
+
+_winevent_hooks = {}
+
+
 def hook_winevent(
     event_min: WinEvent,
     event_max: WinEvent,
@@ -210,15 +220,16 @@ def hook_winevent(
     )
     # keep a reference to the callback to prevent it from being garbage collected
     global _hooks
-    _hooks[hook] = proc
+    _winevent_hooks[hook] = proc
     return hook
 
 
-def unhook(hook: HANDLE):
+def unhook_winevent(hook: HANDLE):
     """Unhook"""
-    if hook in _hooks:
-        _hooks.pop(hook)
-    user32.UnhookWindowsHookEx(hook)
+    global _winevent_hooks
+    if hook in _winevent_hooks:
+        _winevent_hooks.pop(hook)
+        user32.UnhookWinEvent(hook)
 
 
 def hook_keyboard(cb: Callable[[KBDLLHOOKMSGID, KBDLLHOOKDATA], bool]) -> HANDLE:

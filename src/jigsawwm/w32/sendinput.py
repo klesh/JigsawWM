@@ -228,7 +228,10 @@ if __name__ == "__main__":
     #     b = "😄".encode(e)
     #     print(e.ljust(20), " ".join("{:02x}".format(x) for x in b))
     time.sleep(3)
-    send_text("hello😂您好")
+    # send_text("hello😂您好")
+    from datetime import datetime
+
+    send_text(datetime.now().strftime("%Y-%m-%d"))
 
     # send_input(
     #     vk_to_input(Vk.WHEEL_UP),

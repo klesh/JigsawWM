@@ -1,9 +1,11 @@
 from dataclasses import dataclass
+from datetime import datetime
 from os import path
 from typing import Dict, List, Optional, Set
 
 from jigsawwm.tiler.tilers import *
 from jigsawwm.virtdeskstub import find_or_create_virtdeskstub
+from jigsawwm.w32 import hook
 from jigsawwm.w32.idesktopwallpaper import desktop_wallpaper
 from jigsawwm.w32.ivirtualdesktopmanager import GUID, virtual_desktop_manager
 from jigsawwm.w32.monitor import (
@@ -15,15 +17,20 @@ from jigsawwm.w32.monitor import (
     set_cursor_pos,
 )
 from jigsawwm.w32.window import (
+    DWORD,
     HWND,
+    LONG,
     RECT,
     Window,
     get_active_window,
     get_first_app_window,
     get_foreground_window,
     get_manageable_windows,
+    is_app_window,
+    is_window,
     sprint_window,
 )
+from jigsawwm.w32.winevent import WinEvent
 
 
 @dataclass
@@ -49,6 +56,7 @@ class Theme:
     gap: Optional[int] = None
     # forbid
     strict: Optional[bool] = None
+    hook_ids: List[int] = None
 
 
 class MonitorState:
@@ -77,6 +85,7 @@ class MonitorState:
         self.theme = theme
         self.windows = []
         self.last_active_window = None
+        self.hook_ids = []
 
     def get_theme(self) -> Theme:
         """Retrieves theme for monitor in current virtual desktop"""
@@ -604,6 +613,66 @@ class WindowManager:
     def move_to_next_monitor(self):
         """Move active window to next monitor"""
         self.move_to_monitor_by_offset(+1)
+
+    def _winevent_callback(
+        self,
+        event: WinEvent,
+        hwnd: HWND,
+        id_obj: LONG,
+        id_chd: LONG,
+        id_evt_thread: DWORD,
+        evt_time: DWORD,
+    ):
+        if (
+            id_obj
+            or id_chd
+            or not is_window(hwnd)
+            or not is_app_window(hwnd)
+            or self.is_ignored(Window(hwnd))
+        ):
+            return
+        print(
+            "[{now}] {event:30s} {hwnd:8d} {title}".format(
+                now=datetime.now().strftime("%M:%S.%f"),
+                event=event.name,
+                hwnd=hwnd,
+                #  ido: {id_obj:6d} idc: {id_chd:6d}
+                # id_obj=id_obj,
+                # id_chd=id_chd,
+                title=Window(hwnd).title,
+            )
+        )
+        self.sync(restrict=event == WinEvent.EVENT_SYSTEM_MOVESIZEEND)
+
+    def install_hooks(self):
+        """Install hooks for window events"""
+        self.hook_ids = [
+            hook.hook_winevent(
+                WinEvent.EVENT_OBJECT_SHOW,
+                WinEvent.EVENT_OBJECT_HIDE,
+                self._winevent_callback,
+            ),
+            hook.hook_winevent(
+                WinEvent.EVENT_OBJECT_CLOAKED,
+                WinEvent.EVENT_OBJECT_UNCLOAKED,
+                self._winevent_callback,
+            ),
+            hook.hook_winevent(
+                WinEvent.EVENT_SYSTEM_MINIMIZESTART,
+                WinEvent.EVENT_SYSTEM_MINIMIZEEND,
+                self._winevent_callback,
+            ),
+            hook.hook_winevent(
+                WinEvent.EVENT_SYSTEM_MOVESIZEEND,
+                WinEvent.EVENT_SYSTEM_MOVESIZEEND,
+                self._winevent_callback,
+            ),
+        ]
+
+    def uninstall_hooks(self):
+        for hook_id in self.hook_ids:
+            hook.unhook_winevent(hook_id)
+        self.hook_ids = []
 
 
 if __name__ == "__main__":
