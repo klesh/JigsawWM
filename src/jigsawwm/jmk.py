@@ -171,8 +171,9 @@ class Jmk:
                 swallow = holdtap.swallow
                 # trigger the up callback only if the key is held long enough
                 if key in self.held:
-                    logger.debug("triggering holdkey %s up callback", key)
-                    _executor.submit(self.execute, holdtap.up)
+                    if holdtap.up:
+                        logger.debug("triggering holdkey %s up callback", key)
+                        _executor.submit(self.execute, holdtap.up)
                     self.held.remove(key)
                 elif holdtap.tap:
                     logger.debug("triggering holdkey %s tap callback", key)
@@ -283,9 +284,11 @@ class Group:
         if isinstance(hold, str):
             hold = parse_key(hold)
         up, down = None, None
-        if hold:
+        if isinstance(hold, Sequence) :
             up = partial(send_input, vk_to_input(hold, False))
             down = partial(send_input, vk_to_input(hold, True))
+        elif isinstance(hold, Callable):
+            down = hold
         if isinstance(tap, str):
             tap = parse_key(tap)
             tap = partial(send_input, vk_to_input(tap, True), vk_to_input(tap, False))
