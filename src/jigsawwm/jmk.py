@@ -1,5 +1,4 @@
 import logging
-import sys
 import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
@@ -284,7 +283,7 @@ class Group:
         if isinstance(hold, str):
             hold = parse_key(hold)
         up, down = None, None
-        if isinstance(hold, Sequence) :
+        if isinstance(hold, Sequence):
             up = partial(send_input, vk_to_input(hold, False))
             down = partial(send_input, vk_to_input(hold, True))
         elif isinstance(hold, Callable):
@@ -382,8 +381,7 @@ def input_event_handler(
         resend,
     )
     if resend:
-        for k, p in resend:
-            send_input(vk_to_input(k, p))
+        _executor.submit(lambda: send_input(*(vk_to_input(k, p) for k, p in resend)))
     return swallow
 
 
@@ -414,29 +412,20 @@ if __name__ == "__main__":
     def raise_error():
         raise ValueError("test")
 
-    # hotkey([Vk.LWIN, Vk.B], delay_hello, True)
+    hotkey([Vk.LWIN, Vk.B], delay_hello, True)
     # hotkey([Vk.LCONTROL, Vk.B], delay_hello, True)
     # hotkey([Vk.XBUTTON1, Vk.LBUTTON], delay_hello, True)
     # hotkey([Vk.XBUTTON2, Vk.LBUTTON], partial(print, "hello"), True)
-    # holding_hotkey(
+    # holdtap(
     #     Vk.XBUTTON1,
-    #     down=partial(print, "holding xbutton1"),
-    #     tap=partial(print, "tap xbutton1"),
-    # )
-    # holding_hotkey(
-    #     Vk.XBUTTON1,
-    #     down=partial(print, "holding xbutton1"),
-    #     tap=partial(print, "tap xbutton1"),
-    #     swallow=False,
+    #     hold=partial(print, "holding xbutton1"),
     # )
     # hotkey([Vk.XBUTTON2, Vk.WHEEL_UP], partial(print, "X2 + WHEEL_UP"))
-    hotkey("Q+W", raise_error, True)
+    # hotkey("Q+W", raise_error, True)
 
     # hotkey("E+R", partial(print, "E+R"), False)
     # g = Group()
     # g.holdtap(Vk.CAPITAL, hold=Vk.LCONTROL, tap=lambda: g.uninstall_all())
-
-    sys.excepthook = traceback.print_exception
 
     install_hotkey_hooks()
     hook.message_loop()
