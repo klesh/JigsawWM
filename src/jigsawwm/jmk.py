@@ -75,6 +75,9 @@ class Jmk:
     extra_modifers: Set[Vk]
     held = set()
     swallow_up = set()
+    double_tap_term: int = 300 * 1e6
+    tapped: Tuple[Optional[Vk], int] = (None, 0)
+    tap_tap_hold: Optional[Vk] = None
     _lock: Lock
 
     def __init__(self):
@@ -113,9 +116,20 @@ class Jmk:
     def event(
         self, key: Vk, pressed: bool
     ) -> Tuple[bool, Optional[Sequence[Tuple[Vk, bool]]]]:
+        # ignore duplicatedkeydown event
+        if pressed and key in self.pressed_keys:
+            return True, None
+        # passthrough tap-tap-hold
+        if self.tap_tap_hold:
+            if self.tap_tap_hold == key:
+                if not pressed:
+                    self.tap_tap_hold = None
+                return False, None
+            else:
+                self.tap_tap_hold = None
+        # maintain the queue
         swallow = False
         resend = None
-        # maintain the queue
         if (
             self.queue
             or (key in self.extra_modifers and pressed)
@@ -125,8 +139,6 @@ class Jmk:
             self.queue.append((key, pressed))
 
         if pressed:
-            if key in self.pressed_keys:
-                return swallow, resend
             # update press state
             if key < Vk.KB_BOUND:
                 self.pressed_keys[key] = time.time_ns()
@@ -156,15 +168,18 @@ class Jmk:
                 if hotkey:
                     swallow = hotkey.swallow
         else:
-            # for wheel up/down that has no up/down events
+            # preserve the potential hotkey match
             pressed_keys = [k for k in self.pressed_keys]
             if key > Vk.KB_BOUND:
                 pressed_keys.append(key)
-            # preserve the potential hotkey match
             hotkey = self.hotkeys.get(frozenset(pressed_keys))
             # update the state
             if key < Vk.KB_BOUND:
                 self.pressed_keys.pop(key)
+            if self.tapped[0] != key or self.tapped[1] < time.time_ns():
+                self.tapped = (key, time.time_ns() + self.double_tap_term)
+            else:
+                self.tap_tap_hold = key
             if key in self.holdtaps:
                 holdtap = self.holdtaps[key]
                 swallow = holdtap.swallow
@@ -412,7 +427,7 @@ if __name__ == "__main__":
     def raise_error():
         raise ValueError("test")
 
-    hotkey([Vk.LWIN, Vk.B], delay_hello, True)
+    # hotkey([Vk.LWIN, Vk.B], delay_hello, True)
     # hotkey([Vk.LCONTROL, Vk.B], delay_hello, True)
     # hotkey([Vk.XBUTTON1, Vk.LBUTTON], delay_hello, True)
     # hotkey([Vk.XBUTTON2, Vk.LBUTTON], partial(print, "hello"), True)
@@ -422,6 +437,8 @@ if __name__ == "__main__":
     # )
     # hotkey([Vk.XBUTTON2, Vk.WHEEL_UP], partial(print, "X2 + WHEEL_UP"))
     # hotkey("Q+W", raise_error, True)
+    hotkey("Q+W", partial(print, "E+R"))
+    # holdtap("W", hold=partial(print, "W"))
 
     # hotkey("E+R", partial(print, "E+R"), False)
     # g = Group()
