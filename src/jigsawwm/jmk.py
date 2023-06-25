@@ -117,16 +117,17 @@ class Jmk:
         self, key: Vk, pressed: bool
     ) -> Tuple[bool, Optional[Sequence[Tuple[Vk, bool]]]]:
         # ignore duplicatedkeydown event
-        if pressed and key in self.pressed_keys:
-            return True, None
         # passthrough tap-tap-hold
         if self.tap_tap_hold:
             if self.tap_tap_hold == key:
                 if not pressed:
                     self.tap_tap_hold = None
+                print("skip tap tap hold")
                 return False, None
             else:
                 self.tap_tap_hold = None
+        if pressed and key in self.pressed_keys:
+            return True, None
         # maintain the queue
         swallow = False
         resend = None
