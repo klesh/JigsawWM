@@ -1,4 +1,3 @@
-import os
 from datetime import timedelta
 
 from mailcalaid.cal.holiday import ChinaHolidayBook
@@ -24,9 +23,15 @@ class WorkdayRoutine(daemon.Task):
         self.holiday_book = ChinaHolidayBook()
 
     def run(self):
-        os.startfile(r"C:\Users\Klesh\AppData\Local\Feishu\Feishu.exe")
-        os.startfile(r"C:\Program Files\Mozilla Thunderbird\thunderbird.exe")
-        os.startfile(r"C:\Users\Klesh\AppData\Local\Obsidian\Obsidian.exe")
+        smartstart.start_if_not_running(
+            r"C:\Users\Klesh\AppData\Local\Feishu\Feishu.exe"
+        )
+        smartstart.start_if_not_running(
+            r"C:\Program Files\Mozilla Thunderbird\thunderbird.exe"
+        )
+        smartstart.start_if_not_running(
+            r"C:\Users\Klesh\AppData\Local\Obsidian\Obsidian.exe"
+        )
 
     def condition(self):
         return self.holiday_book.is_workhour(extend=timedelta(hours=2))

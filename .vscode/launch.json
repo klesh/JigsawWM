@@ -18,6 +18,13 @@
       "request": "launch",
       "module": "jigsawwm.w32.window",
       "justMyCode": true
+    },
+    {
+      "name": "jmk2",
+      "type": "python",
+      "request": "launch",
+      "module": "jigsawwm.jmk2",
+      "justMyCode": true
     }
   ]
 }

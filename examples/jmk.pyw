@@ -1,41 +1,115 @@
 from datetime import datetime
 
-from jigsawwm import daemon, jmk
-from jigsawwm.w32.sendinput import send_text
-from jigsawwm.w32.vk import Vk
+from jigsawwm import daemon
+from jigsawwm.jmk2 import *
+from jigsawwm.w32.sendinput import send_combination, send_text
+from jigsawwm.w32.vk import Vk, parse_key
 from jigsawwm.w32.window import minimize_active_window, toggle_maximize_active_window
 
+#######################
+#  configuration
+#######################
 
-def send_today_date():
-    send_text(datetime.now().strftime("%Y-%m-%d"))
+send_today = lambda: send_text(datetime.now().strftime("%Y-%m-%d"))
+send_now = lambda: send_text(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+ctrl_w = lambda: send_combination(Vk.LCONTROL, Vk.W)
+ctrl_shift_t = lambda: send_combination(Vk.LCONTROL, Vk.LSHIFT, Vk.T)
+ctrl_pgup = lambda: send_combination(Vk.LCONTROL, Vk.PRIOR)
+ctrl_pgdn = lambda: send_combination(Vk.LCONTROL, Vk.NEXT)
+
+
+layers = [
+    {  # layer 0
+        # map capslock to ctrl when held and `  when tapped
+        Vk.CAPITAL: JmkTapHold(tap=parse_key("`"), hold=Vk.LCONTROL),
+        Vk.ESCAPE: JmkTapHold(tap=Vk.ESCAPE, hold=Vk.LWIN),
+        Vk.A: JmkTapHold(tap=Vk.A, hold=Vk.LMENU),
+        Vk.S: JmkTapHold(tap=Vk.S, hold=Vk.LSHIFT),
+        Vk.D: JmkTapHold(tap=Vk.D, hold=Vk.LWIN),
+        Vk.F: JmkTapHold(tap=Vk.F, hold=Vk.LCONTROL),
+        Vk.G: JmkTapHold(tap=Vk.G, hold=3),
+        Vk.H: JmkTapHold(tap=Vk.H, hold=3),
+        Vk.J: JmkTapHold(tap=Vk.J, hold=Vk.RCONTROL),
+        Vk.K: JmkTapHold(tap=Vk.K, hold=Vk.RWIN),
+        Vk.L: JmkTapHold(tap=Vk.L, hold=Vk.RSHIFT),
+        Vk.OEM_1: JmkTapHold(tap=Vk.OEM_1, hold=Vk.RMENU),
+        Vk.TAB: JmkTapHold(tap=Vk.TAB, hold=2),
+        # hold I for swithcing to layer 1
+        parse_key(";"): JmkTapHold(tap=parse_key(";"), hold=1),
+        # hold Forward Button on the Mouse for swithcing to layer 1
+        Vk.XBUTTON2: JmkTapHold(tap=Vk.XBUTTON2, hold=1),
+        Vk.SPACE: JmkTapHold(tap=Vk.SPACE, hold=Vk.LSHIFT),
+    },
+    {  # layer 1
+        # tap to send today's date, hold to send now
+        Vk.D: JmkTapHold(on_tap=send_today, on_hold_down=send_now),
+        # tap to close tab, hold to reopen for Chrome
+        Vk.LBUTTON: JmkTapHold(on_tap=ctrl_w, on_hold_down=ctrl_shift_t),
+        # forward button + whell up  = ctrl + page up (previous tab)
+        Vk.WHEEL_UP: JmkKey(ctrl_pgup),
+        # forward button + wheel down  = ctrl + page down (next tab)
+        Vk.WHEEL_DOWN: JmkKey(ctrl_pgdn),
+        # exit
+        Vk.ESCAPE: JmkKey(daemon.stop),
+    },
+    {  # layer 2
+        Vk.H: JmkKey(Vk.LEFT),
+        Vk.J: JmkKey(Vk.DOWN),
+        Vk.K: JmkKey(Vk.UP),
+        Vk.L: JmkKey(Vk.RIGHT),
+        Vk.U: JmkKey(ctrl_pgup),
+        Vk.I: JmkKey(ctrl_pgdn),
+        Vk.N: JmkKey(Vk.MEDIA_NEXT_TRACK),
+        Vk.P: JmkKey(Vk.MEDIA_PREV_TRACK),
+        Vk.OEM_COMMA: JmkKey(Vk.VOLUME_DOWN),
+        Vk.OEM_PERIOD: JmkKey(Vk.VOLUME_UP),
+        parse_key("/"): JmkKey(Vk.MEDIA_PLAY_PAUSE),
+    },
+    {  # layer 3
+        Vk.Z: JmkKey(Vk.F1),
+        Vk.X: JmkKey(Vk.F2),
+        Vk.C: JmkKey(Vk.F3),
+        Vk.V: JmkKey(Vk.F4),
+        Vk.A: JmkKey(Vk.F5),
+        Vk.S: JmkKey(Vk.F6),
+        Vk.D: JmkKey(Vk.F7),
+        Vk.F: JmkKey(Vk.F8),
+        Vk.Q: JmkKey(Vk.F9),
+        Vk.W: JmkKey(Vk.F10),
+        Vk.E: JmkKey(Vk.F11),
+        Vk.R: JmkKey(Vk.F12),
+    },
+]
+
+hotkeys = [
+    ("Win+q", "LAlt+F4"),
+    # Win+n to minimize active window
+    ([Vk.WIN, Vk.N], minimize_active_window),
+    # Win+m to maximize active window
+    ([Vk.WIN, Vk.M], toggle_maximize_active_window),
+]
+
+
+#######################
+#  setup jmk
+#######################
+
+# from tail to head
+out = SystemOutput()
+hks = JmkHotkeys(out, hotkeys)
+# hks = JmkHotkeys(print, hotkeys)
+jmk = JmkCore(hks, layers)
+# inp = SystemInput(jmk, swallow=True)
+inp = SystemInput(jmk)
 
 
 class JmkService(daemon.Service):
     name = "jmk"
     is_running = False
 
-    def __init__(self):
-        jmk.install_hotkey_hooks()
-        self.jmk_group = jmk.Group("jmk")
-
     def start(self):
         self.is_running = True
-        # map Win+q to Alt+F4
-        self.jmk_group.hotkey("Win+q", "LAlt+F4")
-        # forward button + middle button = ctrl + w (close tab)
-        self.jmk_group.hotkey([Vk.XBUTTON2, Vk.LBUTTON], "LControl+w")
-        # forward button + whell up  = ctrl + page up (previous tab)
-        self.jmk_group.hotkey([Vk.XBUTTON2, Vk.WHEEL_UP], "LControl+prior")
-        # forward button + wheel down  = ctrl + page down (next tab)
-        self.jmk_group.hotkey([Vk.XBUTTON2, Vk.WHEEL_DOWN], "LControl+next")
-        # press Win+Shift+d to enter today's date
-        self.jmk_group.hotkey("Win+Shift+d", send_today_date)
-        # map capslock to ctrl when held and `  when tapped
-        self.jmk_group.holdtap(Vk.CAPITAL, tap="`", hold="LControl")
-        # Win+n to minimize active window
-        self.jmk_group.hotkey([Vk.WIN, Vk.N], minimize_active_window)
-        # Win+m to maximize active window
-        self.jmk_group.hotkey([Vk.WIN, Vk.M], toggle_maximize_active_window)
+        inp.install()
 
     def stop(self):
         self.jmk_group.uninstall()
@@ -45,4 +119,5 @@ class JmkService(daemon.Service):
 daemon.register(JmkService)
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
     daemon.message_loop()

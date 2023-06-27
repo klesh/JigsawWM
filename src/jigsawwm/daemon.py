@@ -214,6 +214,7 @@ class Daemon:
         logger.info(f"stopping daemon")
         self.trayicon.stop()
         self.trayicon = None
+        signal.raise_signal(signal.SIGINT)
 
     def register(self, job: Callable[[], Job]):
         logger.info(f"registering {job.name}")
@@ -233,3 +234,4 @@ if os.environ.get("DEBUG"):
 instance = Daemon()
 register = instance.register
 message_loop = instance.message_loop
+stop = instance.stop

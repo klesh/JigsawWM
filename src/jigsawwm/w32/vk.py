@@ -252,43 +252,20 @@ VkAliases: typing.Dict[str, Vk] = {
     ".": Vk.OEM_PERIOD,
 }
 
-
-# def is_power_of_2(num: int) -> bool:
-#     return num != 0 and num & (num - 1) == 0
-
-
-# class Modifier(enum.IntFlag):
-#     """Keyboard/Mouse modifier"""
-
-#     LCONTROL = enum.auto()
-#     LMENU = enum.auto()
-#     LSHIFT = enum.auto()
-#     LWIN = enum.auto()
-#     RCONTROL = enum.auto()
-#     RMENU = enum.auto()
-#     RSHIFT = enum.auto()
-#     RWIN = enum.auto()
-#     XBUTTON1 = enum.auto()
-#     XBUTTON2 = enum.auto()
-#     CONTROL = LCONTROL | RCONTROL
-#     MENU = LMENU | RMENU
-#     SHIFT = LSHIFT | RSHIFT
-#     WIN = LWIN | RWIN
-
-#     @classmethod
-#     def unfold(cls, mk: typing.Union[str, int]) -> typing.Iterator["Modifier"]:
-#         if not mk:
-#             return
-#         if isinstance(mk, str):
-#             mk = cls[mk].value
-#         if is_power_of_2(mk):
-#             yield cls(mk)
-#             return
-#         for v in cls.__members__.values():
-#             if v >= cls.CONTROL:
-#                 return
-#             if v & mk:
-#                 yield cls(v)
+Modifers = {
+    Vk.LCONTROL,
+    Vk.RCONTROL,
+    Vk.CONTROL,
+    Vk.LSHIFT,
+    Vk.RSHIFT,
+    Vk.SHIFT,
+    Vk.LMENU,
+    Vk.RMENU,
+    Vk.MENU,
+    Vk.LWIN,
+    Vk.RWIN,
+    Vk.WIN,
+}
 
 
 def parse_key(key: str) -> Vk:

@@ -1,4 +1,5 @@
 import enum
+import time
 import typing
 from ctypes import *
 from ctypes.wintypes import *
@@ -85,7 +86,7 @@ class INPUT(Structure):
     )
 
 
-SYNTHESIZED_ID = 123123123
+SYNTHESIZED_ID = int(time.time())
 
 
 def send_input(*inputs: typing.List[INPUT]):
@@ -189,7 +190,7 @@ def reset_modifiers():
     )
 
 
-def send_combination(comb: typing.Sequence[Vk]):
+def send_combination(*comb: typing.Sequence[Vk]):
     # reset_modifiers()
     # press keys in combination in order
     for key in comb:
