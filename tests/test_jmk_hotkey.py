@@ -1,4 +1,4 @@
-from jigsawwm.jmk2.hotkey import *
+from jigsawwm.jmk.hotkey import *
 from jigsawwm.w32.vk import *
 
 

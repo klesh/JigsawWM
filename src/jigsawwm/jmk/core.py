@@ -35,7 +35,9 @@ class JmkLayerKey(JmkHandler):
     layer: int = None
     vk: Vk = None
 
-    __repr__ = lambda self: f"JmkLayerKey(layer={self.layer}, vk={self.vk.name})"
+    __repr__ = (
+        lambda self: f"{self.__class__.__name__}(layer={self.layer}, vk={self.vk.name})"
+    )
 
     def other_key(self, evt: JmkEvent):
         pass
@@ -105,12 +107,12 @@ class JmkTapHold(JmkLayerKey):
     def holddown(self):
         self.held = True
         if self.on_hold_down:
-            logger.debug("[JmkTapHold hold] on_hold_down")
+            logger.debug("%s on_hold_down", self)
             execute(self.on_hold_down)
         if self.hold:
             if isinstance(self.hold, Vk):
                 evt = JmkEvent(self.hold, True)
-                logger.debug("[JmkTapHold hold] %s >>>", evt)
+                logger.debug("%s %s >>>", self, evt)
                 self.state.next_handler(evt)
             else:
                 self.state.activate_layer(self.hold)
@@ -118,19 +120,18 @@ class JmkTapHold(JmkLayerKey):
     def tapdown(self):
         if self.tapped_down:
             return
-        if self.on_tap:
-            logger.debug("[JmkTapHold tap] on_tap")
-            execute(self.on_tap)
         if self.tap:
             evt_down = JmkEvent(self.tap, True)
-            logger.debug("[JmkTapHold tap] %s >>>", evt_down)
+            logger.debug("%s %s >>>", self, evt_down)
             self.state.next_handler(evt_down)
         self.last_tapped_at = time.time()
         self.tapped_down = True
 
     def holding_timer(self):
         time.sleep(self.term)
-        logger.debug("[JmkTapHold holding_timer] waken")
+        logger.debug("%s waken", self)
+        if not self.timer:
+            return
         self.timer = None
         if self.pressed and time.time() - self.pressed > self.term:
             self.holddown()
@@ -138,11 +139,10 @@ class JmkTapHold(JmkLayerKey):
     def other_key(self, evt: JmkEvent):
         if not self.timer or not self.pressed:
             return
-        logger.debug("[JmkTapHold other_key] %s >>>", evt)
+        logger.debug("%s %s >>>", self, evt)
         self.timer.cancel()
         self.timer = None
         self.tapdown()
-        self.pressed = 0  # stop the timer
 
     def __call__(self, evt: JmkEvent) -> bool:
         # quick tap check
@@ -157,7 +157,7 @@ class JmkTapHold(JmkLayerKey):
                 self.last_tapped_at = 0
                 self.quick_tap = False
             evt = JmkEvent(evt.vk, evt.pressed)
-            logger.debug("[JmkTapHold quicktap] %s >>>", evt)
+            logger.debug("%s quick tap %s >>>", self, evt)
             return self.state.next_handler(evt)
         # tap hold
         if evt.pressed:
@@ -173,7 +173,7 @@ class JmkTapHold(JmkLayerKey):
                 if self.hold:
                     if isinstance(self.hold, Vk):
                         evt = JmkEvent(self.hold, False)
-                        logger.debug("[JmkTapHold hold] %s >>>", evt)
+                        logger.debug("%s %s >>>", self, evt)
                         self.state.next_handler(evt)
                     else:
                         self.state.deactivate_layer(self.hold)
@@ -182,8 +182,11 @@ class JmkTapHold(JmkLayerKey):
                 if self.tap:
                     self.tapped_down = False
                     evt_up = JmkEvent(self.tap, False)
-                    logger.debug("[JmkTapHold tap] %s >>>", evt_up)
+                    logger.debug("%s %s >>>", self, evt_up)
                     self.state.next_handler(evt_up)
+                if self.on_tap:
+                    logger.debug("%s on_tap", self)
+                    execute(self.on_tap)
         return True
 
 
@@ -259,7 +262,6 @@ class JmkCore(JmkHandler):
             layer = self.get_active_layer()
             route = layer.get(evt.vk)
             if route and evt.pressed:
-                logger.debug("found route %s for %s", route, evt)
                 self.routes[evt.vk] = route
         if route:
             logger.debug("routing %s to %s", evt, route)

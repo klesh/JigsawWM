@@ -1,4 +1,4 @@
-from jigsawwm.jmk2.core import *
+from jigsawwm.jmk.core import *
 from jigsawwm.w32.vk import *
 
 

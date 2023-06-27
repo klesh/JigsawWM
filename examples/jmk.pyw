@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from jigsawwm import daemon
-from jigsawwm.jmk2 import *
+from jigsawwm.jmk import *
 from jigsawwm.w32.sendinput import send_combination, send_text
 from jigsawwm.w32.vk import Vk, parse_key
 from jigsawwm.w32.window import minimize_active_window, toggle_maximize_active_window
