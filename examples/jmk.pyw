@@ -22,50 +22,28 @@ layers = [
     {  # layer 0
         # map capslock to ctrl when held and `  when tapped
         Vk.CAPITAL: JmkTapHold(tap=parse_key("`"), hold=Vk.LCONTROL),
-        Vk.ESCAPE: JmkTapHold(tap=Vk.ESCAPE, hold=Vk.LWIN),
+        # Vk.ESCAPE: JmkTapHold(tap=Vk.ESCAPE, hold=Vk.LWIN),
         Vk.A: JmkTapHold(tap=Vk.A, hold=Vk.LMENU),
         Vk.S: JmkTapHold(tap=Vk.S, hold=Vk.LSHIFT),
         Vk.D: JmkTapHold(tap=Vk.D, hold=Vk.LWIN),
         Vk.F: JmkTapHold(tap=Vk.F, hold=Vk.LCONTROL),
-        Vk.G: JmkTapHold(tap=Vk.G, hold=3),
-        Vk.H: JmkTapHold(tap=Vk.H, hold=3),
+        Vk.G: JmkTapHold(tap=Vk.G, hold=1),
+        Vk.H: JmkTapHold(tap=Vk.H, hold=1),
         Vk.J: JmkTapHold(tap=Vk.J, hold=Vk.RCONTROL),
         Vk.K: JmkTapHold(tap=Vk.K, hold=Vk.RWIN),
         Vk.L: JmkTapHold(tap=Vk.L, hold=Vk.RSHIFT),
+        # hold ; as Alt
         Vk.OEM_1: JmkTapHold(tap=Vk.OEM_1, hold=Vk.RMENU),
-        Vk.TAB: JmkTapHold(tap=Vk.TAB, hold=2),
-        # hold I for swithcing to layer 1
-        parse_key(";"): JmkTapHold(tap=parse_key(";"), hold=1),
+        # Vk.TAB: JmkTapHold(tap=Vk.TAB, hold=2),
+        # hold ' to switch to layer 2
+        Vk.N: JmkTapHold(tap=Vk.N, hold=2),
+        Vk.B: JmkTapHold(tap=Vk.B, hold=2),
         # hold Forward Button on the Mouse for swithcing to layer 1
-        Vk.XBUTTON2: JmkTapHold(tap=Vk.XBUTTON2, hold=1),
+        Vk.XBUTTON2: JmkTapHold(tap=Vk.XBUTTON2, hold=2),
         Vk.SPACE: JmkTapHold(tap=Vk.SPACE, hold=Vk.LSHIFT),
     },
     {  # layer 1
-        # tap to send today's date, hold to send now
-        Vk.D: JmkTapHold(on_tap=send_today, on_hold_down=send_now),
-        # tap to close tab, hold to reopen for Chrome
-        Vk.LBUTTON: JmkTapHold(on_tap=ctrl_w, on_hold_down=ctrl_shift_t),
-        # forward button + whell up  = ctrl + page up (previous tab)
-        Vk.WHEEL_UP: JmkKey(ctrl_pgup),
-        # forward button + wheel down  = ctrl + page down (next tab)
-        Vk.WHEEL_DOWN: JmkKey(ctrl_pgdn),
-        # exit
-        Vk.ESCAPE: JmkKey(daemon.stop),
-    },
-    {  # layer 2
-        Vk.H: JmkKey(Vk.LEFT),
-        Vk.J: JmkKey(Vk.DOWN),
-        Vk.K: JmkKey(Vk.UP),
-        Vk.L: JmkKey(Vk.RIGHT),
-        Vk.U: JmkKey(ctrl_pgup),
-        Vk.I: JmkKey(ctrl_pgdn),
-        Vk.N: JmkKey(Vk.MEDIA_NEXT_TRACK),
-        Vk.P: JmkKey(Vk.MEDIA_PREV_TRACK),
-        Vk.OEM_COMMA: JmkKey(Vk.VOLUME_DOWN),
-        Vk.OEM_PERIOD: JmkKey(Vk.VOLUME_UP),
-        parse_key("/"): JmkKey(Vk.MEDIA_PLAY_PAUSE),
-    },
-    {  # layer 3
+        # left hand
         Vk.Z: JmkKey(Vk.F1),
         Vk.X: JmkKey(Vk.F2),
         Vk.C: JmkKey(Vk.F3),
@@ -78,7 +56,47 @@ layers = [
         Vk.W: JmkKey(Vk.F10),
         Vk.E: JmkKey(Vk.F11),
         Vk.R: JmkKey(Vk.F12),
+        # right hand
+        Vk.H: JmkKey(Vk.LEFT),
+        Vk.J: JmkKey(Vk.DOWN),
+        Vk.K: JmkKey(Vk.UP),
+        Vk.L: JmkKey(Vk.RIGHT),
+        Vk.U: JmkKey(ctrl_pgup),
+        Vk.I: JmkKey(ctrl_pgdn),
+        Vk.N: JmkKey(Vk.MEDIA_NEXT_TRACK),
+        Vk.P: JmkKey(Vk.MEDIA_PREV_TRACK),
+        Vk.OEM_COMMA: JmkKey(Vk.VOLUME_DOWN),
+        Vk.OEM_PERIOD: JmkKey(Vk.VOLUME_UP),
+        parse_key("/"): JmkKey(Vk.MEDIA_PLAY_PAUSE),
     },
+    {  # layer 2
+        # tap to send today's date, hold to send now
+        Vk.T: JmkTapHold(on_tap=send_today, on_hold_down=send_now),
+        # tap to close tab, hold to reopen for Chrome
+        Vk.LBUTTON: JmkTapHold(on_tap=ctrl_w, on_hold_down=ctrl_shift_t),
+        # forward button + whell up  = ctrl + page up (previous tab)
+        Vk.WHEEL_UP: JmkKey(ctrl_pgup),
+        # forward button + wheel down  = ctrl + page down (next tab)
+        Vk.WHEEL_DOWN: JmkKey(ctrl_pgdn),
+        # exit
+        Vk.ESCAPE: JmkKey(daemon.stop),
+        # symbol
+        Vk.A: JmkKey(lambda: send_text("@")),
+        Vk.E: JmkKey(lambda: send_text("!")),
+        Vk.S: JmkKey(lambda: send_text("#")),
+        Vk.D: JmkKey(lambda: send_text("$")),
+        Vk.X: JmkKey(lambda: send_text("%")),
+        Vk.Y: JmkKey(lambda: send_text("^")),
+        Vk.N: JmkKey(lambda: send_text("&")),
+        Vk.R: JmkKey(lambda: send_text("*")),
+        Vk.F: JmkKey(lambda: send_text("(")),
+        Vk.G: JmkKey(lambda: send_text(")")),
+        Vk.M: JmkKey(lambda: send_text("-")),
+        Vk.P: JmkKey(lambda: send_text("+")),
+        Vk.U: JmkKey(lambda: send_text("_")),
+        Vk.Q: JmkKey(lambda: send_text("=")),
+    },
+    {},  # layer 3
 ]
 
 hotkeys = [
@@ -94,13 +112,7 @@ hotkeys = [
 #  setup jmk
 #######################
 
-# from tail to head
-out = SystemOutput()
-hks = JmkHotkeys(out, hotkeys)
-# hks = JmkHotkeys(print, hotkeys)
-jmk = JmkCore(hks, layers)
-# inp = SystemInput(jmk, swallow=True)
-inp = SystemInput(jmk)
+sysin, jmk, hks, sysout = create_jmk(layers, hotkeys)
 
 
 class JmkService(daemon.Service):
@@ -109,7 +121,7 @@ class JmkService(daemon.Service):
 
     def start(self):
         self.is_running = True
-        inp.install()
+        sysin.install()
 
     def stop(self):
         self.jmk_group.uninstall()
@@ -119,5 +131,19 @@ class JmkService(daemon.Service):
 daemon.register(JmkService)
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    import logging
+
+    logFormatter = logging.Formatter(
+        "%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s"
+    )
+    rootLogger = logging.getLogger()
+    rootLogger.setLevel(logging.DEBUG)
+
+    fileHandler = logging.FileHandler("jmk.log", mode="w")
+    fileHandler.setFormatter(logFormatter)
+    rootLogger.addHandler(fileHandler)
+
+    consoleHandler = logging.StreamHandler()
+    consoleHandler.setFormatter(logFormatter)
+    rootLogger.addHandler(consoleHandler)
     daemon.message_loop()

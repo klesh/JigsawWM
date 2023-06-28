@@ -38,10 +38,11 @@ class SystemInput:
         if is_synthesized(msg):
             return False
         # convert keyboard/mouse event to a unified virtual key representation
-        vkey = None
-        pressed = None
+        vkey, pressed = None, None
         if isinstance(msgid, hook.KBDLLHOOKMSGID):
             vkey = Vk(msg.vkCode)
+            if vkey == Vk.PACKET:
+                return False
             if (
                 msgid == hook.KBDLLHOOKMSGID.WM_KEYDOWN
                 or msgid == hook.KBDLLHOOKMSGID.WM_SYSKEYDOWN
@@ -87,7 +88,7 @@ class SystemInput:
         # skip events that out of our interest
         if vkey is None or pressed is None:
             return
-        evt = JmkEvent(vkey, pressed, system=True)
+        evt = JmkEvent(vkey, pressed, system=True, extra=msg.dwExtraInfo)
         logger.debug("sys >>> %s", evt)
         swallow = self.next_handler(evt)
         return True
@@ -107,7 +108,7 @@ class SystemOutput(JmkHandler):
 def consume_queue():
     while True:
         evt = q.get()
-        send_input(vk_to_input(evt.vk, evt.pressed))
+        send_input(vk_to_input(evt.vk, evt.pressed), extra=evt.extra)
         q.task_done()
 
 

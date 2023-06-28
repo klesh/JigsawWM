@@ -86,11 +86,11 @@ class INPUT(Structure):
     )
 
 
-SYNTHESIZED_ID = int(time.time())
+SYNTHESIZED_FLAG = 0x01
 
 
-def send_input(*inputs: typing.List[INPUT]):
-    global SYNTHESIZED_ID
+def send_input(*inputs: typing.List[INPUT], extra: int = 0):
+    global SYNTHESIZED_FLAG
     """Synthesizes keystrokes, mouse motions, and button clicks.
 
     Usage:
@@ -115,9 +115,9 @@ def send_input(*inputs: typing.List[INPUT]):
         if item is None:
             continue
         if item.type == INPUTTYPE.KEYBOARD:
-            item.ki.dwExtraInfo = SYNTHESIZED_ID
-        elif item.mi:
-            item.mi.dwExtraInfo = SYNTHESIZED_ID
+            item.ki.dwExtraInfo = ULONG_PTR(extra | SYNTHESIZED_FLAG)
+        elif item.type == INPUTTYPE.MOUSE:
+            item.mi.dwExtraInfo = ULONG_PTR(extra | SYNTHESIZED_FLAG)
     length = len(inputs)
     array = INPUT * length
     if not user32.SendInput(length, array(*inputs), sizeof(INPUT)):
@@ -126,8 +126,13 @@ def send_input(*inputs: typing.List[INPUT]):
 
 def is_synthesized(msg: typing.Union[KEYBDINPUT, MOUSEINPUT]) -> bool:
     """Check if keyboard/mouse event is sent by this module"""
-    global SYNTHESIZED_ID
-    return msg.dwExtraInfo == SYNTHESIZED_ID
+    global SYNTHESIZED_FLAG
+    return msg.dwExtraInfo & SYNTHESIZED_FLAG
+
+
+def set_synthesized_flag(flag: int):
+    global SYNTHESIZED_FLAG
+    SYNTHESIZED_FLAG = flag
 
 
 def vk_to_input(vk: Vk, pressed: bool = None) -> typing.Optional[INPUT]:
