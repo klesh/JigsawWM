@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from log import *
+
 from jigsawwm import daemon
 from jigsawwm.jmk import *
 from jigsawwm.w32.sendinput import send_combination, send_text
@@ -73,7 +75,7 @@ layers = [
         # tap to send today's date, hold to send now
         Vk.T: JmkTapHold(on_tap=send_today, on_hold_down=send_now),
         # tap to close tab, hold to reopen for Chrome
-        Vk.LBUTTON: JmkTapHold(on_tap=ctrl_w, on_hold_down=ctrl_shift_t),
+        Vk.LBUTTON: JmkTapHold(on_tap=ctrl_w, on_hold_down=ctrl_shift_t, term=0.5),
         # forward button + whell up  = ctrl + page up (previous tab)
         Vk.WHEEL_UP: JmkKey(ctrl_pgup),
         # forward button + wheel down  = ctrl + page down (next tab)
@@ -131,19 +133,4 @@ class JmkService(daemon.Service):
 daemon.register(JmkService)
 
 if __name__ == "__main__":
-    import logging
-
-    logFormatter = logging.Formatter(
-        "%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s"
-    )
-    rootLogger = logging.getLogger()
-    rootLogger.setLevel(logging.DEBUG)
-
-    fileHandler = logging.FileHandler("jmk.log", mode="w")
-    fileHandler.setFormatter(logFormatter)
-    rootLogger.addHandler(fileHandler)
-
-    consoleHandler = logging.StreamHandler()
-    consoleHandler.setFormatter(logFormatter)
-    rootLogger.addHandler(consoleHandler)
     daemon.message_loop()

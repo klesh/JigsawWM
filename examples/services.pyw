@@ -1,3 +1,5 @@
+from log import *
+
 from jigsawwm import daemon
 
 

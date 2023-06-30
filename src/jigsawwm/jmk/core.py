@@ -3,7 +3,7 @@ import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from threading import Event
+from threading import Event, Lock
 
 from jigsawwm.w32.sendinput import send_combination
 from jigsawwm.w32.vk import *
@@ -31,10 +31,9 @@ class JmkEvent:
     system: bool = False
     extra: int = 0
     time: float = field(default_factory=time.time)
-    resend: bool = False
 
     __repr__ = (
-        lambda self: f"JmkEvent({self.vk.name}, {'down' if self.pressed else 'up'}, {'sys' if self.system else 'sim'}, {self.extra}, {'resend' if self.resend else 'new'})"
+        lambda self: f"JmkEvent({self.vk.name}, {'down' if self.pressed else 'up'}, {'sys' if self.system else 'sim'}, {self.extra})"
     )
 
 
@@ -199,7 +198,6 @@ class JmkTapHold(JmkLayerKey):
     def flush(self):
         if self.resend:
             for evt in self.resend:
-                evt.resend = True
                 logger.debug("%s resend %s >>>", self, evt)
                 self.state(evt)
         self.resend.clear()
@@ -216,7 +214,7 @@ class JmkTapHold(JmkLayerKey):
             if not evt.pressed:
                 self.last_tapped_at = 0
                 self.quick_tap = False
-            evt = JmkEvent(evt.vk, evt.pressed)
+            evt = JmkEvent(self.tap or evt.vk, evt.pressed)
             logger.debug("%s quick tap %s >>>", self, evt)
             return self.state.next_handler(evt)
         # tap hold
@@ -240,6 +238,7 @@ class JmkCore(JmkHandler):
     layers: typing.List[JmkLayer]
     active_layers: typing.Set[int]
     routes: JmkLayer
+    _lock: Lock()
 
     def __init__(
         self,
@@ -257,6 +256,7 @@ class JmkCore(JmkHandler):
         self.next_handler = next_handler
         self.active_layers = set()
         self.routes = {}
+        self._lock = Lock()
 
     def register(self, vk: Vk, handler: JmkLayerKey, layer: int = 0):
         if not isinstance(vk, Vk):
@@ -299,21 +299,20 @@ class JmkCore(JmkHandler):
     def __call__(self, evt: JmkEvent) -> bool:
         # route is to prevent key is still held down after layer switch
         route = None
-        intercepted = False
-        for vk, rt in self.routes.items():
-            if vk == evt.vk:
-                route = rt
-            elif not evt.resend and rt.other_key(evt):
-                intercepted = True
-        if intercepted:
-            return intercepted
-        if route and not evt.pressed:
-            self.routes.pop(evt.vk)
-        elif not route:
-            layer = self.get_active_layer()
-            route = layer.get(evt.vk)
-            if route and evt.pressed:
-                self.routes[evt.vk] = route
+        with self._lock:  # taphold might resend event while routing
+            for vk, rt in self.routes.items():
+                if vk == evt.vk:
+                    route = rt
+                elif rt.other_key(evt):
+                    # key is intercepted by other key, most likely a TapHold
+                    return True
+            if route and not evt.pressed:
+                self.routes.pop(evt.vk)
+            elif not route:
+                layer = self.get_active_layer()
+                route = layer.get(evt.vk)
+                if route and evt.pressed:
+                    self.routes[evt.vk] = route
         if route:
             logger.debug("routing %s to %s", evt, route)
             return route(evt)

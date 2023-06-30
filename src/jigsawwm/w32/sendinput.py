@@ -1,4 +1,6 @@
 import enum
+import os
+import random
 import time
 import typing
 from ctypes import *
@@ -86,7 +88,25 @@ class INPUT(Structure):
     )
 
 
-SYNTHESIZED_FLAG = 0x01
+random.seed(os.getpid())
+
+
+def random_flags(length: int = 4, a: int = 0, b: int = 31) -> int:
+    flags = set()
+    while len(flags) < length:
+        flags.add(1 << random.randint(a, b))
+    return flags
+
+
+def combine_flags(flags: typing.Iterable[int]) -> int:
+    flag = 0
+    for f in flags:
+        flag |= f
+    return flag
+
+
+FLAGS = random_flags()
+SYNTHESIZED_FLAG = combine_flags(FLAGS)
 
 
 def send_input(*inputs: typing.List[INPUT], extra: int = 0):
@@ -126,8 +146,12 @@ def send_input(*inputs: typing.List[INPUT], extra: int = 0):
 
 def is_synthesized(msg: typing.Union[KEYBDINPUT, MOUSEINPUT]) -> bool:
     """Check if keyboard/mouse event is sent by this module"""
-    global SYNTHESIZED_FLAG
-    return msg.dwExtraInfo & SYNTHESIZED_FLAG
+    # the propability of conflict is 31 x 30 x 29 x 28 ...
+    global FLAGS
+    for flag in FLAGS:
+        if not msg.dwExtraInfo & flag:
+            return False
+    return True
 
 
 def set_synthesized_flag(flag: int):

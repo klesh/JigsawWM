@@ -1,4 +1,5 @@
 from jmk import hks
+from log import *
 
 from jigsawwm import daemon
 from jigsawwm.tiler import tilers

@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from log import *
 from mailcalaid.cal.holiday import ChinaHolidayBook
 
 from jigsawwm import chrome, daemon, smartstart

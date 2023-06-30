@@ -70,10 +70,6 @@ class JmkHotkeys(JmkHandler):
             if evt.vk == Vk.WHEEL_UP or evt.vk == Vk.WHEEL_DOWN:
                 pressed_keys.add(evt.vk)
             else:
-                # if evt.vk not in pressed_keys:
-                #     import traceback
-
-                #     traceback.print_stack()
                 if evt.vk in self.pressed_keys:
                     self.pressed_keys.remove(evt.vk)
             hotkey = self.combs.get(frozenset(pressed_keys))
@@ -85,7 +81,7 @@ class JmkHotkeys(JmkHandler):
                         self.next_handler(JmkEvent(Vk.NONAME, False))
                     execute(hotkey.callback)
                     return True  # maybe let user define whether to swallow
-                elif hotkey:  # modifier key released first
+                elif hotkey:  # modifier key released first, so we resend previous event
                     self.next_handler(resend)
 
         return self.next_handler(evt)
