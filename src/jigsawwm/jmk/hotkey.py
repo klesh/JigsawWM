@@ -81,7 +81,7 @@ class JmkHotkeys(JmkHandler):
                         self.next_handler(JmkEvent(Vk.NONAME, False))
                     execute(hotkey.callback)
                     return True  # maybe let user define whether to swallow
-                elif hotkey:  # modifier key released first, so we resend previous event
+                else:  # modifier key released first, so we resend previous event
                     self.next_handler(resend)
 
         return self.next_handler(evt)

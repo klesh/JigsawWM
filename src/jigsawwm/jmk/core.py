@@ -251,7 +251,7 @@ class JmkCore(JmkHandler):
             for vk, handler in layer.items():
                 self.register(vk, handler, index)
         self.next_handler = next_handler
-        self.active_layers = set()
+        self.active_layers = {0}
         self.routes = {}
 
     def register(self, vk: Vk, handler: JmkLayerKey, layer: int = 0):
@@ -284,16 +284,15 @@ class JmkCore(JmkHandler):
         logger.debug(f"deactivating layer {index}")
         self.active_layers.remove(index)
 
-    def get_active_layer(self) -> JmkLayer:
+    def find_route(self, vk: Vk) -> typing.Optional[JmkLayerKey]:
         i = len(self.layers) - 1
-        while i > 0:
-            if i in self.active_layers:
-                return self.layers[i]
+        while i >= 0:
+            if i in self.active_layers and vk in self.layers[i]:
+                return self.layers[i][vk]
             i -= 1
-        return self.layers[0]
 
     def __call__(self, evt: JmkEvent) -> bool:
-        # route is to prevent key is still held down after layer switch
+        # route is to handle situation that a key is still held down after layer turned off
         route = None
         for vk, rt in self.routes.items():
             if vk == evt.vk:
@@ -304,9 +303,8 @@ class JmkCore(JmkHandler):
         if route and not evt.pressed:
             self.routes.pop(evt.vk)
         elif not route:
-            layer = self.get_active_layer()
-            route = layer.get(evt.vk)
-            if route and evt.pressed:
+            route = self.find_route(evt.vk)
+            if route:
                 self.routes[evt.vk] = route
         if route:
             logger.debug("routing %s to %s", evt, route)
