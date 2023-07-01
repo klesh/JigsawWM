@@ -89,9 +89,10 @@ class JmkTapHold(JmkLayerKey):
     quick_tap_term: float
     last_tapped_at: float = 0
     quick_tap: bool = False
-    resend = None
-    pressed = None
-    held = False
+    other_pressed_keys: typing.Set[Vk]
+    resend: typing.List[JmkEvent]
+    pressed: int = 0
+    held: bool = False
 
     def __init__(
         self,
@@ -112,7 +113,8 @@ class JmkTapHold(JmkLayerKey):
         self.quick_tap_term = quick_tap_term
         self.other_pressed_keys = set()
         self.resend = []
-        # check empty
+        self.pressed = 0
+        self.held = False
 
     def hold_down(self):
         if self.held:
@@ -180,7 +182,7 @@ class JmkTapHold(JmkLayerKey):
             self.other_pressed_keys.remove(evt.vk)
             self.hold_down()
         # wheel up/down doesn't have a key down event
-        if evt.vk or evt.vk in (
+        if evt.vk in (
             Vk.WHEEL_UP,
             Vk.WHEEL_DOWN,
         ):
@@ -215,9 +217,6 @@ class JmkTapHold(JmkLayerKey):
             if not self.pressed:
                 # initial state
                 self.pressed = evt.time
-                self.held = False
-                self.other_pressed_keys.clear()
-                self.resend.clear()
             elif evt.time - self.pressed > self.term:
                 self.hold_down()
         else:
