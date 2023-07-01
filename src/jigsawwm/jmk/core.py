@@ -307,7 +307,7 @@ class JmkCore(JmkHandler):
             self.routes.pop(evt.vk)
         elif not route:
             route = self.find_route(evt.vk)
-            if route:
+            if route and evt.pressed:
                 self.routes[evt.vk] = route
         if route:
             logger.debug("routing %s to %s", evt, route)
