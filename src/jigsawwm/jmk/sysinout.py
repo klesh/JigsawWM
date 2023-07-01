@@ -12,18 +12,13 @@ q = Queue()
 class SystemInput:
     hook_handles: List[hook.HHOOK] = None
     next_handler: JmkHandler
-    always_swallow: bool
 
-    def __init__(self, next_handler: JmkHandler, always_swallow: bool = True):
+    def __init__(self, next_handler: JmkHandler):
         """Initialize a system input handler
 
         :param next_handler: the next handler in the chain
-        :param always_swallow: whether to always swallow the event, should be `True`
-            when use as a Mouse/Keyboard transformer to keep the input order as expect,
-            or `False` if you just need to register a system hotkey. default to True
         """
         self.next_handler = next_handler
-        self.always_swallow = always_swallow
 
     def install(self):
         self.hook_handles = [
@@ -100,11 +95,25 @@ class SystemInput:
         evt = JmkEvent(vkey, pressed, system=True, extra=msg.dwExtraInfo)
         logger.debug("sys >>> %s", evt)
         swallow = self.next_handler(evt)
-        return self.always_swallow or swallow
+        return swallow
 
 
 class SystemOutput(JmkHandler):
+    always_swallow: bool
+
+    def __init__(self, always_swallow: bool = True):
+        """Initialize a system output handler
+
+        :param always_swallow: whether to always swallow the event, should be `True`
+            when use as a Mouse/Keyboard transformer to keep the input order as expect,
+            or `False` if you just need to register a system hotkey. default to True
+        """
+        self.always_swallow = always_swallow
+
     def __call__(self, evt: JmkEvent) -> bool:
+        if evt.system and not self.always_swallow:
+            logger.debug("nil <<< %s", evt)
+            return False
         logger.debug("sys <<< %s", evt)
         q.put(evt)
         return True

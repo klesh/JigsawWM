@@ -71,12 +71,13 @@ class JmkKey(JmkLayerKey):
 
     def __call__(self, evt: JmkEvent) -> bool:
         if self.func and not evt.pressed:
-            logger.debug("[JmkKey func] %s >>> ")
+            logger.debug("%s <<< %s", "nil" if self.swallow else "sys", self)
             execute(self.func)
             return self.swallow
         elif self.key:
-            logger.debug("[JmkKey key] %s >>>")
+            logger.debug("%s >>>", self)
             return self.state.next_handler(JmkEvent(self.key, evt.pressed))
+        return True
 
 
 class JmkTapHold(JmkLayerKey):
@@ -96,6 +97,7 @@ class JmkTapHold(JmkLayerKey):
     STAGE_HELD = 2
     stage: int = STAGE_INIT
     resend = None
+    pressed = None
 
     def __init__(
         self,
@@ -166,6 +168,7 @@ class JmkTapHold(JmkLayerKey):
                 self.state.deactivate_layer(self.hold)
 
     def tapped(self):
+        self.stage = self.STAGE_INIT
         logger.debug("%s tapped", self)
         if self.tap:
             evt_down = JmkEvent(self.tap, True)
@@ -178,7 +181,6 @@ class JmkTapHold(JmkLayerKey):
             logger.debug("%s on_tap", self)
             execute(self.on_tap)
         self.last_tapped_at = time.time()
-        self.stage = self.STAGE_INIT
         self.flush()
 
     def other_key(self, evt: JmkEvent) -> bool:
@@ -219,6 +221,8 @@ class JmkTapHold(JmkLayerKey):
             return self.state.next_handler(evt)
         # tap hold
         if evt.pressed:
+            if not self.pressed:
+                self.pressed = time.time()
             if self.stage == self.STAGE_INIT:
                 self.stage = self.STAGE_PRESSED
                 self.resend = []
@@ -226,6 +230,10 @@ class JmkTapHold(JmkLayerKey):
                 self.other_pressed_keys.clear()
                 execute(self.holding_timer, evt)
         else:
+            # get into tap mode early
+            if evt.time - self.pressed < self.term:
+                self.tapped()
+                self.pressed = 0
             self.key_up_event.set()
         return True
 

@@ -11,8 +11,8 @@ def create_jmk(
     always_swallow: bool = True,
 ):
     # from tail to head
-    sysout = SystemOutput()
+    sysout = SystemOutput(always_swallow)
     hks = JmkHotkeys(sysout, hotkeys)
     jmk = JmkCore(hks, layers)
-    sysin = SystemInput(jmk, always_swallow)
+    sysin = SystemInput(jmk)
     return sysin, jmk, hks, sysout

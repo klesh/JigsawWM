@@ -25,6 +25,8 @@ layers = [
         # map capslock to ctrl when held and `  when tapped
         Vk.CAPITAL: JmkTapHold(tap=parse_key("`"), hold=Vk.LCONTROL),
         # Vk.ESCAPE: JmkTapHold(tap=Vk.ESCAPE, hold=Vk.LWIN),
+        Vk.T: JmkTapHold(tap=Vk.T, hold=3),
+        Vk.Y: JmkTapHold(tap=Vk.Y, hold=3),
         Vk.A: JmkTapHold(tap=Vk.A, hold=Vk.LMENU),
         Vk.S: JmkTapHold(tap=Vk.S, hold=Vk.LSHIFT),
         Vk.D: JmkTapHold(tap=Vk.D, hold=Vk.LWIN),
@@ -46,18 +48,8 @@ layers = [
     },
     {  # layer 1
         # left hand
-        Vk.Z: JmkKey(Vk.F1),
-        Vk.X: JmkKey(Vk.F2),
-        Vk.C: JmkKey(Vk.F3),
-        Vk.V: JmkKey(Vk.F4),
-        Vk.A: JmkKey(Vk.F5),
-        Vk.S: JmkKey(Vk.F6),
-        Vk.D: JmkKey(Vk.F7),
-        Vk.F: JmkKey(Vk.F8),
-        Vk.Q: JmkKey(Vk.F9),
-        Vk.W: JmkKey(Vk.F10),
-        Vk.E: JmkKey(Vk.F11),
-        Vk.R: JmkKey(Vk.F12),
+        Vk.A: JmkKey(Vk.HOME),
+        Vk.E: JmkKey(Vk.END),
         # right hand
         Vk.H: JmkKey(Vk.LEFT),
         Vk.J: JmkKey(Vk.DOWN),
@@ -98,7 +90,37 @@ layers = [
         Vk.U: JmkKey(lambda: send_text("_")),
         Vk.Q: JmkKey(lambda: send_text("=")),
     },
-    {},  # layer 3
+    {  # layer 3
+        # left hand
+        Vk.Z: JmkKey(Vk.F1),
+        Vk.X: JmkKey(Vk.F2),
+        Vk.C: JmkKey(Vk.F3),
+        Vk.V: JmkKey(Vk.F4),
+        Vk.A: JmkKey(Vk.F5),
+        Vk.S: JmkKey(Vk.F6),
+        Vk.D: JmkKey(Vk.F7),
+        Vk.F: JmkKey(Vk.F8),
+        Vk.Q: JmkKey(Vk.F9),
+        Vk.W: JmkKey(Vk.F10),
+        Vk.E: JmkKey(Vk.F11),
+        Vk.R: JmkKey(Vk.F12),
+        # right hand
+        Vk.SPACE: JmkKey(Vk.KEY_0),
+        Vk.M: JmkKey(Vk.KEY_1),
+        Vk.OEM_COMMA: JmkKey(Vk.KEY_2),
+        Vk.OEM_PERIOD: JmkKey(Vk.KEY_3),
+        Vk.J: JmkKey(Vk.KEY_4),
+        Vk.K: JmkKey(Vk.KEY_5),
+        Vk.D: JmkKey(Vk.KEY_6),
+        Vk.U: JmkKey(Vk.KEY_7),
+        Vk.I: JmkKey(Vk.KEY_8),
+        Vk.O: JmkKey(Vk.KEY_9),
+        Vk.H: JmkKey(Vk.SUBTRACT),
+        Vk.OEM_1: JmkKey(Vk.ADD),
+        Vk.P: JmkKey(Vk.OEM_PLUS),
+        Vk.N: JmkKey(Vk.MULTIPLY),
+        Vk.OEM_2: JmkKey(Vk.DIVIDE),
+    },
 ]
 
 hotkeys = [
