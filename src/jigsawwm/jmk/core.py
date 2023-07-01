@@ -187,6 +187,9 @@ class JmkTapHold(JmkLayerKey):
             Vk.WHEEL_DOWN,
         ):
             self.hold_down()
+        # or timeout
+        if evt.time - self.pressed > self.term:
+            self.hold_down()
         # delay the key until we know if it's a tap or hold
         return True
 
