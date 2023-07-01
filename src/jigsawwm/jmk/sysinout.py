@@ -1,4 +1,4 @@
-from queue import Queue
+from queue import SimpleQueue
 from typing import List, Union
 
 from jigsawwm.w32 import hook
@@ -6,7 +6,7 @@ from jigsawwm.w32.sendinput import is_synthesized, send_input, vk_to_input
 
 from .core import *
 
-q = Queue()
+q = SimpleQueue()
 
 
 class SystemInput:
@@ -123,7 +123,6 @@ def consume_queue():
     while True:
         evt = q.get()
         send_input(vk_to_input(evt.vk, evt.pressed), extra=evt.extra)
-        q.task_done()
 
 
 executor.submit(consume_queue)
