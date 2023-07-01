@@ -148,7 +148,7 @@ class JmkService(daemon.Service):
         sysin.install()
 
     def stop(self):
-        self.jmk_group.uninstall()
+        sysin.uninstall()
         self.is_running = False
 
 
