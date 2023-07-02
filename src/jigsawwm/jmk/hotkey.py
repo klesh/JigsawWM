@@ -45,7 +45,10 @@ class JmkHotkeys(JmkHandler):
                 raise TypeError("hotkey keys must be a list of Modifers and a Vk")
         return expand_combination(comb)
 
-    def register(self, comb: JmkHotkeyComb, cb: Callable):
+    def register(self, comb: JmkHotkeyComb, cb: Union[Callable, str]):
+        if isinstance(cb, str):
+            new_comb = parse_combination(cb)
+            cb = lambda: send_combination(*new_comb)
         for keys in self.expand_comb(comb):
             hotkey = JmkHotkey(keys, cb)
             self.combs[frozenset(keys)] = hotkey
@@ -79,6 +82,7 @@ class JmkHotkeys(JmkHandler):
                     if len(hotkey.keys) == 2 and hotkey.keys[0] in (Vk.LWIN, Vk.RWIN):
                         # prevent start menu from popping up
                         self.next_handler(JmkEvent(Vk.NONAME, False))
+                    logger.info("hotkey triggered: %s", hotkey.keys)
                     execute(hotkey.callback)
                     return True  # maybe let user define whether to swallow
                 else:  # modifier key released first, so we resend previous event
