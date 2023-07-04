@@ -116,6 +116,10 @@ class JmkTapHold(JmkLayerKey):
         self.pressed = 0
         self.held = False
 
+    def check_hold(self):
+        if time.time() - self.pressed > self.term:
+            self.hold_down()
+
     def hold_down(self):
         if self.held:
             # hold_down might be triggered multiple places
@@ -175,8 +179,6 @@ class JmkTapHold(JmkLayerKey):
         self.resend.append(evt)
         if evt.pressed:
             self.other_pressed_keys.add(evt.vk)
-            if evt.pressed - self.pressed > self.term:
-                self.hold_down()
         elif evt.vk in self.other_pressed_keys:
             # there was a key tapping, we shal get into the holding mode immediately
             self.other_pressed_keys.remove(evt.vk)
@@ -188,8 +190,7 @@ class JmkTapHold(JmkLayerKey):
         ):
             self.hold_down()
         # or timeout
-        if evt.time - self.pressed > self.term:
-            self.hold_down()
+        self.check_hold()
         # delay the key until we know if it's a tap or hold
         return True
 
@@ -220,10 +221,11 @@ class JmkTapHold(JmkLayerKey):
             if not self.pressed:
                 # initial state
                 self.pressed = evt.time
-            elif evt.time - self.pressed > self.term:
-                self.hold_down()
+            else:
+                self.check_hold()
         else:
             # reset state
+            self.check_hold()
             if self.held:
                 self.hold_up()
             else:
