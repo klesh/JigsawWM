@@ -252,6 +252,36 @@ VkAliases: typing.Dict[str, Vk] = {
     ".": Vk.OEM_PERIOD,
 }
 
+
+class Vka:
+    LCTRL = Vk.LCONTROL
+    LCTL = Vk.LCONTROL
+    LALT = Vk.LMENU
+    LSFT = Vk.LSHIFT
+    LSUPER = Vk.LWIN
+    RCTRL = Vk.RCONTROL
+    RCTL = Vk.RCONTROL
+    RALT = Vk.RMENU
+    RSFT = Vk.RSHIFT
+    RSUPER = Vk.RWIN
+    CTRL = Vk.CONTROL
+    MENU = Vk.MENU
+    ALT = Vk.MENU
+    SFT = Vk.SHIFT
+    SUPER = Vk.WIN
+    DASH = Vk.OEM_MINUS
+    EQUAL = Vk.OEM_PLUS
+    SEMICOLON = Vk.OEM_1
+    SLASH = Vk.OEM_2
+    BACKQUOTE = Vk.OEM_3
+    LBRACKET = Vk.OEM_4
+    BACKSLASH = Vk.OEM_5
+    RBRACKET = Vk.OEM_6
+    SINGLEQUOTE = Vk.OEM_7
+    COMMA = Vk.OEM_COMMA
+    PERIOD = Vk.OEM_PERIOD
+
+
 Modifers = {
     Vk.LCONTROL,
     Vk.RCONTROL,

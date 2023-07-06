@@ -5,7 +5,7 @@ from log import *
 from jigsawwm import daemon
 from jigsawwm.jmk import *
 from jigsawwm.w32.sendinput import send_combination, send_text
-from jigsawwm.w32.vk import Vk, parse_key
+from jigsawwm.w32.vk import Vk
 from jigsawwm.w32.window import minimize_active_window, toggle_maximize_active_window
 
 #######################
@@ -37,7 +37,7 @@ layers = [
         Vk.K: JmkTapHold(tap=Vk.K, hold=Vk.RWIN),
         Vk.L: JmkTapHold(tap=Vk.L, hold=Vk.RSHIFT),
         # hold ; as Alt
-        Vk.OEM_1: JmkTapHold(tap=Vk.OEM_1, hold=Vk.RMENU),
+        Vka.SEMICOLON: JmkTapHold(tap=Vka.SEMICOLON, hold=Vk.RMENU),
         # Vk.TAB: JmkTapHold(tap=Vk.TAB, hold=2),
         # hold ' to switch to layer 2
         Vk.N: JmkTapHold(tap=Vk.N, hold=2),
@@ -45,6 +45,9 @@ layers = [
         # hold Forward Button on the Mouse for swithcing to layer 1
         Vk.XBUTTON2: JmkTapHold(tap=Vk.XBUTTON2, hold=2),
         Vk.SPACE: JmkTapHold(tap=Vk.SPACE, hold=Vk.LSHIFT),
+        Vka.SLASH: JmkTapHold(
+            tap=Vka.SLASH, on_hold_up=lambda: rootLogger.setLevel(logging.DEBUG)
+        ),
     },
     {  # layer 1
         # left hand
@@ -61,7 +64,7 @@ layers = [
         Vk.P: JmkKey(Vk.MEDIA_PREV_TRACK),
         Vk.OEM_COMMA: JmkKey(Vk.VOLUME_DOWN),
         Vk.OEM_PERIOD: JmkKey(Vk.VOLUME_UP),
-        parse_key("/"): JmkKey(Vk.MEDIA_PLAY_PAUSE),
+        Vka.SLASH: JmkKey(Vk.MEDIA_PLAY_PAUSE),
     },
     {  # layer 2
         # tap to send today's date, hold to send now
@@ -117,10 +120,10 @@ layers = [
         Vk.I: JmkKey(Vk.KEY_8),
         Vk.O: JmkKey(Vk.KEY_9),
         Vk.H: JmkKey(Vk.SUBTRACT),
-        Vk.OEM_1: JmkKey(Vk.ADD),
+        Vka.SEMICOLON: JmkKey(Vk.ADD),
         Vk.P: JmkKey(Vk.OEM_PLUS),
         Vk.N: JmkKey(Vk.MULTIPLY),
-        Vk.OEM_2: JmkKey(Vk.DIVIDE),
+        Vka.SLASH: JmkKey(Vk.DIVIDE),
     },
 ]
 
