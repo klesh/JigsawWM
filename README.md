@@ -30,7 +30,7 @@ pip install git+https://github.com/klesh/JigsawWM.git
 
 ### Step 1: Create a `.pyw` file as the "Configuration"
 
-1. Download the [example.pyw](src/example.pyw) to your local hard drive
+1. Download the [example.pyw](https://github.com/klesh/JigsawWM/blob/v1.2.1/src/example.pyw) to your local hard drive
 2. Edit the code as you see fit
 3. Double-click the file and it should launch with a tray icon, or you may have to create a file association to the `Python` program
 4. Create a shortcut in your `Startup` folder if you like it
