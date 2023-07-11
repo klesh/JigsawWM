@@ -53,7 +53,7 @@ class Theme:
     # new appeared window would be prepended to the list if the option was set to True
     new_window_as_master: Optional[bool] = None
     # gap between windows / monitor edges
-    gap: Optional[int] = None
+    gap: Optional[int] = 0
     # forbid
     strict: Optional[bool] = None
     hook_ids: List[int] = None

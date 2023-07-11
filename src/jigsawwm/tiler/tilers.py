@@ -11,7 +11,7 @@ The ``tiler`` module is responsible for converting Layout to Physical Coordinate
 """
 from typing import Callable, Iterator, Tuple
 
-from .layouts import Layout, dwindle, plug_rect, widescreen_dwindle
+from .layouts import Layout, dwindle, mono, plug_rect, widescreen_dwindle
 
 # Rect holds physical coordinate for rectangle (left/top/right/bottom)
 Rect = Tuple[int, int, int, int]
@@ -91,6 +91,11 @@ def obs_tiler(
         return
     obs_rect = (fr, wt, wr, wt + obs_height)
     yield from direct_tiler(layout, obs_rect, total_windows - 2)
+
+
+def mono_layout_tiler(*args, **kwargs) -> Iterator[Rect]:
+    """The dwindle layout tiler"""
+    return direct_tiler(mono, *args, **kwargs)
 
 
 def dwindle_layout_tiler(*args, **kwargs) -> Iterator[Rect]:

@@ -18,6 +18,28 @@ FloatRect = Tuple[float, float, float, float]
 Layout = Callable[[int], Iterator[FloatRect]]
 
 
+def mono(n: int) -> Iterator[FloatRect]:
+    """The mono Layout
+
+    .. code-block:: text
+
+        +-----------+
+        |           |
+        |           |
+        |           |
+        |     1     |
+        |           |
+        |           |
+        |           |
+        +-----------+
+
+    :param n: total number of windows
+    :rtype: Iterator[FloatRect]
+    """
+    for i in range(n):
+        yield 0.0, 0.0, 1.0, 1.0
+
+
 def dwindle(n: int) -> Iterator[FloatRect]:
     """The dwindle Layout
 
