@@ -502,6 +502,7 @@ def inspect_window(hwnd: HWND, file=sys.stdout):
     print("bound        :", bound.left, bound.top, bound.right, bound.bottom, file=file)
     print("is_app_window:", is_app_window(hwnd), file=file)
     print("is_manageable:", is_manageable_window(hwnd), file=file)
+    print("is_evelated  :", window.is_evelated, file=file)
 
 
 def inspect_active_window():

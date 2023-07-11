@@ -1,8 +1,11 @@
+import re
+from ctypes.wintypes import DWORD, HWND, LONG
 from queue import SimpleQueue
-from typing import List, Union
+from typing import List, Set, Union
 
 from jigsawwm.w32 import hook
 from jigsawwm.w32.sendinput import is_synthesized, send_input, vk_to_input
+from jigsawwm.w32.window import Window
 
 from .core import *
 
@@ -12,23 +15,60 @@ q = SimpleQueue()
 class SystemInput:
     hook_handles: List[hook.HHOOK] = None
     next_handler: JmkHandler
+    focused_window: Window = None
+    disabled: bool = False
+    bypass_exe: List[re.Pattern] = None
+    pressed_key: Set[Vk] = set()
 
-    def __init__(self, next_handler: JmkHandler):
+    def __init__(self, next_handler: JmkHandler, bypass_exe: List[re.Pattern] = None):
         """Initialize a system input handler
 
         :param next_handler: the next handler in the chain
         """
         self.next_handler = next_handler
+        self.bypass_exe = bypass_exe or [
+            re.compile(r"^C:\\Windows\\.*\\TextInputHost.exe$", re.IGNORECASE)
+        ]
+        self.pressed_key = set()
 
     def install(self):
         self.hook_handles = [
             hook.hook_keyboard(self.input_event_handler),
             hook.hook_mouse(self.input_event_handler),
+            hook.hook_winevent(
+                hook.WinEvent.EVENT_OBJECT_FOCUS,
+                hook.WinEvent.EVENT_OBJECT_FOCUS,
+                self.winevent,
+            ),
         ]
 
     def uninstall(self):
         for hook_handle in self.hook_handles:
             hook.unhook(hook_handle)
+
+    def winevent(
+        self,
+        event: hook.WinEvent,
+        hwnd: HWND,
+        id_obj: LONG,
+        id_chd: LONG,
+        id_evt_thread: DWORD,
+        time: DWORD,
+    ):
+        if self.focused_window is None or self.focused_window.handle != hwnd:
+            self.focused_window = Window(hwnd)
+            if self.focused_window.is_evelated:
+                logger.debug("focused window is elevated, disable jmk")
+                self.disabled = True
+                return
+            if self.bypass_exe:
+                for pattern in self.bypass_exe:
+                    if pattern.match(self.focused_window.exe):
+                        logger.debug("focused window is in bypass list, disable jmk")
+                        self.disabled = True
+                        return
+            logger.debug("focused window is not in bypass list, enable jmk")
+            self.disabled = False
 
     def input_event_handler(
         self,
@@ -38,7 +78,6 @@ class SystemInput:
         """Handles keyboard events and call callback if the combination
         had been registered
         """
-        # skip key we sent out
         if is_synthesized(msg):
             return False
         # convert keyboard/mouse event to a unified virtual key representation
@@ -92,6 +131,15 @@ class SystemInput:
         # skip events that out of our interest
         if vkey is None or pressed is None:
             return
+
+        if self.disabled and (
+            pressed or (not pressed and vkey not in self.pressed_key)
+        ):
+            return
+        if pressed:
+            self.pressed_key.add(vkey)
+        elif vkey in self.pressed_key:
+            self.pressed_key.remove(vkey)
         evt = JmkEvent(vkey, pressed, system=True, extra=msg.dwExtraInfo)
         logger.debug("sys >>> %s", evt)
         swallow = self.next_handler(evt)
