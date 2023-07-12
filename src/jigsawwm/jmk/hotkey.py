@@ -18,6 +18,8 @@ class JmkHotkey:
 
 
 class JmkHotkeys(JmkHandler):
+    """A handler that handles hotkeys."""
+
     next_handler: JmkHandler
     combs: typing.Dict[typing.FrozenSet[Vk], JmkHotkey]
     pressed_modifiers: typing.Set[Vk]

@@ -13,6 +13,14 @@ q = SimpleQueue()
 
 
 class SystemInput:
+    """A handler that handles system input events.
+
+    :param next_handler: the next handler in the chain, normally a JmkCore instance
+    :param bypass_exe: a list of regular expression patterns that matches the exe path
+        some applications (e.g. Windows 10's touch keyboard, emoji input) will not
+        work properly, so we need to bypass them
+    """
+
     hook_handles: List[hook.HHOOK] = None
     next_handler: JmkHandler
     focused_window: Window = None
@@ -21,10 +29,7 @@ class SystemInput:
     pressed_key: Set[Vk] = set()
 
     def __init__(self, next_handler: JmkHandler, bypass_exe: List[re.Pattern] = None):
-        """Initialize a system input handler
-
-        :param next_handler: the next handler in the chain
-        """
+        """Initialize a system input handler"""
         self.next_handler = next_handler
         self.bypass_exe = bypass_exe or [
             re.compile(r"^C:\\Windows\\.*\\TextInputHost.exe$", re.IGNORECASE)
@@ -132,6 +137,7 @@ class SystemInput:
         if vkey is None or pressed is None:
             return
 
+        # bypass events when disabled unless it's a keyup event of a pressed key
         if self.disabled and (
             pressed or (not pressed and vkey not in self.pressed_key)
         ):
@@ -147,15 +153,16 @@ class SystemInput:
 
 
 class SystemOutput(JmkHandler):
+    """A system output handler that send input to system
+
+    :param always_swallow: whether to always swallow the event, should be `True`
+        when use as a Mouse/Keyboard transformer to keep the input order as expect,
+        or `False` if you just need to register a system hotkey. default to True
+    """
+
     always_swallow: bool
 
     def __init__(self, always_swallow: bool = True):
-        """Initialize a system output handler
-
-        :param always_swallow: whether to always swallow the event, should be `True`
-            when use as a Mouse/Keyboard transformer to keep the input order as expect,
-            or `False` if you just need to register a system hotkey. default to True
-        """
         self.always_swallow = always_swallow
 
     def __call__(self, evt: JmkEvent) -> bool:

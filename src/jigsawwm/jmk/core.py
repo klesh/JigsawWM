@@ -13,6 +13,13 @@ executor = ThreadPoolExecutor(max_workers=100)
 
 
 def execute(func, *args, **kwargs):
+    """Execute a function in a thread pool and print the exception if any
+
+    :param func: the function to execute
+    :param args: the arguments to pass to the function
+    :param kwargs: the keyword arguments to pass to the function
+    """
+
     def wrapped():
         logger.debug("[JmkCore] executing %s", func)
         try:
@@ -25,6 +32,8 @@ def execute(func, *args, **kwargs):
 
 @dataclass
 class JmkEvent:
+    """A jmk event that contains the key/button, pressed state, system state(does it came from the OS) and extra data"""
+
     vk: Vk
     pressed: bool
     system: bool = False
@@ -40,6 +49,8 @@ JmkHandler = typing.Callable[[JmkEvent], bool]
 
 
 class JmkLayerKey(JmkHandler):
+    """A key handler that can be used in a layer"""
+
     state: "JmkCore" = None
     layer: int = None
     vk: Vk = None
@@ -53,11 +64,21 @@ class JmkLayerKey(JmkHandler):
 
 
 class JmkKey(JmkLayerKey):
+    """The basic key handler in a layer
+
+    :param kf: can be a Vk(map key to another key), a string, a list of Vk(map key to a combination) or a callable (a function to execute)
+    :param swallow: whether to swallow the event, normally True
+    """
+
     func: callable = None
     key: Vk = None
     swallow: bool
 
-    def __init__(self, kf, swallow: bool = True):
+    def __init__(
+        self,
+        kf: typing.Union[Vk, str, typing.List[Vk], typing.Callable],
+        swallow: bool = True,
+    ):
         if isinstance(kf, str):
             kf = parse_combination(kf)
         if isinstance(kf, list):
@@ -80,6 +101,19 @@ class JmkKey(JmkLayerKey):
 
 
 class JmkTapHold(JmkLayerKey):
+    """A advanced key handler that can be used in a layer
+
+    :param tap: map the key to another key when tapped
+    :param hold: map the key to another key when hold
+    :param on_hold_down: a function to execute when hold down
+    :param on_hold_up: a function to execute when hold up
+    :param on_tap: a function to execute when tapped
+    :param term: the term to determine whether it is a hold
+    :param quick_tap_term: tap a key and then hold it down within this term will enter quick tap mode,
+                        when activated, the tap key will be sent as long as the key is hold. It is useful for
+                        dual function keys like using key A as the Alt key and you want to input a bunch of A
+    """
+
     tap: typing.Optional[Vk] = None
     hold: typing.Optional[typing.Union[Vk, str]] = None
     on_hold_down: typing.Optional[typing.Callable] = None
@@ -237,6 +271,12 @@ JmkLayer = typing.Dict[Vk, JmkHandler]
 
 
 class JmkCore(JmkHandler):
+    """JmkCore is the core of JmkHandler, it handles the key events and dispatches them to the registered handlers.
+
+    :param next_handler: the next handler to dispatch the event to
+    :param layers: the layers
+    """
+
     next_handler: JmkHandler
     layers: typing.List[JmkLayer]
     active_layers: typing.Set[int]
