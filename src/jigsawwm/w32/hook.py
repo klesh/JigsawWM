@@ -350,7 +350,10 @@ if __name__ == "__main__":
     kb_hook = hook_keyboard(keyboard)
     ms_hook = hook_mouse(mouse)
     we_hook = hook_winevent(
-        WinEvent.EVENT_SYSTEM_MINIMIZESTART, WinEvent.EVENT_SYSTEM_MINIMIZEEND, winevent
+        WinEvent.EVENT_MIN,
+        WinEvent.EVENT_MAX,
+        winevent
+        # WinEvent.EVENT_SYSTEM_MINIMIZESTART, WinEvent.EVENT_SYSTEM_MINIMIZEEND, winevent
     )
 
     def unhook_mouse_after_10s():

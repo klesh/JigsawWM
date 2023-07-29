@@ -41,7 +41,7 @@ class SystemInput:
             hook.hook_keyboard(self.input_event_handler),
             hook.hook_mouse(self.input_event_handler),
             hook.hook_winevent(
-                hook.WinEvent.EVENT_OBJECT_FOCUS,
+                hook.WinEvent.EVENT_OBJECT_HIDE,
                 hook.WinEvent.EVENT_OBJECT_FOCUS,
                 self.winevent,
             ),
@@ -63,15 +63,19 @@ class SystemInput:
         if self.focused_window is None or self.focused_window.handle != hwnd:
             self.focused_window = Window(hwnd)
             if self.focused_window.is_evelated:
-                logger.debug("focused window is elevated, disable jmk")
-                self.disabled = True
+                # logger.debug("focused window is elevated, disable jmk")
+                # self.disabled = True
                 return
             if self.bypass_exe:
-                for pattern in self.bypass_exe:
-                    if pattern.match(self.focused_window.exe):
-                        logger.debug("focused window is in bypass list, disable jmk")
-                        self.disabled = True
-                        return
+                fwe = self.focused_window.exe
+                if fwe:
+                    for pattern in self.bypass_exe:
+                        if pattern.match(fwe):
+                            logger.debug(
+                                "focused window is in bypass list, disable jmk"
+                            )
+                            self.disabled = True
+                            return
             logger.debug("focused window is not in bypass list, enable jmk")
             self.disabled = False
 

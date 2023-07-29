@@ -4,7 +4,6 @@ import traceback
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 
-from jigsawwm.w32.sendinput import send_combination
 from jigsawwm.w32.vk import *
 
 logger = logging.getLogger(__name__)
@@ -70,34 +69,32 @@ class JmkKey(JmkLayerKey):
     :param swallow: whether to swallow the event, normally True
     """
 
-    func: callable = None
-    key: Vk = None
+    keys_or_func: typing.Union[typing.List[Vk], typing.Callable]
     swallow: bool
 
     def __init__(
         self,
-        kf: typing.Union[Vk, str, typing.List[Vk], typing.Callable],
+        keys_or_func: typing.Union[Vk, str, typing.List[Vk], typing.Callable],
         swallow: bool = True,
     ):
-        if isinstance(kf, str):
-            kf = parse_combination(kf)
-        if isinstance(kf, list):
-            kf = lambda: send_combination(*kf)
-        if callable(kf):
-            self.func = kf
-        else:
-            self.key = kf
+        if isinstance(keys_or_func, str):
+            keys_or_func = parse_combination(keys_or_func)
+        if isinstance(keys_or_func, Vk):
+            keys_or_func = [keys_or_func]
+        self.keys_or_func = keys_or_func
         self.swallow = swallow
 
     def __call__(self, evt: JmkEvent) -> bool:
-        if self.func and not evt.pressed:
-            logger.debug("%s <<< %s", "nil" if self.swallow else "sys", self)
-            execute(self.func)
-            return self.swallow
-        elif self.key:
-            logger.debug("%s >>>", self)
-            return self.state.next_handler(JmkEvent(self.key, evt.pressed))
-        return True
+        if isinstance(self.keys_or_func, list):
+            if evt.pressed:
+                for key in self.keys_or_func:
+                    self.state.next_handler(JmkEvent(key, evt.pressed))
+            else:
+                for key in reversed(self.keys_or_func):
+                    self.state.next_handler(JmkEvent(key, evt.pressed))
+        elif not evt.pressed:
+            execute(self.keys_or_func)
+        return self.swallow
 
 
 class JmkTapHold(JmkLayerKey):

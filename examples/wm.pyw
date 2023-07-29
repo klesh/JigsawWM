@@ -10,15 +10,6 @@ from jigsawwm.wm import Theme, WindowManager
 wm = WindowManager(
     themes=[
         # Theme(
-        #     name="WideScreen Dwindle",
-        #     layout_tiler=tilers.widescreen_dwindle_layout_tiler,
-        #     icon_name="wide-dwindle.png",
-        #     # background=r"D:\Documents\wallpapers\IMG_20220816_102143.jpg",
-        #     gap=2,
-        #     strict=True,
-        #     new_window_as_master=True,
-        # ),
-        # Theme(
         #     name="OBS Dwindle",
         #     layout_tiler=tilers.obs_dwindle_layout_tiler,
         #     icon_name="obs.png",
@@ -36,6 +27,15 @@ wm = WindowManager(
             layout_tiler=tilers.mono_layout_tiler,
             strict=True,
         ),
+        Theme(
+            name="WideScreen Dwindle",
+            layout_tiler=tilers.widescreen_dwindle_layout_tiler,
+            icon_name="wide-dwindle.png",
+            # background=r"D:\Documents\wallpapers\IMG_20220816_102143.jpg",
+            gap=2,
+            strict=True,
+            new_window_as_master=True,
+        ),
     ],
     ignore_exe_names=[
         "7zFM.exe",
@@ -51,6 +51,7 @@ wm = WindowManager(
         "openvpn-gui.exe",
         "Cloudflare WARP.exe",
         "MediaInfo.exe",
+        "SnippingTool.exe",
     ],
     force_managed_exe_names=["Lens.exe"],
 )

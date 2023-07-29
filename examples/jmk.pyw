@@ -53,6 +53,9 @@ layers = [
         # left hand
         Vk.A: JmkKey(Vk.HOME),
         Vk.E: JmkKey(Vk.END),
+        Vk.D: JmkKey(Vk.DELETE),
+        Vk.B: JmkKey("LCtrl+Left"),
+        Vk.F: JmkKey("LCtrl+Right"),
         # right hand
         Vk.H: JmkKey(Vk.LEFT),
         Vk.J: JmkKey(Vk.DOWN),
