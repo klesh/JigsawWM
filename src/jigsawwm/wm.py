@@ -1,5 +1,6 @@
+import logging
 from dataclasses import dataclass
-from datetime import datetime
+from functools import partial
 from os import path
 from typing import Dict, List, Optional, Set
 
@@ -26,11 +27,14 @@ from jigsawwm.w32.window import (
     get_first_app_window,
     get_foreground_window,
     get_manageable_windows,
+    get_window_title,
     is_app_window,
     is_window,
     sprint_window,
 )
 from jigsawwm.w32.winevent import WinEvent
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -158,6 +162,8 @@ class MonitorState:
             top += gap
             right -= gap
             bottom -= gap
+            logger.debug("arrange %s %s", window, (left, top, right, bottom))
+            window.set_rect(RECT(left, top, right, bottom))
             # compensation
             r = window.get_rect()
             b = window.get_extended_frame_bounds()
@@ -191,7 +197,7 @@ class MonitorState:
         if not theme.strict:
             return
         for window in self.windows:
-            window.set_rect(window.last_rect)
+            window.restrict()
 
 
 class VirtDeskState:
@@ -346,7 +352,7 @@ class WindowManager:
         exepath = window.exe
         return not exepath or path.basename(exepath) in self.ignore_exe_names
 
-    def is_force_managed(self, hwnd: HWND) -> bool:
+    def check_force_managed(self, hwnd: HWND) -> bool:
         try:
             exepath = Window(hwnd).exe
             return exepath and path.basename(exepath) in self.force_managed_exe_names
@@ -355,7 +361,7 @@ class WindowManager:
 
     def sync(self, init=False, restrict=False) -> bool:
         """Update manager state(monitors, windows) to match OS's and arrange windows if it is changed"""
-        manageable_windows = list(get_manageable_windows(self.is_force_managed))
+        manageable_windows = list(get_manageable_windows(self.check_force_managed))
         if not manageable_windows:
             return
         virtdesk_state = self.try_get_virtdesk_state(manageable_windows[0].handle)
@@ -379,6 +385,9 @@ class WindowManager:
                 group_wins_by_mons[monitor] = windows
             windows.add(window)
             managed_windows.add(window)
+            logger.debug(
+                "window %s is managed by monitor %s", window.title, monitor.name
+            )
         virtdesk_state.managed_windows = managed_windows
 
         # pass down to monitor_state for further synchronization
@@ -622,6 +631,7 @@ class WindowManager:
         id_chd: LONG,
         id_evt_thread: DWORD,
         evt_time: DWORD,
+        restrict: bool = False,
     ):
         if (
             id_obj
@@ -631,18 +641,13 @@ class WindowManager:
             or self.is_ignored(Window(hwnd))
         ):
             return
-        print(
-            "[{now}] {event:30s} {hwnd:8d} {title}".format(
-                now=datetime.now().strftime("%M:%S.%f"),
-                event=event.name,
-                hwnd=hwnd,
-                #  ido: {id_obj:6d} idc: {id_chd:6d}
-                # id_obj=id_obj,
-                # id_chd=id_chd,
-                title=Window(hwnd).title,
-            )
+        logger.debug(
+            "_winevent_callback: event %s restrict %s %s",
+            event.name,
+            restrict,
+            get_window_title(hwnd),
         )
-        self.sync(restrict=event == WinEvent.EVENT_SYSTEM_MOVESIZEEND)
+        self.sync(restrict=restrict)
 
     def install_hooks(self):
         """Install hooks for window events"""
@@ -665,8 +670,13 @@ class WindowManager:
             hook.hook_winevent(
                 WinEvent.EVENT_SYSTEM_MOVESIZEEND,
                 WinEvent.EVENT_SYSTEM_MOVESIZEEND,
-                self._winevent_callback,
+                partial(self._winevent_callback, restrict=True),
             ),
+            # hook.hook_winevent(
+            #     WinEvent.EVENT_SYSTEM_FOREGROUND,
+            #     WinEvent.EVENT_SYSTEM_FOREGROUND,
+            #     partial(self._winevent_callback, restrict=True),
+            # ),
         ]
 
     def uninstall_hooks(self):

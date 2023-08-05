@@ -1,3 +1,4 @@
+import logging
 import sys
 import time
 from ctypes import *
@@ -15,6 +16,8 @@ from .window_structs import *
 user32 = WinDLL("user32", use_last_error=True)
 kernel32 = WinDLL("kernel32", use_last_error=True)
 dwmapi = WinDLL("dwmapi", use_last_error=True)
+
+logger = logging.getLogger(__name__)
 
 
 def enum_windows(
@@ -210,7 +213,7 @@ class Window:
     """
 
     _hwnd: HWND
-    _last_rect = None
+    _restricted_rect = None
 
     def __init__(self, hwnd: HWND):
         self._hwnd = hwnd
@@ -220,6 +223,9 @@ class Window:
 
     def __hash__(self):
         return hash(self._hwnd)
+
+    def __repr__(self):
+        return f"<Window title={self.title} hwnd={self._hwnd}>"
 
     @property
     def handle(self) -> HWND:
@@ -355,15 +361,17 @@ class Window:
         :param rect: RECT with top/left/bottom/right properties
         """
         set_window_rect(self._hwnd, rect)
-        self._last_rect = rect
+        self._restricted_rect = rect
+        logger.debug("set_rect %s for %s", rect, self.title)
+
+    def restrict(self):
+        if self._restricted_rect:
+            set_window_rect(self._hwnd, self._restricted_rect)
+            logger.debug("restricted %s for %s", self._restricted_rect, self.title)
 
     def activate(self) -> bool:
         """Brings the thread that created current window into the foreground and activates the window"""
         return set_active_window(self)
-
-    @property
-    def last_rect(self) -> Optional[RECT]:
-        return self._last_rect
 
 
 def get_app_windows() -> Iterator[Window]:

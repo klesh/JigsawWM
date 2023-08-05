@@ -82,9 +82,7 @@ class WinEvent(enum.IntEnum):
     EVENT_SYSTEM_MENUPOPUPSTART = 0x0006
     EVENT_SYSTEM_MENUEND = 0x0005
     EVENT_SYSTEM_MENUSTART = 0x0004
-    # A window object is about to be restored
     EVENT_SYSTEM_MINIMIZEEND = 0x0017
-    # A window object is about to be minimized
     EVENT_SYSTEM_MINIMIZESTART = 0x0016
     # The movement or resizing of a window has finished
     EVENT_SYSTEM_MOVESIZEEND = 0x000B

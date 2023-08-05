@@ -1,6 +1,7 @@
 import enum
 from ctypes import *
 from ctypes.wintypes import *
+from functools import cached_property
 from typing import Iterator, List, Tuple
 
 user32 = WinDLL("user32", use_last_error=True)
@@ -53,7 +54,7 @@ def enum_display_monitors() -> List[HMONITOR]:
 
 def monitor_from_point(x: int, y: int) -> HMONITOR:
     """Retrieves monitor from the specified coordinate
-    
+
     :param int x: X
     :param int y: Y
     :returns: monitor handle
@@ -64,7 +65,7 @@ def monitor_from_point(x: int, y: int) -> HMONITOR:
 
 def monitor_from_window(hwnd: HWND) -> HMONITOR:
     """Retrieves monitor from the specified window
-    
+
     :param HWND hwn: window handle
     :returns: monitor handle
     :rtype: HMONITOR
@@ -128,9 +129,24 @@ class Monitor:
     def __hash__(self):
         return hash(self._hmon)
 
+    def __repl__(self):
+        return f"<Monitor: {self.name} {self.get_rect()} {self.get_scale_factor()}>"
+
+    @cached_property
+    def name(self) -> str:
+        return self.get_info().szDevice.decode("utf-8")
+
+    def get_rect(self) -> RECT:
+        """Retrieves monitor rectangle
+
+        :returns: monitor rectangle
+        :rtype: RECT
+        """
+        return self.get_info().rcMonitor
+
     def get_info(self) -> MONITORINFOEX:
         """Retrieves monitor information
-        
+
         :returns: monitor information
         :rtype: MONITORINFOEX
         """
@@ -142,7 +158,7 @@ class Monitor:
 
     def get_scale_factor(self) -> DEVICE_SCALE_FACTOR:
         """Retrieves monitor scale factor
-        
+
         :returns: scale factor
         :rtype: DEVICE_SCALE_FACTOR
         """
@@ -163,7 +179,7 @@ def get_monitors() -> Iterator[Monitor]:
 
 def get_monitor_central(monitor: Monitor) -> Tuple[int, int]:
     """Retrieves coordinates of the center of specified monitor
-    
+
     :param Monitor monitor: monitor
     :returns: X/Y coorindates
     :rtype: Tuple[int, int]
@@ -177,7 +193,7 @@ def get_monitor_central(monitor: Monitor) -> Tuple[int, int]:
 
 def get_topo_sorted_monitors() -> List[Monitor]:
     """Sort monitor from left to right, top to bottom by Central Points
-    
+
     :returns: list of monitors ordered by their central point, X and then Y
     :rtype: List[Monitor]
     """
@@ -186,7 +202,7 @@ def get_topo_sorted_monitors() -> List[Monitor]:
 
 def get_monitor_from_point(x: int, y: int) -> Monitor:
     """Retrieves monitor from X/Y coordinates
-    
+
     :param int x: X coordinate
     :param int y: Y coordinate
     :returns: Monitor from specified point
@@ -197,7 +213,7 @@ def get_monitor_from_point(x: int, y: int) -> Monitor:
 
 def get_monitor_from_cursor() -> Monitor:
     """Retrieves monitor from cursor
-    
+
     :returns: Monitor from current cursor
     :rtype: Monitor
     """
@@ -207,7 +223,7 @@ def get_monitor_from_cursor() -> Monitor:
 
 def get_monitor_from_window(hwnd: HWND) -> Monitor:
     """Retrieves monitor from window handle
-    
+
     :param HWND hwnd: window handle
     :returns: Monitor that owns specified window
     :rtype: Monitor
@@ -217,11 +233,18 @@ def get_monitor_from_window(hwnd: HWND) -> Monitor:
 
 
 if __name__ == "__main__":
+    p = get_cursor_pos()
+    print(f"cursor pos       :  x {p.x} y {p.y}")
     for monitor in get_topo_sorted_monitors():
+        print()
         print("scale factor     :", monitor.get_scale_factor())
         monitor_info = monitor.get_info()
         print("device           :", monitor_info.szDevice)
-        m = monitor_info.rcMonitor
-        print("monitor rect     :", m.left, m.top, m.right, m.bottom)
         m = monitor_info.rcWork
-        print("monitor workarea :", m.left, m.top, m.right, m.bottom)
+        print(
+            f"monitor workarea : left {m.left} top {m.top}  right {m.right}  bottom {m.bottom}"
+        )
+        m = monitor_info.rcMonitor
+        print(
+            f"monitor react    : left {m.left} top {m.top}  right {m.right}  bottom {m.bottom}"
+        )
