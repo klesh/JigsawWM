@@ -400,8 +400,15 @@ def get_manageable_windows(
     )
 
 
+def get_window_from_pos(x, y: int) -> Optional[Window]:
+    hwnd = user32.WindowFromPoint(POINT(x, y))
+    if hwnd:
+        return Window(hwnd)
+
+
 def get_active_window() -> Optional[Window]:
     """Retrieves current activated window"""
+    return user32.WindowFromPoint()
     hwnd = get_foreground_window()
     if hwnd:
         return Window(hwnd)

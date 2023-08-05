@@ -27,6 +27,7 @@ from jigsawwm.w32.window import (
     get_first_app_window,
     get_foreground_window,
     get_manageable_windows,
+    get_window_from_pos,
     get_window_title,
     is_app_window,
     is_window,
@@ -573,18 +574,22 @@ class WindowManager:
         """Switch to another monitor by given offset"""
         _, dst_monitor_state = self.get_monitor_state_pair(delta)
         window = dst_monitor_state.last_active_window
+        rect = dst_monitor_state.monitor.get_info().rcWork
+        x, y = (
+            rect.left + (rect.right - rect.left) / 2,
+            rect.top + (rect.bottom - rect.top) / 2,
+        )
+        set_cursor_pos(x, y)
+        window = get_window_from_pos(x, y)
+        if not window:
+            _, dst_monitor_state = self.get_monitor_state_pair(delta)
+            window = dst_monitor_state.last_active_window
         if window is None or not window.exists():
             windows = dst_monitor_state.get_existing_windows()
             if windows:
                 window = windows[0]
         if window:
             self.activate(window)
-        else:
-            rect = dst_monitor_state.monitor.get_info().rcWork
-            set_cursor_pos(
-                rect.left + (rect.right - rect.left) / 2,
-                rect.top + (rect.bottom - rect.top) / 2,
-            )
 
     def prev_monitor(self):
         """Switch to previous monitor"""
