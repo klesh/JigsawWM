@@ -573,7 +573,6 @@ class WindowManager:
     def switch_monitor_by_offset(self, delta: int):
         """Switch to another monitor by given offset"""
         _, dst_monitor_state = self.get_monitor_state_pair(delta)
-        window = dst_monitor_state.last_active_window
         rect = dst_monitor_state.monitor.get_info().rcWork
         x, y = (
             rect.left + (rect.right - rect.left) / 2,
@@ -582,7 +581,6 @@ class WindowManager:
         set_cursor_pos(x, y)
         window = get_window_from_pos(x, y)
         if not window:
-            _, dst_monitor_state = self.get_monitor_state_pair(delta)
             window = dst_monitor_state.last_active_window
         if window is None or not window.exists():
             windows = dst_monitor_state.get_existing_windows()

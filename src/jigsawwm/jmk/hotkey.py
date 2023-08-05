@@ -2,6 +2,7 @@ import logging
 from dataclasses import dataclass
 from typing import Callable, List, Tuple, Union
 
+from jigsawwm.w32.sendinput import send_combination
 from jigsawwm.w32.vk import Vk, parse_combination
 
 from .core import *

@@ -401,9 +401,9 @@ def get_manageable_windows(
 
 
 def get_window_from_pos(x, y: int) -> Optional[Window]:
-    hwnd = user32.WindowFromPoint(POINT(x, y))
+    hwnd = user32.WindowFromPoint(POINT(int(x), int(y)))
     if hwnd:
-        return Window(hwnd)
+        return Window(user32.GetAncestor(hwnd, 2))
 
 
 def get_active_window() -> Optional[Window]:
@@ -456,6 +456,7 @@ def set_active_window(window: Window) -> bool:
         new_fore_window = user32.GetForegroundWindow()
         retry -= 1
         time.sleep(0.01)
+    logger.debug("set_active_window: %s", new_fore_window == window.handle)
     # print(
     #     f"our: {our_thread_id}   fore: {fore_thread_id}   target{target_thread_id}  succeeded: {new_fore_window == window.handle}"
     # )
@@ -464,7 +465,6 @@ def set_active_window(window: Window) -> bool:
         user32.AttachThreadInput(our_thread_id, fore_thread_id, False)
     if ft:
         user32.AttachThreadInput(fore_thread_id, target_thread_id, False)
-    # print("detached")
 
 
 def minimize_active_window():
