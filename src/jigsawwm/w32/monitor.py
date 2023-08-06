@@ -129,7 +129,7 @@ class Monitor:
     def __hash__(self):
         return hash(self._hmon)
 
-    def __repl__(self):
+    def __repr__(self):
         return f"<Monitor: {self.name} {self.get_rect()} {self.get_scale_factor()}>"
 
     @cached_property

@@ -1,3 +1,3 @@
-import sys
+# import sys
 
-sys.coinit_flags = 0x0
+# sys.coinit_flags = 0x0

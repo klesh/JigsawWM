@@ -1,8 +1,9 @@
 import logging
 import os
-import sys
 
-sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
+# import sys
+
+# sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
 
 
 logFormatter = logging.Formatter(

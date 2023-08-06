@@ -115,7 +115,19 @@ def is_exe_running(exe: str, nameonly: bool = False) -> bool:
     return False
 
 
-if __name__ == "__main__":
-    import sys
+def get_session_id():
+    """Get the current session id
 
-    print(is_exe_running(sys.argv[1], bool(sys.argv[2])))
+    :return: session id
+    :rtype: int
+    """
+    session_id = DWORD()
+    kernel32.ProcessIdToSessionId(kernel32.GetCurrentProcessId(), byref(session_id))
+    return kernel32.WTSGetActiveConsoleSessionId()
+
+
+if __name__ == "__main__":
+    # import sys
+
+    # print(is_exe_running(sys.argv[1], bool(sys.argv[2])))
+    print(get_session_id())

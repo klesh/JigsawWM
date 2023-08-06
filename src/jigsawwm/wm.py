@@ -5,18 +5,15 @@ from os import path
 from typing import Dict, List, Optional, Set
 
 from jigsawwm.tiler.tilers import *
-from jigsawwm.virtdeskstub import find_or_create_virtdeskstub
 from jigsawwm.w32 import hook
-from jigsawwm.w32.idesktopwallpaper import desktop_wallpaper
-from jigsawwm.w32.ivirtualdesktopmanager import GUID, virtual_desktop_manager
 from jigsawwm.w32.monitor import (
     Monitor,
     get_monitor_from_cursor,
     get_monitor_from_window,
-    get_monitors,
     get_topo_sorted_monitors,
     set_cursor_pos,
 )
+from jigsawwm.w32.reg import get_current_desktop_id
 from jigsawwm.w32.window import (
     DWORD,
     HWND,
@@ -24,14 +21,12 @@ from jigsawwm.w32.window import (
     RECT,
     Window,
     get_active_window,
-    get_first_app_window,
     get_foreground_window,
     get_manageable_windows,
     get_window_from_pos,
     get_window_title,
     is_app_window,
     is_window,
-    sprint_window,
 )
 from jigsawwm.w32.winevent import WinEvent
 
@@ -41,7 +36,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Theme:
     """Theme is a set of preference packed together for users to switch easily,
-    typically, it consists of a LayoutTiler, Background, Gap between windows and
+    typically, it consists of a LayoutTiler, Gap between windows and
     other options.
     """
 
@@ -53,8 +48,6 @@ class Theme:
     icon_name: Optional[str] = None
     # unused
     icon_path: Optional[str] = None
-    # background, color if the string starts with `#`, otherwise treated as image path
-    background: Optional[str] = None
     # new appeared window would be prepended to the list if the option was set to True
     new_window_as_master: Optional[bool] = None
     # gap between windows / monitor edges
@@ -124,8 +117,6 @@ class MonitorState:
             new_list = new_list + list(windows)
         # skip if there is nothing changed, unless Strict mode is enable
         if new_list == old_list:
-            if theme.background is not None:
-                self.set_background(theme)
             if restrict:
                 self.restrict(theme)
             return
@@ -138,15 +129,11 @@ class MonitorState:
         :param str theme: optional, fallback to theme of the instance
         """
         theme = theme or self.get_theme()
-        if theme.background is not None:
-            self.set_background(theme)
-        scale_factor = self.monitor.get_scale_factor().value / 100
         wr = self.monitor.get_info().rcWork
         work_area = (wr.left, wr.top, wr.right, wr.bottom)
         windows = self.get_existing_windows()
         i = 0
         gap = theme.gap
-        # print(work_area, theme.name, len(windows))
         for left, top, right, bottom in theme.layout_tiler(work_area, len(windows)):
             window = windows[i]
             # add gap
@@ -163,34 +150,20 @@ class MonitorState:
             top += gap
             right -= gap
             bottom -= gap
-            logger.debug("arrange %s %s", window, (left, top, right, bottom))
-            window.set_rect(RECT(left, top, right, bottom))
+            rect = RECT(left, top, right, bottom)
+            logger.debug("arrange %s %s", window, rect)
+            window.set_rect(rect)
             # compensation
             r = window.get_rect()
             b = window.get_extended_frame_bounds()
-            # now, here is the tricky part, thanks to the chaotic Win32 API
-            #
-            #   1. the `SetWindowPos` api accept Scaled-Pixel (x,y,w,h), however,
-            #      most of windows would be rendered smaller than the given value.
-            #   2. ideally, we want windows to be rendered in exact size we specified.
-            #      the only way I found is to get the actual size by `dwmapi` and
-            #      compensate the difference. however `DwmGetWindowAttribute` works in
-            #      Physical-Pixel, it must be scaled
             compensated_rect = (
-                round(left + r.left - (b.left / scale_factor)),
-                round(top + r.top - (b.top / scale_factor)),
-                round(right + r.right - (b.right / scale_factor)),
-                round(bottom + r.bottom - (b.bottom / scale_factor)),
+                round(left + r.left - b.left),
+                round(top + r.top - b.top),
+                round(right + r.right - b.right),
+                round(bottom + r.bottom - b.bottom),
             )
             window.set_rect(RECT(*compensated_rect))
             i += 1
-
-    def set_background(self, theme: Theme):
-        """Set background for the monitor based on given theme"""
-        monitors = list(get_monitors())
-        idx = monitors.index(self.monitor)
-        monitor_id = desktop_wallpaper.GetMonitorDevicePathAt(idx)
-        desktop_wallpaper.SetWallpaper(monitor_id, theme.background)
 
     def restrict(self, theme: Optional[Theme] = None):
         """Restrict all managed windows to their specified rect"""
@@ -205,16 +178,16 @@ class VirtDeskState:
     """VirtDeskState holds variables needed by a Virtual Desktop
 
     :param WindowManager manager: associated WindowManager
-    :param GUID desktop_id: virtual desktop id
+    :param bytearray desktop_id: virtual desktop id
     """
 
-    desktop_id: GUID
+    desktop_id: bytearray
     manager: "WindowManager"
     managed_windows: Set[Window]
     monitors: Dict[Monitor, MonitorState]
     last_active_window: Optional[Window] = None
 
-    def __init__(self, manager: "WindowManager", desktop_id: GUID):
+    def __init__(self, manager: "WindowManager", desktop_id: bytearray):
         self.desktop_id = desktop_id
         self.manager = manager
         self.managed_windows = set()
@@ -275,7 +248,7 @@ class WindowManager:
                              to be managed/arranged
     """
 
-    _state: Dict[GUID, VirtDeskState]
+    _state: Dict[bytearray, VirtDeskState]
     themes: List[Theme]
     ignore_exe_names: Set[str]
     force_managed_exe_names: Set[str]
@@ -322,31 +295,12 @@ class WindowManager:
 
     def get_virtdesk_state(self, hwnd: Optional[HWND] = None) -> VirtDeskState:
         """Retrieve virtual desktop state"""
-        # Hey, M$, why not just offer an API so we can know which virtual desktop is current active? WHY?
-        proc = None
-        # try to use the first app window
-        if hwnd is None:
-            hwnd = get_first_app_window()
-        # last resort: create a temporary window ... :tears:
-        if hwnd is None:
-            hwnd, proc = find_or_create_virtdeskstub()
-
-        desktop_id = None
-        try:
-            desktop_id = virtual_desktop_manager.GetWindowDesktopId(hwnd)
-        except Exception as e:
-            pass
-        if desktop_id is None or desktop_id == GUID():
-            wininfo = sprint_window(hwnd)
-            raise Exception("invalid desktop_id\n" + wininfo)
-        # print("desktop id", desktop_id)
+        desktop_id = get_current_desktop_id()
         virtdesk_state = self._state.get(desktop_id)
         if virtdesk_state is None:
             # make sure monitor_state for current virtual desktop exists
             virtdesk_state = VirtDeskState(self, desktop_id)
             self._state[desktop_id] = virtdesk_state
-        if proc:
-            proc.kill()
         return virtdesk_state
 
     def is_ignored(self, window: Window) -> bool:
@@ -386,9 +340,7 @@ class WindowManager:
                 group_wins_by_mons[monitor] = windows
             windows.add(window)
             managed_windows.add(window)
-            logger.debug(
-                "window %s is managed by monitor %s", window.title, monitor.name
-            )
+            logger.debug("%s is managed by monitor %s", window, monitor)
         virtdesk_state.managed_windows = managed_windows
 
         # pass down to monitor_state for further synchronization

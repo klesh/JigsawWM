@@ -9,8 +9,8 @@ from threading import Lock
 from tkinter import messagebox
 from typing import Callable, List, Sequence, TextIO
 
-import pystray
-from PIL import Image
+from PySide6.QtGui import QAction, QIcon
+from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
 from jigsawwm import jmk
 
@@ -107,6 +107,7 @@ class ProcessService(Service):
     def args(self) -> List[str]:
         pass
 
+    @property
     def is_running(self) -> bool:
         with self._lock:
             if self._process is None:
@@ -164,56 +165,65 @@ class Daemon:
     to configurate the Manager.
     """
 
-    trayicon: pystray.Icon = None
+    app: QApplication = None
+    icon: QIcon = None
+    trayicon: QSystemTrayIcon = None
+    traymenu: QMenu = None
     jobs: Sequence[Job] = []
 
     def __init__(self):
         jmk.handle_exc = handle_exc
+        script_dir = os.path.dirname(__file__)
+        icon_path = os.path.join(script_dir, "assets", "logo.png")
+        self.app = QApplication(sys.argv)
+        self.icon = QIcon(icon_path)
+        self.create_trayicon()
 
     def create_trayicon(self):
         """Start trayicon"""
-        script_dir = os.path.dirname(__file__)
-        icon_path = os.path.join(script_dir, "assets", "logo.png")
-        icon = Image.open(icon_path)
+        self.menuitems = []
 
-        tray_icon = pystray.Icon(
-            "JigsawWM",
-            icon=icon,
-            menu=pystray.Menu(self.tray_menu_items),
-        )
-        self.trayicon = tray_icon
-        self.trayicon.run()
+        self.trayicon = QSystemTrayIcon(self.icon)
+        self.trayicon.setToolTip("JigsawWM")
+        self.traymenu = QMenu()
+        self.trayicon.setContextMenu(self.traymenu)
+        # self.trayicon.activated.connect(self.update_traymenu)
+        self.trayicon.activated.connect(self.update_traymenu)
+        self.update_traymenu("init")
+        self.trayicon.show()
 
-    def tray_menu_items(self) -> List[pystray.MenuItem]:
-        service_menu_items = [
-            pystray.MenuItem(
-                service.text,
-                service.toggle,
-            )
-            for service in self.jobs
-            if isinstance(service, Service)
-        ]
-        task_menu_items = [
-            pystray.MenuItem(
-                task.text,
-                task.run,
-            )
-            for task in self.jobs
-            if isinstance(task, Task)
-        ]
-        return [
-            *task_menu_items,
-            pystray.Menu.SEPARATOR,
-            *service_menu_items,
-            pystray.Menu.SEPARATOR,
-            pystray.MenuItem("Exit", self.stop),
-        ]
+    def update_traymenu(self, reason):
+        """Update traymenu"""
+        self.traymenu.clear()
+        self.menuitems.clear()
+        # tasks
+        for job in self.jobs:
+            if isinstance(job, Task):
+                act = QAction(job.text)
+                act.triggered.connect(job.run)
+                self.traymenu.addAction(act)
+                self.menuitems.append(act)
+        self.traymenu.addSeparator()
+        # services
+        for job in self.jobs:
+            if isinstance(job, Service):
+                act = QAction(job.text)
+                act.setCheckable(True)
+                act.setChecked(job.is_running)
+                act.triggered.connect(job.toggle)
+                self.traymenu.addAction(act)
+                self.menuitems.append(act)
+        self.traymenu.addSeparator()
+        # quit
+        quit_act = QAction("&Quit")
+        quit_act.triggered.connect(self.stop)
+        self.menuitems.append(quit_act)
+        self.traymenu.addAction(quit_act)
 
     def stop(self):
         """Stop daemon service"""
         logger.info(f"stopping daemon")
-        self.trayicon.stop()
-        self.trayicon = None
+        self.app.quit()
         signal.raise_signal(signal.SIGINT)
 
     def register(self, job: Callable[[], Job]):
@@ -227,6 +237,7 @@ class Daemon:
     def message_loop(self):
         logger.info(f"start message loop")
         self.create_trayicon()
+        self.app.exec()
 
 
 if os.environ.get("DEBUG"):
