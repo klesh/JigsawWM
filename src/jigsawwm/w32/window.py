@@ -408,7 +408,6 @@ def get_window_from_pos(x, y: int) -> Optional[Window]:
 
 def get_active_window() -> Optional[Window]:
     """Retrieves current activated window"""
-    return user32.WindowFromPoint()
     hwnd = get_foreground_window()
     if hwnd:
         return Window(hwnd)

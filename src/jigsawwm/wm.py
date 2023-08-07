@@ -210,9 +210,13 @@ class VirtDeskState:
     def get_managed_active_window(self) -> Optional[Window]:
         """Retrieves the managed forground window if any"""
         window = get_active_window()
+        logger.debug("get_managed_active_window: active window", window)
         if window is None:
             return None
         if window not in self.managed_windows:
+            logger.debug(
+                "get_managed_active_window: active window is NOT managed", window
+            )
             return None
         return window
 
@@ -551,6 +555,7 @@ class WindowManager:
 
     def move_to_monitor_by_offset(self, delta: int):
         """Move active window to another monitor by offset"""
+        logger.debug("move_to_monitor_by_offset(%s)", delta)
         virtdesk_state = self.try_get_virtdesk_state()
         if not virtdesk_state:
             return
