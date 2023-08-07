@@ -1,6 +1,6 @@
 import logging
 from dataclasses import dataclass
-from typing import Callable, List, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union
 
 from jigsawwm.w32.sendinput import send_combination
 from jigsawwm.w32.vk import Vk, parse_combination
@@ -15,7 +15,24 @@ JmkHotkeyComb = Union[List[Vk], str]
 @dataclass
 class JmkHotkey:
     keys: typing.List[Vk]
+    # when hotkey is triggered, this callback will be executed
     callback: typing.Callable
+    # when all modifiers are released, this callback will be executed
+    release_callback: typing.Callable = None
+    triggerred: bool = False
+
+    def trigger(self):
+        logger.info("hotkey triggered: %s", self.keys)
+        self.triggerred = True
+        execute(self.callback)
+
+    def release(self):
+        if not self.triggerred:
+            return
+        logger.info("hotkey released: %s", self.keys)
+        self.triggerred = False
+        if self.release_callback:
+            execute(self.release_callback)
 
 
 class JmkHotkeys(JmkHandler):
@@ -27,15 +44,17 @@ class JmkHotkeys(JmkHandler):
     resend: JmkEvent
 
     def __init__(
-        self, next_handler, hotkeys: List[Tuple[JmkHotkeyComb, Callable]] = None
+        self,
+        next_handler,
+        hotkeys: List[Tuple[JmkHotkeyComb, Callable, Optional[Callable]]] = None,
     ):
         self.next_handler = next_handler
         self.combs = {}
         self.pressed_modifiers = set()
         self.resend = None
         if hotkeys:
-            for comb, cb in hotkeys:
-                self.register(comb, cb)
+            for args in hotkeys:
+                self.register(*args)
 
     @staticmethod
     def expand_comb(comb: JmkHotkeyComb) -> List[List[Vk]]:
@@ -48,12 +67,14 @@ class JmkHotkeys(JmkHandler):
                 raise TypeError("hotkey keys must be a list of Modifers and a Vk")
         return expand_combination(comb)
 
-    def register(self, comb: JmkHotkeyComb, cb: Union[Callable, str]):
+    def register(
+        self, comb: JmkHotkeyComb, cb: Union[Callable, str], release_cb: Callable = None
+    ):
         if isinstance(cb, str):
             new_comb = parse_combination(cb)
             cb = lambda: send_combination(*new_comb)
         for keys in self.expand_comb(comb):
-            hotkey = JmkHotkey(keys, cb)
+            hotkey = JmkHotkey(keys, cb, release_cb)
             self.combs[frozenset(keys)] = hotkey
 
     def unregister(self, comb: JmkHotkeyComb):
@@ -85,6 +106,9 @@ class JmkHotkeys(JmkHandler):
         else:
             if evt.vk in self.pressed_modifiers:
                 self.pressed_modifiers.remove(evt.vk)
+                if not self.pressed_modifiers:
+                    for hotkey in self.combs.values():
+                        hotkey.release()
             else:
                 hotkey = self.find_hotkey(evt)
                 if hotkey:
@@ -94,8 +118,7 @@ class JmkHotkeys(JmkHandler):
                     ):
                         # prevent start menu from popping up
                         self.next_handler(JmkEvent(Vk.NONAME, False))
-                    logger.info("hotkey triggered: %s", hotkey.keys)
-                    execute(hotkey.callback)
+                    hotkey.trigger()
                     return True  # maybe let user define whether to swallow
                 elif (
                     self.resend
