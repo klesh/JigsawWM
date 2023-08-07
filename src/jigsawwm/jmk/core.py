@@ -133,7 +133,7 @@ class JmkTapHold(JmkLayerKey):
         on_hold_up: callable = None,
         on_tap: callable = None,
         term: float = 0.2,
-        quick_tap_term: float = 0.12,
+        quick_tap_term: float = 0.2,
     ):
         self.tap = tap
         self.hold = hold
