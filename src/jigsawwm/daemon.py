@@ -5,14 +5,14 @@ import signal
 import sys
 import traceback
 from subprocess import PIPE, Popen
-from threading import Lock
+from threading import Lock, Thread
 from tkinter import messagebox
 from typing import Callable, List, Sequence, TextIO
 
 from PySide6.QtGui import QAction, QIcon
-from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
+from PySide6.QtWidgets import QMenu, QSystemTrayIcon
 
-from jigsawwm import jmk
+from jigsawwm import jmk, ui
 
 # support for Ctrl+C in console
 signal.signal(signal.SIGINT, signal.SIG_DFL)
@@ -90,6 +90,31 @@ class Service(Job):
         return f"[{status}] {self.name}"
 
 
+class ThreadedService(Service):
+    def __init__(self):
+        self._thread = None
+
+    @property
+    def is_running(self) -> bool:
+        return self._thread is not None and self._thread.is_alive()
+
+    def start(self):
+        if self.is_running:
+            raise ValueError(f"Service {self.name} is already running")
+        self._thread = Thread(target=self.run, daemon=True)
+        self._thread.start()
+
+    @abc.abstractmethod
+    def run(self):
+        pass
+
+    def stop(self):
+        if self._thread is None:
+            raise ValueError(f"Service {self.name} is not running")
+        thread, self._thread = self._thread, None
+        thread.join()
+
+
 class ProcessService(Service):
     """ProcessService is a kind of specialized Service that run a CLI program in the
     background"""
@@ -165,17 +190,13 @@ class Daemon:
     to configurate the Manager.
     """
 
-    app: QApplication = None
-    icon: QIcon = None
     trayicon: QSystemTrayIcon = None
     traymenu: QMenu = None
     jobs: Sequence[Job] = []
 
     def __init__(self):
-        jmk.handle_exc = handle_exc
         script_dir = os.path.dirname(__file__)
         icon_path = os.path.join(script_dir, "assets", "logo.png")
-        self.app = QApplication(sys.argv)
         self.icon = QIcon(icon_path)
         self.create_trayicon()
 
@@ -223,7 +244,7 @@ class Daemon:
     def stop(self):
         """Stop daemon service"""
         logger.info(f"stopping daemon")
-        self.app.quit()
+        ui.app.quit()
         signal.raise_signal(signal.SIGINT)
 
     def register(self, job: Callable[[], Job]):
@@ -237,7 +258,7 @@ class Daemon:
     def message_loop(self):
         logger.info(f"start message loop")
         self.create_trayicon()
-        self.app.exec()
+        ui.app.exec()
 
 
 if os.environ.get("DEBUG"):

@@ -205,6 +205,29 @@ def set_window_rect(hwnd: HWND, rect: RECT):
         raise WinError(get_last_error())
 
 
+GCL_HICONSM = -34
+GCL_HICON = -14
+
+ICON_SMALL = 0
+ICON_BIG = 1
+ICON_SMALL2 = 2
+
+WM_GETICON = 0x7F
+
+
+def get_window_icon(hwnd: HWND) -> HANDLE:
+    handle = user32.SendMessageW(hwnd, WM_GETICON, ICON_SMALL2, 0)
+    if not handle:
+        handle = user32.SendMessageW(hwnd, WM_GETICON, ICON_SMALL, 0)
+    if not handle:
+        handle = user32.SendMessageW(hwnd, WM_GETICON, ICON_BIG, 0)
+    if not handle:
+        handle = user32.GetClassLongPtrW(hwnd, GCL_HICONSM)
+    if not handle:
+        handle = user32.GetClassLongPtrW(hwnd, GCL_HICON)
+    return handle
+
+
 @dataclass
 class Window:
     """Represents a top-level window
@@ -373,6 +396,10 @@ class Window:
         """Brings the thread that created current window into the foreground and activates the window"""
         return set_active_window(self)
 
+    @property
+    def icon_handle(self) -> HANDLE:
+        return get_window_icon(self._hwnd)
+
 
 def get_app_windows() -> Iterator[Window]:
     """Get all manageable windows of specified/current desktop"""
@@ -527,8 +554,14 @@ def inspect_active_window():
 if __name__ == "__main__":
     import time
 
-    time.sleep(2)
-    inspect_active_window()
+    handle = get_window_icon(get_foreground_window())
+    from PySide6.QtGui import QIcon, QImage, QPixmap
+
+    QImage.fromHICON(handle).save("icon.png")
+    # QIcon.fromData(handle).pixmap(32, 32).save("icon.png")
+    # print(QPixmap.loadFromData(handle))
+    # time.sleep(2)
+    # inspect_active_window()
     # for window in get_app_windows():
     #     inspect_window(window.handle)
     # for win in get_windows():

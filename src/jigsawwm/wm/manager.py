@@ -3,6 +3,7 @@ from functools import partial
 from os import path
 from typing import Dict, List, Optional, Set
 
+from jigsawwm import ui
 from jigsawwm.tiler.tilers import *
 from jigsawwm.w32 import hook
 from jigsawwm.w32.monitor import (
@@ -27,13 +28,14 @@ from jigsawwm.w32.window import (
 )
 from jigsawwm.w32.winevent import WinEvent
 
+from .op_mixin import OpMixin
 from .state import MonitorState, VirtDeskState
 from .theme import Theme
 
 logger = logging.getLogger(__name__)
 
 
-class WindowManager:
+class WindowManager(OpMixin):
     """WindowManager detect the monitors/windows state and arrange them dynamically
     keep in mind that not all windows are managed by the WindowManager, only those
     returned by `jigsawwm.w32.get_normal_windows()` and not ignored would be managed.
@@ -183,14 +185,7 @@ class WindowManager:
         if not dst_window:
             return
         self.activate(dst_window)
-
-    def activate_next(self):
-        """Activate the managed window next to the last activated managed window"""
-        self.activate_by_offset(+1)
-
-    def activate_prev(self):
-        """Activate the managed window prior to the last activated managed window"""
-        self.activate_by_offset(-1)
+        ui.show_windows_splash(monitor_state, dst_window)
 
     def _reorder(self, reorderer: Callable[[List[Window], int], None]):
         virtdesk_state = self.virtdesk_state
@@ -214,14 +209,6 @@ class WindowManager:
             windows[src_idx], windows[dst_idx] = windows[dst_idx], windows[src_idx]
 
         self._reorder(reorderer)
-
-    def swap_next(self):
-        """Swap the current active managed window with its next in list"""
-        self.swap_by_offset(+1)
-
-    def swap_prev(self):
-        """Swap the current active managed window with its previous in list"""
-        self.swap_by_offset(-1)
 
     def swap_master(self):
         """Swap the current active managed window with the Master or the second window
@@ -277,14 +264,6 @@ class WindowManager:
         monitor_state.theme = new_theme_name
         monitor_state.arrange()
 
-    def prev_theme(self):
-        """Switch to previous theme in the themes list"""
-        self.switch_theme_by_offset(-1)
-
-    def next_theme(self):
-        """Switch to next theme in the themes list"""
-        self.switch_theme_by_offset(+1)
-
     def get_monitor_state_pair(
         self, delta: int, virtdesk_state: Optional[VirtDeskState] = None
     ) -> Tuple[MonitorState, MonitorState]:
@@ -322,14 +301,6 @@ class WindowManager:
         if window:
             self.activate(window)
 
-    def prev_monitor(self):
-        """Switch to previous monitor"""
-        self.switch_monitor_by_offset(-1)
-
-    def next_monitor(self):
-        """Switch to next monitor"""
-        self.switch_monitor_by_offset(+1)
-
     def move_to_monitor_by_offset(self, delta: int):
         """Move active window to another monitor by offset"""
         logger.debug("move_to_monitor_by_offset(%s)", delta)
@@ -349,14 +320,6 @@ class WindowManager:
         if src_win_len:
             next_window = src_monitor_state.windows[idx % src_win_len]
             self.activate(next_window)
-
-    def move_to_prev_monitor(self):
-        """Move active window to previous monitor"""
-        self.move_to_monitor_by_offset(-1)
-
-    def move_to_next_monitor(self):
-        """Move active window to next monitor"""
-        self.move_to_monitor_by_offset(+1)
 
     def _winevent_callback(
         self,

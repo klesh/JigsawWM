@@ -1,7 +1,7 @@
 from jmk import hks
 from log import *
 
-from jigsawwm import daemon
+from jigsawwm import daemon, ui
 from jigsawwm.tiler import tilers
 from jigsawwm.w32.vk import Vk
 from jigsawwm.w32.window import inspect_active_window
@@ -55,8 +55,8 @@ wm = WindowManager(
 )
 
 hotkeys = [
-    ([Vk.WIN, Vk.J], wm.activate_next),
-    ([Vk.WIN, Vk.K], wm.activate_prev),
+    ([Vk.WIN, Vk.J], wm.activate_next, ui.hide_windows_splash),
+    ([Vk.WIN, Vk.K], wm.activate_prev, ui.hide_windows_splash),
     ([Vk.WIN, Vk.SHIFT, Vk.J], wm.swap_next),
     ([Vk.WIN, Vk.SHIFT, Vk.K], wm.swap_prev),
     ("Win+/", wm.set_master),
@@ -76,8 +76,8 @@ class WindowManagerService(daemon.Service):
     def start(self):
         self.is_running = True
         wm.install_hooks()
-        for k, v in hotkeys:
-            hks.register(k, v)
+        for args in hotkeys:
+            hks.register(*args)
 
     def stop(self):
         wm.uninstall_hooks()

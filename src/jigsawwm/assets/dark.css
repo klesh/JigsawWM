@@ -1,0 +1,93 @@
+* {
+  padding: 0;
+  margin: 0;
+  color: #e1e1e1;
+  background: transparent;
+  font-family: "Microsoft YaHei";
+}
+
+QPushButton {
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 5px;
+  padding: 5px;
+  color: #e1e1e1;
+}
+
+QPushButton[type=primary] {
+  background: #0d6efd;
+  border-color: #0d6efd;
+}
+
+#row[active=true], QPushButton[type=primary]::hover {
+  background: #0b5ed7;
+  border-color: #0a58ca;
+}
+
+QPushButton[type=danger] {
+  background: #dc3545;
+  border-color: #dc3545;
+}
+
+QPushButton[type=primary]::hover {
+  background: #bb2d3b;
+  border-color: #b02a37;
+}
+
+QScrollArea {
+  border: none;
+}
+
+QScrollBar {
+  border-radius: 4px;
+}
+
+QScrollBar:vertical {
+  width: 10px;
+}
+
+QScrollBar::handle {
+  background-color: #666666;
+  border-radius: 4px;
+}
+
+QScrollBar::add-line {
+  border: none;
+  background: none;
+}
+
+QScrollBar::sub-line {
+  border: none;
+  background: none;
+}
+
+QScrollBar::add-page,
+QScrollBar::sub-page {
+  background: none;
+}
+
+#root {
+  background: #32302f;
+  border-radius: 10px;
+  border: 1px solid rgba(100, 100, 100, 255);
+}
+
+#shortcut #menuitem::hover {
+  background: rgb(81, 81, 81);
+}
+
+#shortcut #header {
+  border-bottom: 1px solid rgba(100, 100, 100, 255);
+}
+
+#shortcut #summary {
+  font-weight: bold;
+}
+
+#shortcut #summary::hover {
+  background: rgb(81, 81, 81);
+}
+
+#shortcut #description::hover {
+  background: rgb(81, 81, 81);
+}
