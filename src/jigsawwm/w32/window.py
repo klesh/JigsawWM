@@ -447,7 +447,6 @@ def set_active_window(window: Window) -> bool:
     """
     # simple way
     if user32.SetForegroundWindow(window.handle):
-        # print("simple way works")
         return
     # well, simple way didn't work, we have to make our process Foreground
     our_thread_id = kernel32.GetCurrentThreadId()
@@ -461,10 +460,8 @@ def set_active_window(window: Window) -> bool:
         fore_thread_id = user32.GetWindowThreadProcessId(curr_fore_hwnd, None)
         if fore_thread_id and fore_thread_id != our_thread_id:
             uf = user32.AttachThreadInput(our_thread_id, fore_thread_id, True)
-            # print("attach our thread to the fore thread:", uf)
         if fore_thread_id and target_thread_id and fore_thread_id != target_thread_id:
             ft = user32.AttachThreadInput(fore_thread_id, target_thread_id, True)
-            # print("attach fore thread to the target thread:", ft)
     new_fore_window = None
     retry = 5
     while new_fore_window != window.handle and retry > 0:
@@ -483,9 +480,6 @@ def set_active_window(window: Window) -> bool:
         retry -= 1
         time.sleep(0.01)
     logger.debug("set_active_window: %s", new_fore_window == window.handle)
-    # print(
-    #     f"our: {our_thread_id}   fore: {fore_thread_id}   target{target_thread_id}  succeeded: {new_fore_window == window.handle}"
-    # )
     # detach input thread
     if uf:
         user32.AttachThreadInput(our_thread_id, fore_thread_id, False)

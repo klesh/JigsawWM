@@ -30,7 +30,6 @@ class WindowsSplash(Dialog):
     def show_windows_splash(self, monitor_state: MonitorState, active_window: Window):
         logger.debug("WindowsSplash show")
         if self.windows != monitor_state.windows:
-            print("new monitor state")
             self.deleteDirectChildren(self.container)
             self.windows = monitor_state.windows.copy()
             h = 0
@@ -57,22 +56,13 @@ class WindowsSplash(Dialog):
                 self.container_layout.addWidget(self.spacer)
             r = monitor_state.monitor.get_rect()
             rect = app.screenAt(QPoint(r.left, r.top)).geometry()
-            # rect = None
-            # for scr in app.screens():
-            #     if scr.name() == monitor_state.monitor.name:
-            #         rect = scr.geometry()
-            #         break
-            #     print(scr.name(), scr.geometry(), monitor_state.monitor.name)
 
             x = rect.x() + (rect.width() - self.width()) // 2
             y = rect.y() + (rect.height() - h) // 2
-            print(x, y, self.width(), h)
             self.setGeometry(x, y, self.width(), h)
-            print("showing splash")
         for i in range(self.container_layout.count()):
             widget = self.container_layout.itemAt(i).widget()
             if widget.property("handle") == active_window.handle:
-                print("active window", widget.property("handle"))
                 widget.setProperty("active", True)
             else:
                 widget.setProperty("active", False)

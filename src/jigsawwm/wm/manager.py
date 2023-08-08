@@ -284,7 +284,6 @@ class WindowManager(OpMixin):
         """Switch to another monitor by given offset"""
         logger.debug("switch_monitor_by_offset: %s", delta)
         _, dst_monitor_state = self.get_monitor_state_pair(delta)
-        print("dst monitor", dst_monitor_state)
         rect = dst_monitor_state.monitor.get_info().rcWork
         x, y = (
             rect.left + (rect.right - rect.left) / 2,
