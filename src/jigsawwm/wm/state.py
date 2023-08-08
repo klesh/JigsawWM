@@ -76,7 +76,7 @@ class MonitorState:
 
         :param str theme: optional, fallback to theme of the instance
         """
-        theme = theme or self.get_theme()
+        theme = theme or self.virtdesk_state.get_theme(self.theme)
         wr = self.monitor.get_info().rcWork
         work_area = (wr.left, wr.top, wr.right, wr.bottom)
         windows = self.get_existing_windows()
