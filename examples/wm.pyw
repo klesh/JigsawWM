@@ -16,11 +16,6 @@ wm = WindowManager(
         #     gap=2,
         #     strict=True,
         # ),
-        # Theme(
-        #     name="Dwindle",
-        #     layout_tiler=tilers.dwindle_layout_tiler,
-        #     strict=True,
-        # ),
         Theme(
             name="Mono",
             layout_tiler=tilers.mono_layout_tiler,
@@ -32,6 +27,13 @@ wm = WindowManager(
             icon_name="wide-dwindle.png",
             gap=2,
             strict=True,
+            new_window_as_master=True,
+        ),
+        Theme(
+            name="Dwindle",
+            layout_tiler=tilers.dwindle_layout_tiler,
+            strict=True,
+            gap=2,
             new_window_as_master=True,
         ),
     ],
@@ -81,8 +83,8 @@ class WindowManagerService(daemon.Service):
 
     def stop(self):
         wm.uninstall_hooks()
-        for k, _ in hotkeys:
-            hks.unregister(k)
+        for args in hotkeys:
+            hks.unregister(args[0])
         self.is_running = False
 
 

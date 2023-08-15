@@ -91,7 +91,7 @@ class WindowManager(OpMixin):
         if virtdesk_state is None:
             # make sure monitor_state for current virtual desktop exists
             virtdesk_state = VirtDeskState(
-                lambda theme: self.themes[self.get_theme_index(self.theme)], desktop_id
+                lambda theme: self.themes[self.get_theme_index(theme)], desktop_id
             )
             self._state[desktop_id] = virtdesk_state
         return virtdesk_state
@@ -253,16 +253,22 @@ class WindowManager(OpMixin):
 
     def switch_theme_by_offset(self, delta: int):
         """Switch theme by offset"""
-        virtdesk_state = self.virtdesk_state
-        monitor = (
-            get_monitor_from_window(get_foreground_window())
-            or get_monitor_from_cursor()
-        )
-        monitor_state = virtdesk_state.get_monitor(monitor)
-        theme_index = self.get_theme_index(monitor_state.theme)
-        new_theme_name = self.themes[(theme_index + delta) % len(self.themes)].name
-        monitor_state.theme = new_theme_name
-        monitor_state.arrange()
+        try:
+            virtdesk_state = self.virtdesk_state
+            monitor = (
+                get_monitor_from_window(get_foreground_window())
+                or get_monitor_from_cursor()
+            )
+            monitor_state = virtdesk_state.get_monitor(monitor)
+            theme_index = self.get_theme_index(monitor_state.theme)
+            theme = self.themes[(theme_index + delta) % len(self.themes)]
+            # new_theme_name = self.themes[(theme_index + delta) % len(self.themes)].name
+            monitor_state.theme = theme.name
+            monitor_state.arrange(theme)
+        except:
+            import traceback
+
+            traceback.print_exc()
 
     def get_monitor_state_pair(
         self, delta: int, virtdesk_state: Optional[VirtDeskState] = None
@@ -310,15 +316,16 @@ class WindowManager(OpMixin):
         src_monitor_state, dst_monitor_state = self.get_monitor_state_pair(
             delta, virtdesk_state
         )
-        idx = src_monitor_state.windows.index(window)
         src_monitor_state.windows.remove(window)
         src_monitor_state.arrange()
         dst_monitor_state.windows.append(window)
         dst_monitor_state.arrange()
-        src_win_len = len(src_monitor_state.windows)
-        if src_win_len:
-            next_window = src_monitor_state.windows[idx % src_win_len]
-            self.activate(next_window)
+        # idx = src_monitor_state.windows.index(window)
+        # src_win_len = len(src_monitor_state.windows)
+        # if src_win_len:
+        #     next_window = src_monitor_state.windows[idx % src_win_len]
+        #     self.activate(next_window)
+        self.activate(window)
 
     def _winevent_callback(
         self,

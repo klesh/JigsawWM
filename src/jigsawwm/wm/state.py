@@ -40,7 +40,7 @@ class MonitorState:
 
     def get_existing_windows(self) -> List[Window]:
         """Retrieves current managed windows"""
-        return self.windows
+        return [w for w in self.windows if w.exists()]
 
     def sync(self, windows: Set[Window], restrict=False):
         """Synchronize managed windows with given actual windows currently visible and arrange them accordingly
@@ -77,6 +77,7 @@ class MonitorState:
         :param str theme: optional, fallback to theme of the instance
         """
         theme = theme or self.virtdesk_state.get_theme(self.theme)
+        print("arrange", self.theme, theme.name)
         wr = self.monitor.get_info().rcWork
         work_area = (wr.left, wr.top, wr.right, wr.bottom)
         windows = self.get_existing_windows()

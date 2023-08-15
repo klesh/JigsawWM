@@ -1,6 +1,5 @@
 import logging
 import time
-import traceback
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 
@@ -8,6 +7,7 @@ from jigsawwm.w32.vk import *
 
 logger = logging.getLogger(__name__)
 # for executing callback function
+handle_exc = None
 executor = ThreadPoolExecutor(max_workers=100)
 
 
@@ -24,9 +24,11 @@ def execute(func, *args, **kwargs):
         try:
             func()
         except Exception as e:
-            traceback.print_exception(e)
+            if handle_exc:
+                handle_exc(e)
+            logger.exception(e)
 
-    return executor.submit(func, *args, **kwargs)
+    return executor.submit(wrapped, *args, **kwargs)
 
 
 @dataclass
