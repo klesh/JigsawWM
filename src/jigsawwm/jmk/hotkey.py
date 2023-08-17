@@ -118,6 +118,7 @@ class JmkHotkeys(JmkHandler):
                     ):
                         # prevent start menu from popping up
                         self.next_handler(JmkEvent(Vk.NONAME, False))
+                    self.resend = None
                     hotkey.trigger()
                     return True  # maybe let user define whether to swallow
                 elif (
