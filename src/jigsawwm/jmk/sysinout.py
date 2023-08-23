@@ -95,16 +95,12 @@ class SystemInput:
             vkey = Vk(msg.vkCode)
             if vkey == Vk.PACKET:
                 return False
-            if (
-                msgid == hook.KBDLLHOOKMSGID.WM_KEYDOWN
-                or msgid == hook.KBDLLHOOKMSGID.WM_SYSKEYDOWN
-            ):
+            if msgid == hook.KBDLLHOOKMSGID.WM_KEYDOWN:
                 pressed = True
-            elif (
-                msgid == hook.KBDLLHOOKMSGID.WM_KEYUP
-                or msgid == hook.KBDLLHOOKMSGID.WM_SYSKEYUP
-            ):
+            elif msgid == hook.KBDLLHOOKMSGID.WM_KEYUP:
                 pressed = False
+            else:
+                return False
         elif isinstance(msgid, hook.MSLLHOOKMSGID):
             if msgid == hook.MSLLHOOKMSGID.WM_LBUTTONDOWN:
                 vkey = Vk.LBUTTON
