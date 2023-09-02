@@ -47,18 +47,23 @@ class WindowManager(OpMixin):
     :param List[Theme] themes: all avaiable themes for user to switch
     :param ignore_exe_names: list of executable filenames that you don't want them
                              to be managed/arranged
+    :param init_exe_sequence: list of executable filenames and title search criteria
+                              that are to be kept in exactly this order when
+                              distributing into windows
     """
 
     _state: Dict[bytearray, VirtDeskState]
     themes: List[Theme]
     ignore_exe_names: Set[str]
     force_managed_exe_names: Set[str]
+    init_exe_sequence: List[List[str]]
 
     def __init__(
         self,
         themes: List[Theme] = None,
         ignore_exe_names: Set[str] = None,
         force_managed_exe_names: Set[str] = None,
+        init_exe_sequence: List[List[str]] = None,
     ):
         self._state = {}
         self.themes = themes or [
@@ -80,6 +85,7 @@ class WindowManager(OpMixin):
         ]
         self.ignore_exe_names = set(ignore_exe_names or [])
         self.force_managed_exe_names = set(force_managed_exe_names or [])
+        self.init_exe_sequence = init_exe_sequence or []
         self.theme = self.themes[0].name
         self.sync(init=True)
 
@@ -109,35 +115,83 @@ class WindowManager(OpMixin):
 
     def sync(self, init=False, restrict=False) -> bool:
         """Update manager state(monitors, windows) to match OS's and arrange windows if it is changed"""
+
+        virtdesk_state = self.virtdesk_state
+
+
+        #
+        # gather all manageable windows
+        #
+
         manageable_windows = list(get_manageable_windows(self.check_force_managed))
         if not manageable_windows:
             return
-        virtdesk_state = self.virtdesk_state
-        # gather all manageable windows and group them by monitor
+
+
+        #
+        # group manageable windows by their current monitor
+        #
+
         group_wins_by_mons: Dict[Monitor, Set[Window]] = {}
         managed_windows = set()
         for window in manageable_windows:
-            # skip certain exe file name
+
+
+            #
+            # skip this window if to be ignored
+            #
+
             if self.check_window_ignored(window):
                 continue
-            # if window was already managed, use previous monitor, or use the one under the cursor
+
+
+            #
+            # determine relevant monitor
+            #
+
             if init or window in virtdesk_state.managed_windows:
+
+                # use previous monitor
                 monitor = get_monitor_from_window(window.handle)
+
             else:
+                # use the monitor currently showing the cursor
                 monitor = get_monitor_from_cursor()
+
+
+            #
+            # build list of windows for each monitor
+            #
+
+            # get current list of windows for relevant monitor
             windows = group_wins_by_mons.get(monitor)
+
+            # init list if not yet existing
             if windows is None:
                 windows = set()
                 group_wins_by_mons[monitor] = windows
+
+            # add window to lists
             windows.add(window)
             managed_windows.add(window)
             logger.debug("%s is managed by monitor %s", window, monitor)
+
+
+        #
+        # synchronize windows on each monitor
+        #
+
         virtdesk_state.managed_windows = managed_windows
 
         # pass down to monitor_state for further synchronization
         for monitor, windows in group_wins_by_mons.items():
             monitor_state = virtdesk_state.get_monitor(monitor)
-            monitor_state.sync(windows, restrict=restrict)
+            monitor_state.sync(
+                    windows,
+                    restrict=restrict,
+                    #window_sort_order=self.init_exe_sequence if init else [],
+                    window_sort_order=self.init_exe_sequence,
+                    )
 
     def arrange_all_monitors(self):
         """Arrange all windows in all monitors to where their suppose to be"""
