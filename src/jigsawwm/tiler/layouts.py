@@ -75,6 +75,93 @@ def dwindle(n: int) -> Iterator[FloatRect]:
             t = nb
 
 
+def static_bigscreen_8(n: int) -> Iterator[FloatRect]:
+    """layout for a big screen (like a television) of 55 inches or more. here,
+    the 'eye line' should define the upper (main) horizontal segregation. due
+    to an attempt keep the eyes below it for main actions on the screen. the
+    screen will be optimal for 8 application windows. fewer windows might lead
+    to a different layout.
+
+    .. code-block:: text
+
+    +----------+----------+----------+----------+
+    |          |          |          |          |
+    |          |          |          |          |
+    |     6    |     7    |     8    |          |
+    |          |          |          |          |
+    |          |          |          |          |
+    +----------+--+-----+-+----------+          |
+    |             |     |            |          |
+    |             |     |            |          |
+    |             |     |            |          |
+    |             |     |            |     4    |
+    |             |  3  |      1     |          |
+    |     5       |     |            |          |
+    |             |     |            |          |
+    |             |     |            |          |
+    |             +-----+------------|          |
+    |             |                  |          |
+    |             |         2        |          |
+    +-------------+------------------+----------+
+
+    :param n: total number of currently active windows
+    :rtype: Iterator[FloatRect]
+    """
+
+    # one single window fills the whole screen
+    l, t, r, b = 0.0, 0.0, 1.0, 1.0
+    h1 = 0.37
+    h2 = 0.80
+    v1 = 0.30
+    v2 = 0.45
+
+    # one window present
+    if n==1:
+        yield 0.25, 0.37, 0.75, 1.00
+    if n==2:
+        yield 0.25, 0.37, 0.75, 0.80
+        yield 0.25, 0.80, 0.75, 1.00
+    if n==3:
+        yield 0.45, 0.37, 0.75, 0.80
+        yield 0.30, 0.80, 0.75, 1.00
+        yield 0.30, 0.37, 0.45, 0.80
+    if n==4:
+        yield 0.45, 0.37, 0.75, 0.80
+        yield 0.30, 0.80, 0.75, 1.00
+        yield 0.30, 0.37, 0.45, 0.80
+        yield 0.75, 0.00, 1.00, 1.00
+    if n==5:
+        yield 0.45, 0.37, 0.75, 0.80
+        yield 0.30, 0.80, 0.75, 1.00
+        yield 0.30, 0.37, 0.45, 0.80
+        yield 0.75, 0.00, 1.00, 1.00
+        yield 0.00, 0.37, 0.30, 1.00
+    if n==6:
+        yield 0.45, 0.37, 0.75, 0.80
+        yield 0.30, 0.80, 0.75, 1.00
+        yield 0.30, 0.37, 0.45, 0.80
+        yield 0.75, 0.00, 1.00, 1.00
+        yield 0.00, 0.37, 0.30, 1.00
+        yield 0.00, 0.00, 0.25, 0.37
+    if n==7:
+        yield 0.45, 0.37, 0.75, 0.80
+        yield 0.30, 0.80, 0.75, 1.00
+        yield 0.30, 0.37, 0.45, 0.80
+        yield 0.75, 0.00, 1.00, 1.00
+        yield 0.00, 0.37, 0.30, 1.00
+        yield 0.00, 0.00, 0.25, 0.37
+        yield 0.25, 0.00, 0.50, 0.37
+    if n==8:
+        yield 0.45, 0.37, 0.75, 0.80
+        yield 0.30, 0.80, 0.75, 1.00
+        yield 0.30, 0.37, 0.45, 0.80
+        yield 0.75, 0.00, 1.00, 1.00
+        yield 0.00, 0.37, 0.30, 1.00
+        yield 0.00, 0.00, 0.25, 0.37
+        yield 0.25, 0.00, 0.50, 0.37
+        yield 0.50, 0.00, 0.75, 0.37
+
+
 def widescreen_dwindle(n: int, master_ratio: float = 0.4) -> Iterator[FloatRect]:
     """A wide-screen friendly dwindle Layout
 
