@@ -1,5 +1,6 @@
 import logging
 from typing import Dict, List, Optional, Set
+from os import path
 
 from jigsawwm.tiler.tilers import *
 from jigsawwm.w32.monitor import Monitor, get_monitor_from_window
@@ -42,13 +43,19 @@ class MonitorState:
         """Retrieves current managed windows"""
         return [w for w in self.windows if w.exists()]
 
-    def sync(self, windows: Set[Window], restrict=False):
+    def sync(self, windows: Set[Window], restrict=False, window_sort_order=[]):
         """Synchronize managed windows with given actual windows currently visible and arrange them accordingly
 
         :param Set[Window] windows: latest visible windows
         :param bool restrict: optional, restrict windows to their specified rect no matter what
         """
         theme = self.virtdesk_state.get_theme(self.theme)
+
+
+        #
+        # remove invalid windows from list
+        #
+
         old_list = self.windows
         new_list = []
         for w in old_list:
@@ -58,16 +65,54 @@ class MonitorState:
             if not w.exists():
                 continue
             new_list.append(w)
-        # and then, prepend or append the new windows
+
+
+        #
+        # prepend or append the new windows
+        #
+
         if theme.new_window_as_master:
             new_list = list(windows) + new_list
         else:
             new_list = new_list + list(windows)
-        # skip if there is nothing changed, unless Strict mode is enable
+
+
+        #
+        # sort windows according to init sequence
+        #
+
+        _i = 0
+        sorted_list = []
+        if len(window_sort_order) > 0:
+
+            # over all window elements of desired sequence
+            for w_seq in window_sort_order:
+                # over all currently (to become) active window objects
+                for w_cur in new_list:
+                    # check for correspondence
+                    if w_seq[0].lower() == path.basename(w_cur.exe).lower() \
+                            and ( len(w_seq) < 2 or not w_seq[1] or w_seq[1].lower() in w_cur.title.lower() ):
+                        # add window object at prioritized position
+                        sorted_list.append(w_cur)
+                        # remove window object from source list
+                        new_list.remove(w_cur)
+                        # continue with next window from sequence
+                        break
+
+            # compose new list of sorted part and remainder
+            new_list = sorted_list + new_list
+
+
+        #
+        # skip if there is nothing changed unless strict mode
+        #
+
         if new_list == old_list:
             if restrict:
                 self.restrict(theme)
             return
+
+
         self.windows = new_list
         self.arrange(theme)
 

@@ -11,7 +11,7 @@ The ``tiler`` module is responsible for converting Layout to Physical Coordinate
 """
 from typing import Callable, Iterator, Tuple
 
-from .layouts import Layout, dwindle, mono, plug_rect, widescreen_dwindle
+from .layouts import Layout, dwindle, mono, static_bigscreen_8, plug_rect, widescreen_dwindle
 
 # Rect holds physical coordinate for rectangle (left/top/right/bottom)
 Rect = Tuple[int, int, int, int]
@@ -101,6 +101,11 @@ def mono_layout_tiler(*args, **kwargs) -> Iterator[Rect]:
 def dwindle_layout_tiler(*args, **kwargs) -> Iterator[Rect]:
     """The dwindle layout tiler"""
     return direct_tiler(dwindle, *args, **kwargs)
+
+
+def static_bigscreen_8_layout_tiler(*args, **kwargs) -> Iterator[Rect]:
+    """The static bigscreen layout tiler for up to 8 windows"""
+    return direct_tiler(static_bigscreen_8, *args, **kwargs)
 
 
 def widescreen_dwindle_layout_tiler(*args, **kwargs) -> Iterator[Rect]:
