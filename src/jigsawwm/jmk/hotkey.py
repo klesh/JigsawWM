@@ -124,6 +124,7 @@ class JmkHotkeys(JmkHandler):
                 elif (
                     self.resend
                 ):  # modifier key released first, so we resend previous event
+                    logger.debug("resend >>> %s", self.resend)
                     self.next_handler(self.resend)
                     self.resend = None
 

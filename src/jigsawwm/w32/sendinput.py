@@ -136,6 +136,9 @@ def send_input(*inputs: typing.List[INPUT], extra: int = 0):
             continue
         if item.type == INPUTTYPE.KEYBOARD:
             item.ki.dwExtraInfo = ULONG_PTR(extra | SYNTHESIZED_FLAG)
+            # item.ki.wScan = user32.MapVirtualKeyW(item.ki.wVk, 0)
+            # item.ki.dwFlags |= KEYEVENTF.SCANCODE
+            # print("virt key", item.ki.wVk, "scan code", item.ki.wScan)
         elif item.type == INPUTTYPE.MOUSE:
             item.mi.dwExtraInfo = ULONG_PTR(extra | SYNTHESIZED_FLAG)
     length = len(inputs)
@@ -159,7 +162,7 @@ def set_synthesized_flag(flag: int):
     SYNTHESIZED_FLAG = flag
 
 
-def vk_to_input(vk: Vk, pressed: bool = None) -> typing.Optional[INPUT]:
+def vk_to_input(vk: Vk, pressed: bool = None, flags: int = 0) -> typing.Optional[INPUT]:
     if vk < Vk.MS_BOUND or vk > Vk.KB_BOUND:
         dwFlags = 0
         mouseData = 0
@@ -198,7 +201,7 @@ def vk_to_input(vk: Vk, pressed: bool = None) -> typing.Optional[INPUT]:
             dwFlags = MOUSEEVENTF.WHEEL
         return INPUT(
             type=INPUTTYPE.MOUSE,
-            mi=MOUSEINPUT(dwFlags=dwFlags, mouseData=mouseData),
+            mi=MOUSEINPUT(dwFlags=dwFlags | flags, mouseData=mouseData),
         )
     else:
         dwFlags = 0
@@ -208,7 +211,7 @@ def vk_to_input(vk: Vk, pressed: bool = None) -> typing.Optional[INPUT]:
             dwFlags |= KEYEVENTF.EXTENDEDKEY
         return INPUT(
             type=INPUTTYPE.KEYBOARD,
-            ki=KEYBDINPUT(wVk=vk, dwFlags=dwFlags),
+            ki=KEYBDINPUT(wVk=vk, dwFlags=dwFlags | flags),
         )
 
 
@@ -270,9 +273,13 @@ if __name__ == "__main__":
     #     print(e.ljust(20), " ".join("{:02x}".format(x) for x in b))
     time.sleep(3)
     # send_text("hello😂您好")
-    from datetime import datetime
+    # from datetime import datetime
 
-    send_text(datetime.now().strftime("%Y-%m-%d"))
+    # send_text(datetime.now().strftime("%Y-%m-%d"))
+    send_input(
+        vk_to_input(Vk.RIGHT, pressed=True),
+        vk_to_input(Vk.RIGHT, pressed=False),
+    )
 
     # send_input(
     #     vk_to_input(Vk.WHEEL_UP),

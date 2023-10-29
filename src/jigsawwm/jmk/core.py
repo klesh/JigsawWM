@@ -38,11 +38,12 @@ class JmkEvent:
     vk: Vk
     pressed: bool
     system: bool = False
+    flags: int = 0
     extra: int = 0
     time: float = field(default_factory=time.time)
 
     __repr__ = (
-        lambda self: f"JmkEvent({self.vk.name}, {'down' if self.pressed else 'up'}, {'sys' if self.system else 'sim'}, {self.extra})"
+        lambda self: f"JmkEvent({self.vk.name}, {'down' if self.pressed else 'up'}, {'sys' if self.system else 'sim'}, {self.flags}, {self.extra})"
     )
 
 

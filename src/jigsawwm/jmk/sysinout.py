@@ -60,11 +60,15 @@ class SystemInput:
         id_evt_thread: DWORD,
         time: DWORD,
     ):
+        evt = hook.WinEvent(event)
+        if evt != hook.WinEvent.EVENT_OBJECT_FOCUS:
+            return
+        logger.debug("winevent: %s, hwnd: %s", evt.name, hwnd)
         if self.focused_window is None or self.focused_window.handle != hwnd:
             self.focused_window = Window(hwnd)
             if self.focused_window.is_evelated:
-                # logger.debug("focused window is elevated, disable jmk")
-                # self.disabled = True
+                logger.debug("focused window is elevated, disable jmk")
+                self.disabled = True
                 return
             if self.bypass_exe:
                 fwe = self.focused_window.exe
@@ -95,6 +99,8 @@ class SystemInput:
             vkey = Vk(msg.vkCode)
             if vkey == Vk.PACKET:
                 return False
+            # if msg.flags & 0b10000:  # skip injected events
+            #     return True
             if msgid == hook.KBDLLHOOKMSGID.WM_KEYDOWN:
                 pressed = True
             elif msgid == hook.KBDLLHOOKMSGID.WM_KEYUP:
@@ -136,17 +142,19 @@ class SystemInput:
         # skip events that out of our interest
         if vkey is None or pressed is None:
             return
-
         # bypass events when disabled unless it's a keyup event of a pressed key
         if self.disabled and (
             pressed or (not pressed and vkey not in self.pressed_key)
         ):
             return
+
         if pressed:
             self.pressed_key.add(vkey)
         elif vkey in self.pressed_key:
             self.pressed_key.remove(vkey)
-        evt = JmkEvent(vkey, pressed, system=True, extra=msg.dwExtraInfo)
+        evt = JmkEvent(
+            vkey, pressed, system=True, flags=msg.flags, extra=msg.dwExtraInfo
+        )
         logger.debug("sys >>> %s", evt)
         swallow = self.next_handler(evt)
         return swallow
@@ -177,7 +185,7 @@ class SystemOutput(JmkHandler):
 def consume_queue():
     while True:
         evt = q.get()
-        send_input(vk_to_input(evt.vk, evt.pressed), extra=evt.extra)
+        send_input(vk_to_input(evt.vk, evt.pressed, flags=evt.flags))
 
 
 executor.submit(consume_queue)
