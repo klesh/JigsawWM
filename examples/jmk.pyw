@@ -25,17 +25,17 @@ layers = [
         # map capslock to ctrl when held and `  when tapped
         Vk.CAPITAL: JmkTapHold(tap=parse_key("`"), hold=Vk.LCONTROL),
         # Vk.ESCAPE: JmkTapHold(tap=Vk.ESCAPE, hold=Vk.LWIN),
-        Vk.T: JmkTapHold(tap=Vk.T, hold=3),
-        Vk.Y: JmkTapHold(tap=Vk.Y, hold=3),
-        Vk.A: JmkTapHold(tap=Vk.A, hold=Vk.LMENU),
-        Vk.S: JmkTapHold(tap=Vk.S, hold=Vk.LSHIFT),
-        Vk.D: JmkTapHold(tap=Vk.D, hold=Vk.LWIN),
-        Vk.F: JmkTapHold(tap=Vk.F, hold=Vk.LCONTROL),
-        Vk.G: JmkTapHold(tap=Vk.G, hold=1),
-        Vk.H: JmkTapHold(tap=Vk.H, hold=1),
-        Vk.J: JmkTapHold(tap=Vk.J, hold=Vk.RCONTROL),
-        Vk.K: JmkTapHold(tap=Vk.K, hold=Vk.RWIN),
-        Vk.L: JmkTapHold(tap=Vk.L, hold=Vk.RSHIFT),
+        # Vk.T: JmkTapHold(tap=Vk.T, hold=3),
+        # Vk.Y: JmkTapHold(tap=Vk.Y, hold=3),
+        # Vk.A: JmkTapHold(tap=Vk.A, hold=Vk.LMENU),
+        # Vk.S: JmkTapHold(tap=Vk.S, hold=Vk.LSHIFT),
+        # Vk.D: JmkTapHold(tap=Vk.D, hold=Vk.LWIN),
+        # Vk.F: JmkTapHold(tap=Vk.F, hold=Vk.LCONTROL),
+        # Vk.G: JmkTapHold(tap=Vk.G, hold=1),
+        # Vk.H: JmkTapHold(tap=Vk.H, hold=1),
+        # Vk.J: JmkTapHold(tap=Vk.J, hold=Vk.RCONTROL),
+        # Vk.K: JmkTapHold(tap=Vk.K, hold=Vk.RWIN),
+        # Vk.L: JmkTapHold(tap=Vk.L, hold=Vk.RSHIFT),
         # hold ; as Alt
         Vka.SEMICOLON: JmkTapHold(tap=Vka.SEMICOLON, hold=Vk.RMENU),
         # Vk.TAB: JmkTapHold(tap=Vk.TAB, hold=2),
@@ -44,6 +44,7 @@ layers = [
         Vk.B: JmkTapHold(tap=Vk.B, hold=2),
         # hold Forward Button on the Mouse for swithcing to layer 1
         Vk.XBUTTON2: JmkTapHold(tap=Vk.XBUTTON2, hold=2),
+        Vk.BROWSER_FORWARD: JmkTapHold(tap=Vk.XBUTTON2, hold=2),
         Vk.SPACE: JmkTapHold(tap=Vk.SPACE, hold=Vk.LSHIFT),
         Vka.SLASH: JmkTapHold(
             tap=Vka.SLASH, on_hold_up=lambda: rootLogger.setLevel(logging.DEBUG)

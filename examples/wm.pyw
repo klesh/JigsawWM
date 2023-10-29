@@ -52,6 +52,7 @@ wm = WindowManager(
         "Cloudflare WARP.exe",
         "MediaInfo.exe",
         "SnippingTool.exe",
+        "WeChat.exe",
     ],
     force_managed_exe_names=["Lens.exe"],
 )
