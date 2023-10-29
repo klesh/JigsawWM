@@ -11,6 +11,7 @@ class DailyRoutine(daemon.Task):
 
     def run(self):
         chrome.open_fav_folder("bookmark_bar", "daily")
+        # chrome.open_edge_fav_folder("bookmark_bar", "daily")
 
     def condition(self):
         return smartstart.daily_once("daily websites")
