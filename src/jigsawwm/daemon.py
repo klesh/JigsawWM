@@ -2,32 +2,19 @@ import abc
 import logging
 import os
 import signal
-import sys
-import traceback
 from subprocess import PIPE, Popen
 from threading import Lock, Thread
-from tkinter import messagebox
 from typing import Callable, List, Sequence, TextIO
 
 from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import QMenu, QSystemTrayIcon
 
-from jigsawwm import jmk, ui
+from jigsawwm import ui
 
 # support for Ctrl+C in console
 signal.signal(signal.SIGINT, signal.SIG_DFL)
 
 logger = logging.getLogger(__name__)
-
-
-# show exception both CLI/GUI
-def handle_exc(exc_type, exc_value, exc_traceback):
-    msg = traceback.format_exception(exc_type, exc_value, exc_traceback)
-    print(msg, file=sys.stderr)
-    messagebox.showerror("JigsawWM", msg)
-
-
-jmk.handle_exc = handle_exc
 
 
 class Job(abc.ABC):
@@ -54,6 +41,9 @@ class Job(abc.ABC):
 
     @abc.abstractmethod
     def launch(self):
+        pass
+
+    def stop(self):
         pass
 
 
@@ -244,6 +234,8 @@ class Daemon:
     def stop(self):
         """Stop daemon service"""
         logger.info(f"stopping daemon")
+        for job in self.jobs:
+            job.stop()
         ui.app.quit()
         signal.raise_signal(signal.SIGINT)
 
