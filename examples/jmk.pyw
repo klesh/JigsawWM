@@ -139,12 +139,17 @@ hotkeys = [
     ([Vk.WIN, Vk.M], toggle_maximize_active_window),
 ]
 
+bypass_exe = {
+    "Snipaste.exe",
+    "TextInputHost.exe",
+}
+
 
 #######################
 #  setup jmk
 #######################
 
-sysin, jmk, hks, sysout = create_jmk(layers, hotkeys)
+sysin, jmk, hks, sysout = create_jmk(layers, hotkeys, bypass_exe=bypass_exe)
 
 
 class JmkService(daemon.Service):

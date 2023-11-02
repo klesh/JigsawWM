@@ -1,3 +1,4 @@
+import os.path
 import re
 from ctypes.wintypes import DWORD, HWND, LONG
 from queue import SimpleQueue
@@ -25,15 +26,15 @@ class SystemInput:
     next_handler: JmkHandler
     focused_window: Window = None
     disabled: bool = False
-    bypass_exe: List[re.Pattern] = None
+    bypass_exe: Set[str] = None
     pressed_key: Set[Vk] = set()
 
     def __init__(self, next_handler: JmkHandler, bypass_exe: List[re.Pattern] = None):
         """Initialize a system input handler"""
         self.next_handler = next_handler
-        self.bypass_exe = bypass_exe or [
-            re.compile(r"^C:\\Windows\\.*\\TextInputHost.exe$", re.IGNORECASE)
-        ]
+        self.bypass_exe = bypass_exe or {
+            "TextInputHost.exe",
+        }
         self.pressed_key = set()
 
     def install(self):
@@ -72,14 +73,12 @@ class SystemInput:
                 return
             if self.bypass_exe:
                 fwe = self.focused_window.exe
-                if fwe:
-                    for pattern in self.bypass_exe:
-                        if pattern.match(fwe):
-                            logger.debug(
-                                "focused window is in bypass list, disable jmk"
-                            )
-                            self.disabled = True
-                            return
+                if fwe and os.path.basename(fwe) in self.bypass_exe:
+                    logger.debug(
+                        "focused window is in bypass list, disable jmk"
+                    )
+                    self.disabled = True
+                    return
             logger.debug("focused window is not in bypass list, enable jmk")
             self.disabled = False
 

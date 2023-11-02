@@ -136,7 +136,7 @@ def send_input(*inputs: typing.List[INPUT], extra: int = 0):
             continue
         if item.type == INPUTTYPE.KEYBOARD:
             item.ki.dwExtraInfo = ULONG_PTR(extra | SYNTHESIZED_FLAG)
-            # item.ki.wScan = user32.MapVirtualKeyW(item.ki.wVk, 0)
+            item.ki.wScan = user32.MapVirtualKeyW(item.ki.wVk, 0)
             # item.ki.dwFlags |= KEYEVENTF.SCANCODE
             # print("virt key", item.ki.wVk, "scan code", item.ki.wScan)
         elif item.type == INPUTTYPE.MOUSE:
@@ -276,9 +276,19 @@ if __name__ == "__main__":
     # from datetime import datetime
 
     # send_text(datetime.now().strftime("%Y-%m-%d"))
+    # send_input(
+    #     INPUT(
+    #         type=INPUTTYPE.KEYBOARD,
+    #         ki=KEYBDINPUT(wVk=Vk.RETURN, wScan=0x1c),
+    #     ),
+    #     INPUT(
+    #         type=INPUTTYPE.KEYBOARD,
+    #         ki=KEYBDINPUT(wVk=Vk.RETURN, wScan=0x1c, dwFlags=KEYEVENTF.KEYUP),
+    #     ),
+    # )
     send_input(
-        vk_to_input(Vk.RIGHT, pressed=True),
-        vk_to_input(Vk.RIGHT, pressed=False),
+        vk_to_input(Vk.RETURN, pressed=True),
+        vk_to_input(Vk.RETURN, pressed=False),
     )
 
     # send_input(
