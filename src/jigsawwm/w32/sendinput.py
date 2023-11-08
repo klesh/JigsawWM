@@ -136,7 +136,8 @@ def send_input(*inputs: typing.List[INPUT], extra: int = 0):
             continue
         if item.type == INPUTTYPE.KEYBOARD:
             item.ki.dwExtraInfo = ULONG_PTR(extra | SYNTHESIZED_FLAG)
-            item.ki.wScan = user32.MapVirtualKeyW(item.ki.wVk, 0)
+            if not item.ki.wScan and not item.ki.dwFlags & KEYEVENTF.UNICODE:
+                item.ki.wScan = user32.MapVirtualKeyW(item.ki.wVk, 0)
             # item.ki.dwFlags |= KEYEVENTF.SCANCODE
             # print("virt key", item.ki.wVk, "scan code", item.ki.wScan)
         elif item.type == INPUTTYPE.MOUSE:
