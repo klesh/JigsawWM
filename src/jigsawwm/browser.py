@@ -33,7 +33,34 @@ def open_fav_folder_with(
     open_folder(folder)
 
 
-def open_fav_folder(root_folder, fav_folder):
+def open_firefox_fav_folder(places_path, fav_folder='daily'):
+    import sqlite3
+    sql_query = f"""
+        select
+            -- mb.title,
+            mp.url
+        from
+            moz_bookmarks mb
+        left join moz_places mp on
+            (mb.fk = mp.id)
+        where
+            mb.parent =(
+            select
+                id
+            from
+                moz_bookmarks
+            where
+                title = ?
+                and type = 2)   
+    """
+    con = sqlite3.connect(places_path)
+    cur = con.cursor()
+    res = cur.execute(sql_query, fav_folder)
+    for url, in res.fetchall():
+        os.startfile(url)
+
+
+def open_chrome_fav_folder(root_folder, fav_folder):
     """Opens the Chrome Favorites folder"""
     bookmarks_path = os.path.join(
         os.getenv("LOCALAPPDATA"),

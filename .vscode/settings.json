@@ -2,8 +2,8 @@
   "[python]": {
     "editor.formatOnSave": true,
     "editor.codeActionsOnSave": {
-        "source.organizeImports": true,
-        "source.unusedImports": true
+      "source.organizeImports": "explicit",
+      "source.unusedImports": "explicit"
     },
   },
   "isort.args": [

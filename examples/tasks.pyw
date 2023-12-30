@@ -3,15 +3,17 @@ from datetime import timedelta
 from log import *
 from mailcalaid.cal.holiday import ChinaHolidayBook
 
-from jigsawwm import chrome, daemon, smartstart
+from jigsawwm import browser, daemon, smartstart
 
 
 class DailyRoutine(daemon.Task):
     name = "daily routine"
 
     def run(self):
-        chrome.open_fav_folder("bookmark_bar", "daily")
-        # chrome.open_edge_fav_folder("bookmark_bar", "daily")
+        # browser.open_chrome_fav_folder("bookmark_bar", "daily")
+        # browser.open_edge_fav_folder("bookmark_bar", "daily")
+        browser.open_firefox_fav_folder(r"C:\Users\Klesh\AppData\Roaming\Mozilla\Firefox\Profiles\gxmksz50.default-release\places.sqlite")
+        pass
 
     def condition(self):
         return smartstart.daily_once("daily websites")
