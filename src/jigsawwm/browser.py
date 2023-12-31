@@ -55,7 +55,7 @@ def open_firefox_fav_folder(places_path, fav_folder='daily'):
     """
     con = sqlite3.connect(places_path)
     cur = con.cursor()
-    res = cur.execute(sql_query, fav_folder)
+    res = cur.execute(sql_query, [fav_folder])
     for url, in res.fetchall():
         os.startfile(url)
 
