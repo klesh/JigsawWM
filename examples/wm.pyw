@@ -17,17 +17,17 @@ wm = WindowManager(
         #     strict=True,
         # ),
         Theme(
+            name="Mono",
+            layout_tiler=tilers.mono_layout_tiler,
+            strict=True,
+        ),
+        Theme(
             name="WideScreen Dwindle",
             layout_tiler=tilers.widescreen_dwindle_layout_tiler,
             icon_name="wide-dwindle.png",
             gap=2,
             strict=True,
             new_window_as_master=True,
-        ),
-        Theme(
-            name="Mono",
-            layout_tiler=tilers.mono_layout_tiler,
-            strict=True,
         ),
         Theme(
             name="Dwindle",

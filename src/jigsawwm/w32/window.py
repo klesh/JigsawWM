@@ -542,20 +542,22 @@ def inspect_window(hwnd: HWND, file=sys.stdout):
 
 def inspect_active_window():
     text = sprint_window(get_foreground_window())
+    print(text)
     messagebox.showinfo("JigsawWM", text)
 
 
 if __name__ == "__main__":
-    import time
+    # import time
 
-    handle = get_window_icon(get_foreground_window())
-    from PySide6.QtGui import QIcon, QImage, QPixmap
+    # handle = get_window_icon(get_foreground_window())
+    # from PySide6.QtGui import QIcon, QImage, QPixmap
 
-    QImage.fromHICON(handle).save("icon.png")
+    # QImage.fromHICON(handle).save("icon.png")
+
     # QIcon.fromData(handle).pixmap(32, 32).save("icon.png")
     # print(QPixmap.loadFromData(handle))
-    # time.sleep(2)
-    # inspect_active_window()
+    time.sleep(2)
+    inspect_active_window()
     # for window in get_app_windows():
     #     inspect_window(window.handle)
     # for win in get_windows():

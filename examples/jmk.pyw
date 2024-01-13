@@ -140,8 +140,6 @@ hotkeys = [
 ]
 
 bypass_exe = {
-    "Snipaste.exe",
-    "TextInputHost.exe",
 }
 
 
@@ -149,7 +147,7 @@ bypass_exe = {
 #  setup jmk
 #######################
 
-sysin, jmk, hks, sysout = create_jmk(layers, hotkeys, bypass_exe=bypass_exe)
+sysin, jmk, hks, sysout = create_jmk(layers, hotkeys)
 
 
 class JmkService(daemon.Service):

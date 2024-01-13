@@ -12,7 +12,8 @@ class DailyRoutine(daemon.Task):
     def run(self):
         # browser.open_chrome_fav_folder("bookmark_bar", "daily")
         # browser.open_edge_fav_folder("bookmark_bar", "daily")
-        browser.open_firefox_fav_folder(r"C:\Users\Klesh\AppData\Roaming\Mozilla\Firefox\Profiles\gxmksz50.default-release\places.sqlite")
+        # Firefox profile path: Menu -> Help -> More Troubleshooting Information -> Application Basics -> Profile Folder
+        browser.open_firefox_fav_folder(r"C:\Users\Klesh\AppData\Roaming\Mozilla\Firefox\Profiles\jmhvf542.default-release\places.sqlite")
         pass
 
     def condition(self):

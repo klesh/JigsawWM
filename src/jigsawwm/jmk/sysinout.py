@@ -32,9 +32,13 @@ class SystemInput:
     def __init__(self, next_handler: JmkHandler, bypass_exe: List[re.Pattern] = None):
         """Initialize a system input handler"""
         self.next_handler = next_handler
-        self.bypass_exe = bypass_exe or {
+        self.bypass_exe = {
+            "Snipaste.exe",
             "TextInputHost.exe",
+            "vmplayer.exe",
         }
+        if bypass_exe:
+            self.bypass_exe.update(bypass_exe)
         self.pressed_key = set()
 
     def install(self):
