@@ -35,7 +35,7 @@ class WorkdayRoutine(daemon.Task):
             r"C:\Program Files\Mozilla Thunderbird\thunderbird.exe"
         )
         smartstart.start_if_not_running(
-            r"C:\Users\Klesh\AppData\Local\Obsidian\Obsidian.exe"
+            r"C:\Users\Klesh\AppData\Local\Programs\obsidian\Obsidian.exe"
         )
 
     def condition(self):
