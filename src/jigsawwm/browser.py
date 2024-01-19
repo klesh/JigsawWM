@@ -1,3 +1,4 @@
+import time
 import json
 import os
 
@@ -57,6 +58,7 @@ def open_firefox_fav_folder(places_path, fav_folder='daily'):
     cur = con.cursor()
     res = cur.execute(sql_query, [fav_folder])
     for url, in res.fetchall():
+        time.sleep(1) # open too fast will cause firefox to skip some tabs
         os.startfile(url)
 
 
@@ -86,3 +88,6 @@ def open_edge_fav_folder(root_folder, fav_folder):
     return open_fav_folder_with(
         bookmarks_path, root_folder, fav_folder, "microsoft-edge"
     )
+
+if __name__ == "__main__":
+    open_firefox_fav_folder(r"C:\Users\Klesh\AppData\Roaming\Floorp\Profiles\qv6occsk.default-release\places.sqlite")

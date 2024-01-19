@@ -13,11 +13,15 @@ class DailyRoutine(daemon.Task):
         # browser.open_chrome_fav_folder("bookmark_bar", "daily")
         # browser.open_edge_fav_folder("bookmark_bar", "daily")
         # Firefox profile path: Menu -> Help -> More Troubleshooting Information -> Application Basics -> Profile Folder
-        browser.open_firefox_fav_folder(r"C:\Users\Klesh\AppData\Roaming\Mozilla\Firefox\Profiles\jmhvf542.default-release\places.sqlite")
-        pass
+        # browser.open_firefox_fav_folder(r"C:\Users\Klesh\AppData\Roaming\Mozilla\Firefox\Profiles\jmhvf542.default-release\places.sqlite")
+        browser.open_firefox_fav_folder(r"C:\Users\Klesh\AppData\Roaming\Floorp\Profiles\qv6occsk.default-release\places.sqlite")
 
     def condition(self):
         return smartstart.daily_once("daily websites")
+
+    @property
+    def nonblocking(self):
+        return True
 
 
 class WorkdayRoutine(daemon.Task):
