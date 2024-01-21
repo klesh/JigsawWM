@@ -310,6 +310,8 @@ if __name__ == "__main__":
         )
 
     def mouse(msgid: MSLLHOOKMSGID, msg: MSLLHOOKDATA) -> bool:
+        if msgid.name == "WM_MOUSEMOVE":
+            return
         print(
             "{:15s}  x: {:3d} y: {:3d} hi: {:5x} lo: {:5x} flags: {:3x} extra: {:6x} t: {:d}".format(
                 msgid.name,
@@ -349,18 +351,18 @@ if __name__ == "__main__":
 
     kb_hook = hook_keyboard(keyboard)
     ms_hook = hook_mouse(mouse)
-    we_hook = hook_winevent(
-        WinEvent.EVENT_MIN,
-        WinEvent.EVENT_MAX,
-        winevent
-        # WinEvent.EVENT_SYSTEM_MINIMIZESTART, WinEvent.EVENT_SYSTEM_MINIMIZEEND, winevent
-    )
+    # we_hook = hook_winevent(
+    #     WinEvent.EVENT_MIN,
+    #     WinEvent.EVENT_MAX,
+    #     winevent
+    #     # WinEvent.EVENT_SYSTEM_MINIMIZESTART, WinEvent.EVENT_SYSTEM_MINIMIZEEND, winevent
+    # )
 
-    def unhook_mouse_after_10s():
-        time.sleep(10)
-        unhook(ms_hook)
-        print("mouse unhooked")
+    # def unhook_mouse_after_10s():
+    #     time.sleep(10)
+    #     unhook(ms_hook)
+    #     print("mouse unhooked")
 
-    threading.Thread(target=unhook_mouse_after_10s).start()
+    # threading.Thread(target=unhook_mouse_after_10s).start()
 
     message_loop()

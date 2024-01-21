@@ -10,7 +10,6 @@ from jigsawwm.w32.window import Window
 
 from .core import *
 
-q = SimpleQueue()
 
 
 class SystemInput:
@@ -28,8 +27,9 @@ class SystemInput:
     disabled: bool = False
     bypass_exe: Set[str] = None
     pressed_key: Set[Vk] = set()
+    feedback: SimpleQueue
 
-    def __init__(self, next_handler: JmkHandler, bypass_exe: List[re.Pattern] = None):
+    def __init__(self, next_handler: JmkHandler, bypass_exe: List[re.Pattern] = None, feedback: SimpleQueue = None):
         """Initialize a system input handler"""
         self.next_handler = next_handler
         self.bypass_exe = {
@@ -39,6 +39,7 @@ class SystemInput:
         }
         if bypass_exe:
             self.bypass_exe.update(bypass_exe)
+        self.feedback = feedback
         self.pressed_key = set()
 
     def install(self):
@@ -71,10 +72,10 @@ class SystemInput:
         logger.debug("winevent: %s, hwnd: %s", evt.name, hwnd)
         if self.focused_window is None or self.focused_window.handle != hwnd:
             self.focused_window = Window(hwnd)
-            if self.focused_window.is_evelated:
-                logger.debug("focused window is elevated, disable jmk")
-                self.disabled = True
-                return
+            # if self.focused_window.is_evelated:
+            #     logger.debug("focused window is elevated, disable jmk")
+            #     self.disabled = True
+            #     return
             if self.bypass_exe:
                 fwe = self.focused_window.exe
                 if fwe and os.path.basename(fwe) in self.bypass_exe:
@@ -94,8 +95,18 @@ class SystemInput:
         """Handles keyboard events and call callback if the combination
         had been registered
         """
-        if is_synthesized(msg):
+        logger.debug("incoming msg %s", msg)
+        if is_synthesized(msg): # it is expected to receive a sythesized event we sent
+            de = self.feedback.get()
+            logger.debug("dequeue feedback event %s", de)
             return False
+        elif self.feedback.qsize(): # or somebody (Adminstrator App) swallow it
+            logger.debug("event got swallowed, force disable")
+            while self.feedback.qsize():
+                me = self.feedback.get()
+                logger.debug("missing event %s", me)
+            self.disabled = True
+            return 
         # convert keyboard/mouse event to a unified virtual key representation
         vkey, pressed = None, None
         if isinstance(msgid, hook.KBDLLHOOKMSGID):
@@ -172,23 +183,27 @@ class SystemOutput(JmkHandler):
     """
 
     always_swallow: bool
+    pending: SimpleQueue 
+    feedback: SimpleQueue
 
-    def __init__(self, always_swallow: bool = True):
+    def __init__(self, always_swallow: bool = True, feedback: SimpleQueue = None):
         self.always_swallow = always_swallow
+        self.pending = SimpleQueue()
+        self.feedback = feedback
+        executor.submit(self._consume_queue)
 
     def __call__(self, evt: JmkEvent) -> bool:
         if evt.system and not self.always_swallow:
             logger.debug("nil <<< %s", evt)
             return False
         logger.debug("sys <<< %s", evt)
-        q.put(evt)
+        self.pending.put(evt)
         return True
 
+    def _consume_queue(self):
+        while True:
+            evt = self.pending.get()
+            self.feedback.put(evt)
+            send_input(vk_to_input(evt.vk, evt.pressed, flags=evt.flags))
 
-def consume_queue():
-    while True:
-        evt = q.get()
-        send_input(vk_to_input(evt.vk, evt.pressed, flags=evt.flags))
 
-
-executor.submit(consume_queue)

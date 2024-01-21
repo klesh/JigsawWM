@@ -288,8 +288,8 @@ if __name__ == "__main__":
     #     ),
     # )
     send_input(
-        vk_to_input(Vk.RETURN, pressed=True),
-        vk_to_input(Vk.RETURN, pressed=False),
+        vk_to_input(Vk.LBUTTON, pressed=True),
+        vk_to_input(Vk.LBUTTON, pressed=False),
     )
 
     # send_input(
