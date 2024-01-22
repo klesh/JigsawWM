@@ -6,7 +6,7 @@ from typing import List, Set, Union
 
 from jigsawwm.w32 import hook
 from jigsawwm.w32.sendinput import is_synthesized, send_input, vk_to_input
-from jigsawwm.w32.window import Window
+from jigsawwm.w32.window import Window, get_active_window
 
 from .core import *
 
@@ -68,23 +68,27 @@ class SystemInput:
         evt = hook.WinEvent(event)
         if evt != hook.WinEvent.EVENT_OBJECT_FOCUS:
             return
-        logger.debug("winevent: %s, hwnd: %s", evt.name, hwnd)
-        if self.focused_window is None or self.focused_window.handle != hwnd:
-            self.focused_window = Window(hwnd)
-            if self.focused_window.is_evelated:
-                logger.debug("focused window is elevated, disable jmk")
+        if self.focused_window and self.focused_window.handle == hwnd:
+            logger.debug("focused window not changed, ignore")
+            return
+        self.focused_window = get_active_window()
+        logger.debug("event: %s, the active window: %s", evt.name, hwnd)
+        if self.focused_window.is_evelated:
+            logger.debug("focused window is elevated, disable jmk")
+            self.disabled = True
+            return
+        logger.debug("focused window is not elevated")
+        if self.bypass_exe:
+            fwe = self.focused_window.exe
+            if fwe and os.path.basename(fwe) in self.bypass_exe:
+                logger.debug(
+                    "focused window is in bypass list, disable jmk"
+                )
                 self.disabled = True
                 return
-            if self.bypass_exe:
-                fwe = self.focused_window.exe
-                if fwe and os.path.basename(fwe) in self.bypass_exe:
-                    logger.debug(
-                        "focused window is in bypass list, disable jmk"
-                    )
-                    self.disabled = True
-                    return
-            logger.debug("focused window is not in bypass list, enable jmk")
-            self.disabled = False
+        logger.debug("focused window is not in bypass list")
+        logger.debug("jmk ENABLED!!!")
+        self.disabled = False
 
     def input_event_handler(
         self,
