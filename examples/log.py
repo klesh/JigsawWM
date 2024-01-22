@@ -19,5 +19,5 @@ consoleHandler = logging.StreamHandler()
 consoleHandler.setFormatter(logFormatter)
 rootLogger.addHandler(consoleHandler)
 
-if os.environ.get("DEBUG"):
+if os.environ.get("DEBUG_JIGSAWWM"):
     rootLogger.setLevel(logging.DEBUG)
