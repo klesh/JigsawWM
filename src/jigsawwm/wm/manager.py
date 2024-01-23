@@ -325,14 +325,14 @@ class WindowManager(OpMixin):
             traceback.print_exc()
 
     def get_monitor_state_pair(
-        self, delta: int, virtdesk_state: Optional[VirtDeskState] = None
+        self, delta: int, virtdesk_state: Optional[VirtDeskState] = None, window: Optional[Window]=None
     ) -> Tuple[MonitorState, MonitorState]:
         """Retrieves a pair of monitor_states, from cursor and its offset in the list"""
         virtdesk_state = virtdesk_state or self.virtdesk_state
         if not virtdesk_state:
             return
         monitors = get_topo_sorted_monitors()
-        src_monitor = get_monitor_from_cursor()
+        src_monitor = get_monitor_from_window(window.handle) if window else get_monitor_from_cursor()
         src_idx = monitors.index(src_monitor)
         dst_idx = (src_idx + delta) % len(monitors)
         dst_monitor = monitors[dst_idx]
@@ -368,7 +368,7 @@ class WindowManager(OpMixin):
         if not window:
             return
         src_monitor_state, dst_monitor_state = self.get_monitor_state_pair(
-            delta, virtdesk_state
+            delta, virtdesk_state, window,
         )
         src_monitor_state.windows.remove(window)
         src_monitor_state.arrange()
