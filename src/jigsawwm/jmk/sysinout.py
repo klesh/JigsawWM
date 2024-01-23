@@ -72,6 +72,8 @@ class SystemInput:
             logger.debug("focused window not changed, ignore")
             return
         self.focused_window = get_active_window()
+        if not self.focused_window:
+            return
         logger.debug("event: %s, the active window: %s", evt.name, hwnd)
         if self.focused_window.is_evelated:
             logger.debug("focused window is elevated, disable jmk")
