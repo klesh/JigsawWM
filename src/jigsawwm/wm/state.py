@@ -49,9 +49,6 @@ class MonitorState:
         :param Set[Window] windows: latest visible windows
         :param bool restrict: optional, restrict windows to their specified rect no matter what
         """
-        theme = self.virtdesk_state.get_theme(self.theme)
-
-
         #
         # remove invalid windows from list
         #
@@ -70,7 +67,7 @@ class MonitorState:
         #
         # prepend or append the new windows
         #
-
+        theme = self.virtdesk_state.get_theme(self.theme)
         if theme.new_window_as_master:
             new_list = list(windows) + new_list
         else:
@@ -128,7 +125,7 @@ class MonitorState:
         windows = self.get_existing_windows()
         i = 0
         gap = theme.gap
-        for left, top, right, bottom in theme.layout_tiler(work_area, len(windows)):
+        for left, top, right, bottom in theme.layout_tiler(work_area, windows):
             window = windows[i]
             # add gap
             if gap:

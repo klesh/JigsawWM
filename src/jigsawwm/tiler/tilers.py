@@ -9,9 +9,10 @@ The ``tiler`` module is responsible for converting Layout to Physical Coordinate
 ``LayoutTiler`` is similar to `Tiler` except the Layout was predefined
 
 """
-from typing import Callable, Iterator, Tuple
+from typing import Callable, Iterator, Tuple, List
 
 from .layouts import Layout, dwindle, mono, static_bigscreen_8, plug_rect, widescreen_dwindle
+from jigsawwm.w32.window import Window
 
 # Rect holds physical coordinate for rectangle (left/top/right/bottom)
 Rect = Tuple[int, int, int, int]
@@ -20,10 +21,10 @@ Rect = Tuple[int, int, int, int]
 Tiler = Callable[[Layout, Rect, int], Iterator[Rect]]
 
 # LayoutTiler generates physical Rects for specified total number of windows
-LayoutTiler = Callable[[Rect, int], Iterator[Rect]]
+LayoutTiler = Callable[[Rect, List[Window]], Iterator[Rect]]
 
 
-def direct_tiler(layout: Layout, work_area: Rect, total_windows: int) -> Iterator[Rect]:
+def direct_tiler(layout: Layout, work_area: Rect, windows: List[Window]) -> Iterator[Rect]:
     """The default Tiler which maps specified `Layout` to physical work area directly
 
     :param layout: a Layout generator
@@ -31,7 +32,7 @@ def direct_tiler(layout: Layout, work_area: Rect, total_windows: int) -> Iterato
     :param total_windows: total number of windows
     :rtype: Iterator[Rect]
     """
-    rects = layout(total_windows)
+    rects = layout(len(windows))
     w = work_area[2] - work_area[0]
     h = work_area[3] - work_area[1]
     is_portrait = w < h
@@ -45,7 +46,7 @@ def direct_tiler(layout: Layout, work_area: Rect, total_windows: int) -> Iterato
 def obs_tiler(
     layout: Layout,
     work_area: Rect,
-    total_windows: int,
+    windows: List[Window],
     obs_width: int = 1920,
     obs_height: int = 1080,
 ) -> Iterator[Rect]:
@@ -74,6 +75,7 @@ def obs_tiler(
     """
     wl, wt, wr, wb = work_area
     scr_width, scr_height = wr - wl, wb - wt
+    total_windows = len(windows)
     # fallback to direct_tiler when work_area is smaller than obs reserved area
     if obs_width >= scr_width or obs_height >= scr_height:
         yield from direct_tiler(layout, work_area, total_windows)
