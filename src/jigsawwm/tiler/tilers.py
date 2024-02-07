@@ -10,9 +10,10 @@ The ``tiler`` module is responsible for converting Layout to Physical Coordinate
 
 """
 from typing import Callable, Iterator, Tuple, List
+from dataclasses import dataclass
 
 from .layouts import Layout, dwindle, mono, static_bigscreen_8, plug_rect, widescreen_dwindle
-from jigsawwm.w32.window import Window
+from jigsawwm.w32.window import Window, get_foreground_window
 
 # Rect holds physical coordinate for rectangle (left/top/right/bottom)
 Rect = Tuple[int, int, int, int]
@@ -120,26 +121,80 @@ def obs_dwindle_layout_tiler(*args, **kwargs) -> Iterator[Rect]:
     return obs_tiler(dwindle, *args, **kwargs)
 
 
+@dataclass
+class PaperWindowPref:
+    width_ratio: float = 0.8
+    height_ratio: float = 1.0
+    align: str = "center"
+
+_paper_window_prefs = {}
+
+def paper_get_window_pref(window: Window) -> PaperWindowPref:
+    """Get the preference for a window"""
+    pref = _paper_window_prefs.get(window.handle, None)
+    if pref is None:
+        pref = PaperWindowPref()
+        _paper_window_prefs[window.handle] = pref
+        # save to disk
+    return pref
+
+def paper_layout_tiler(
+    work_area: Rect,
+    windows: List[Window],
+) -> Iterator[Rect]:
+    """The paper layout tiler"""
+    float_rects = []
+    left, right = 0.0, 0.0
+    hwnd = get_foreground_window()
+    for i, w in enumerate(windows):
+        pref = paper_get_window_pref(w)
+        right = left + pref.width_ratio
+        float_rects.append((left, 0, right, 1))
+        left = right
+        if w.handle == hwnd: # if the window is the foreground window then it is the anchor
+            anchor = i
+    if anchor: # adjust all windows according to the anchor
+        print("anchor", anchor)
+        for i, r in enumerate(float_rects):
+            afr = float_rects[anchor]
+            float_rects[i] = (
+                r[0] - afr[0 if i <= anchor else 2],
+                r[1],
+                r[2] - afr[0 if i <= anchor else 2] ,
+                r[3],
+            )
+    print("float_rects", float_rects)
+
+
 if __name__ == "__main__":
-    print("direct dwindle")
-    for n in range(1, 5):
-        print(
-            list(
-                direct_tiler(
-                    layout=dwindle,
-                    work_area=(10, 10, 3450, 1450),
-                    total_windows=n,
-                )
-            )
-        )
-    print("obs dwindle")
-    for n in range(1, 5):
-        print(
-            list(
-                obs_tiler(
-                    layout=dwindle,
-                    work_area=(10, 10, 3450, 1450),
-                    total_windows=n,
-                )
-            )
-        )
+    from jigsawwm.w32.window import get_manageable_windows
+    print("paper tiler")
+    
+    windows = list(get_manageable_windows())
+    windows[0], windows[1] = windows[1], windows[0]
+    paper_layout_tiler(
+        work_area=(10, 10, 3450, 1450),
+        windows=windows,
+    )
+    # print("direct dwindle")
+    # for n in range(1, 5):
+    #     print(
+    #         list(
+    #             direct_tiler(
+    #                 layout=dwindle,
+    #                 work_area=(10, 10, 3450, 1450),
+    #                 total_windows=n,
+    #             )
+    #         )
+    #     )
+    # print("obs dwindle")
+    # for n in range(1, 5):
+    #     print(
+    #         list(
+    #             obs_tiler(
+    #                 layout=dwindle,
+    #                 work_area=(10, 10, 3450, 1450),
+    #                 total_windows=n,
+    #             )
+    #         )
+    #     )

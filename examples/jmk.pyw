@@ -137,6 +137,8 @@ hotkeys = [
     ([Vk.WIN, Vk.N], minimize_active_window),
     # Win+m to maximize active window
     ([Vk.WIN, Vk.M], toggle_maximize_active_window),
+    ([Vk.WIN, Vk.CONTROL, Vk.H], "LWin+LControl+Left"),
+    ([Vk.WIN, Vk.CONTROL, Vk.L], "LWin+LControl+Right"),
 ]
 
 bypass_exe = {
