@@ -11,17 +11,17 @@ class DailyRoutine(daemon.Task):
 
     def run(self):
         browser.wait_for_network_ready()
-        # browser.open_chrome_fav_folder("bookmark_bar", "daily")
-        browser.open_chrome_fav_folder("bookmark_bar", "daily", bookmarks_path=os.path.join(
-            os.getenv("LOCALAPPDATA"),
-            "Thorium",
-            "User Data",
-            "Default",
-            "Bookmarks",
-        ))
+        browser.open_chrome_fav_folder("bookmark_bar", "daily")
+        # browser.open_chrome_fav_folder("bookmark_bar", "daily", bookmarks_path=os.path.join(
+        #     os.getenv("LOCALAPPDATA"),
+        #     "Thorium",
+        #     "User Data",
+        #     "Default",
+        #     "Bookmarks",
+        # ))
         # browser.open_edge_fav_folder("bookmark_bar", "daily")
         # Firefox profile path: Menu -> Help -> More Troubleshooting Information -> Application Basics -> Profile Folder
-        browser.open_firefox_fav_folder(r"C:\Users\Klesh\AppData\Roaming\Mozilla\Firefox\Profiles\gxmksz50.default-release\places.sqlite")
+        # browser.open_firefox_fav_folder(r"C:\Users\Klesh\AppData\Roaming\Mozilla\Firefox\Profiles\gxmksz50.default-release\places.sqlite")
         pass
 
     def condition(self):
