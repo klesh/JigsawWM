@@ -1,3 +1,4 @@
+import time
 import json
 import os
 
@@ -57,12 +58,13 @@ def open_firefox_fav_folder(places_path, fav_folder='daily'):
     cur = con.cursor()
     res = cur.execute(sql_query, [fav_folder])
     for url, in res.fetchall():
+        time.sleep(1) # open too fast will cause firefox to skip some tabs
         os.startfile(url)
 
 
-def open_chrome_fav_folder(root_folder, fav_folder):
+def open_chrome_fav_folder(root_folder, fav_folder, bookmarks_path=None):
     """Opens the Chrome Favorites folder"""
-    bookmarks_path = os.path.join(
+    bookmarks_path = bookmarks_path or os.path.join(
         os.getenv("LOCALAPPDATA"),
         "Google",
         "Chrome",
@@ -86,3 +88,18 @@ def open_edge_fav_folder(root_folder, fav_folder):
     return open_fav_folder_with(
         bookmarks_path, root_folder, fav_folder, "microsoft-edge"
     )
+
+def wait_for_network_ready():
+    import urllib.request
+    import time
+
+    while True:
+        try:
+            res = urllib.request.urlopen("https://baidu.com")
+            if res:
+                break
+        except Exception as e:
+            time.sleep(1)
+
+if __name__ == "__main__":
+    open_firefox_fav_folder(r"C:\Users\Klesh\AppData\Roaming\Floorp\Profiles\qv6occsk.default-release\places.sqlite")

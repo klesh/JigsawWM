@@ -185,30 +185,3 @@ Double-click the `.pyw` file and a tray icon should appear, right-click the icon
 
 [Read the Docs](https://jigsawwm.readthedocs.io/en/latest/)
 
-
-## Changelog
-
-### 2023-07-12 (v2.0)
-
-- refactor: divided features into multiple services to allow users to use only what they need
-- feat: replace the `hotkey` module with the `jmk` module, which mimics the basic functionality
-  of [QMK](https://qmk.fm/) as an alternative to [AutoHotkey](https://www.autohotkey.com/)
-
-### 2023-04-07
-
-- hotkey support mouse buttons, forward/backward buttons as modifier
-
-### 2023-04-05
-
-- add `smartstart` feature
-- BREAKING CHANGE: rename `svcmgr` to `services`
-- adopt `pyproject.toml`
-
-### 2023-03-21
-
-- add `svcmgr` feature
-
-### 2023-02-02
-
-- support portrait mode monitor (rotate layout by 90 degree)
-- update readme

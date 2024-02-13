@@ -2,6 +2,7 @@ import abc
 import logging
 import os
 import signal
+import multiprocessing.pool
 from subprocess import PIPE, Popen
 from threading import Lock, Thread, Event
 from typing import Callable, List, Sequence, TextIO
@@ -167,6 +168,7 @@ class ProcessService(Service):
 
 class Task(Job):
     """Task is a shortlived automation in constrast to Service"""
+    pool = multiprocessing.pool.ThreadPool()
 
     def condition(self) -> bool:
         return True
@@ -177,11 +179,18 @@ class Task(Job):
 
     def launch(self):
         if self.condition():
-            self.run()
+            if self.nonblocking:
+                self.pool.apply_async(self.run)
+            else:
+                self.run()
 
     @property
     def text(self):
         return self.name
+
+    @property
+    def nonblocking(self):
+        return False
 
 
 class Daemon:
