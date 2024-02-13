@@ -3,7 +3,7 @@ import logging
 import os
 import signal
 from subprocess import PIPE, Popen
-from threading import Lock, Thread
+from threading import Lock, Thread, Event
 from typing import Callable, List, Sequence, TextIO
 
 from PySide6.QtGui import QAction, QIcon
@@ -81,8 +81,11 @@ class Service(Job):
 
 
 class ThreadedService(Service):
+    interval_sec = 60
+
     def __init__(self):
         self._thread = None
+        self._stop_flag = Event()
 
     @property
     def is_running(self) -> bool:
@@ -92,16 +95,22 @@ class ThreadedService(Service):
         if self.is_running:
             raise ValueError(f"Service {self.name} is already running")
         self._thread = Thread(target=self.run, daemon=True)
+        self._stop_flag.clear()
         self._thread.start()
 
-    @abc.abstractmethod
     def run(self):
+        while not self._stop_flag.wait(self.interval_sec):
+            self.loop()
+
+    @abc.abstractmethod
+    def loop(self):
         pass
 
     def stop(self):
         if self._thread is None:
             raise ValueError(f"Service {self.name} is not running")
         thread, self._thread = self._thread, None
+        self._stop_flag.set()
         thread.join()
 
 
