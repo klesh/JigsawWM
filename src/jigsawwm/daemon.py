@@ -108,8 +108,8 @@ class ThreadedService(Service):
         pass
 
     def stop(self):
-        if self._thread is None:
-            raise ValueError(f"Service {self.name} is not running")
+        if not self.is_running:
+            return
         thread, self._thread = self._thread, None
         self._stop_flag.set()
         thread.join()
