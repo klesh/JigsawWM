@@ -133,6 +133,17 @@ layers = [
 
 hotkeys = [
     ("Win+q", "LAlt+F4"),
+    ("Win+OEM_PERIOD", "LAlt+OEM_PERIOD"),
+    ("Win+Ctrl+l", "LWin+LCtrl+Right"),
+    ("Win+Ctrl+h", "LWin+LCtrl+Left"),
+    # ("Win+Ctrl+a", partial(virtdesk.switch_desktop, 1)),
+    # ("Win+Ctrl+s", partial(virtdesk.switch_desktop, 2)),
+    # ("Win+Ctrl+d", partial(virtdesk.switch_desktop, 3)),
+    # ("Win+Ctrl+f", partial(virtdesk.switch_desktop, 4)),
+    # ("Win+Shift+a", partial(virtdesk.move_to_desktop, 1)),
+    # ("Win+Shift+s", partial(virtdesk.move_to_desktop, 2)),
+    # ("Win+Shift+d", partial(virtdesk.move_to_desktop, 3)),
+    # ("Win+Shift+f", partial(virtdesk.move_to_desktop, 4)),
     # Win+n to minimize active window
     ([Vk.WIN, Vk.N], minimize_active_window),
     # Win+m to maximize active window
