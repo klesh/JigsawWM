@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 from jigsawwm.tiler.tilers import *
+from jigsawwm.w32.monitor import Monitor
 
 
 @dataclass
@@ -26,3 +27,4 @@ class Theme:
     # forbid
     strict: Optional[bool] = None
     hook_ids: List[int] = None
+    affinity_index: Optional[Callable[[Monitor], int]] = None

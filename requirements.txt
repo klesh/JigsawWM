@@ -2,3 +2,4 @@ comtypes ~= 1.1.14
 pyside6 ~= 6.5.2
 mailcalaid ~= 1.0.1
 pyvda ~= 0.4.3
+screeninfo ~= 0.8.1

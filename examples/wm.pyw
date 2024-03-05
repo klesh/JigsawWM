@@ -18,9 +18,18 @@ wm = WindowManager(
         #     strict=True,
         # ),
         Theme(
+            name="Dwindle",
+            layout_tiler=tilers.dwindle_layout_tiler,
+            strict=True,
+            gap=2,
+            new_window_as_master=True,
+            affinity_index=lambda si: (5 if si.inch >= 24 else 0) + (5 if si.ratio < 2 else 0),
+        ),
+        Theme(
             name="Mono",
             layout_tiler=tilers.mono_layout_tiler,
             strict=True,
+            affinity_index=lambda si: 10 if si.inch < 24 else 0,
         ),
         Theme(
             name="WideScreen Dwindle",
@@ -29,13 +38,7 @@ wm = WindowManager(
             gap=2,
             strict=True,
             new_window_as_master=True,
-        ),
-        Theme(
-            name="Dwindle",
-            layout_tiler=tilers.dwindle_layout_tiler,
-            strict=True,
-            gap=2,
-            new_window_as_master=True,
+            affinity_index=lambda si: (5 if si.inch >= 24 else 0) + (5 if si.ratio > 2 else 0),
         ),
     ],
     ignore_exe_names=[

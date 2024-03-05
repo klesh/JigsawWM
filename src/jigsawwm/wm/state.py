@@ -178,13 +178,15 @@ class VirtDeskState:
     managed_windows: Set[Window]
     monitors: Dict[Monitor, MonitorState]
     last_active_window: Optional[Window] = None
+    themes: List[Theme]
 
-    def __init__(self, get_theme: Callable[[str], Theme], desktop_id: bytearray):
+    def __init__(self, get_theme: Callable[[str], Theme], desktop_id: bytearray, themes: List[Theme]):
         self.desktop_id = desktop_id
         self.managed_windows = set()
         self.monitors = {}
         self.last_active_window = None
         self.get_theme = get_theme
+        self.themes = themes
 
     def get_monitor(self, monitor: Monitor) -> MonitorState:
         """Retrieves the monitor state for the specified monitor in the virtual desktop
@@ -195,7 +197,9 @@ class VirtDeskState:
         """
         monitor_state = self.monitors.get(monitor)
         if monitor_state is None:
-            monitor_state = MonitorState(self, monitor)
+            theme = sorted(self.themes, key=lambda x: x.affinity_index(monitor.get_screen_info()), reverse=True)[0]
+            print("default them for monitor", theme.name)
+            monitor_state = MonitorState(self, monitor, theme=theme.name)
             self.monitors[monitor] = monitor_state
         return monitor_state
 

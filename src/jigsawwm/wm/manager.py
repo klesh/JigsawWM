@@ -91,7 +91,6 @@ class WindowManager(OpMixin):
         self.ignore_exe_names = set(ignore_exe_names or [])
         self.force_managed_exe_names = set(force_managed_exe_names or [])
         self.init_exe_sequence = init_exe_sequence or []
-        self.theme = self.themes[0].name
         self.wait_mouse_released = False
         self._sync_queue = SimpleQueue()
         self._sync_pool = multiprocessing.pool.ThreadPool()
@@ -106,7 +105,7 @@ class WindowManager(OpMixin):
         if virtdesk_state is None:
             # make sure monitor_state for current virtual desktop exists
             virtdesk_state = VirtDeskState(
-                lambda theme: self.themes[self.get_theme_index(theme)], desktop_id
+                lambda theme: self.themes[self.get_theme_index(theme)], desktop_id, self.themes
             )
             self._state[desktop_id] = virtdesk_state
         return virtdesk_state
@@ -419,7 +418,7 @@ class WindowManager(OpMixin):
         elif event == WinEvent.EVENT_SYSTEM_MOVESIZEEND: 
             restrict = True
         wintitle = get_window_title(hwnd)
-        a = ("event", event.name, "restrict", restrict, wintitle, delay)
+        # a = ("event", event.name, "restrict", restrict, wintitle, delay)
         if not force_sync and (
             id_obj
             or not wintitle
@@ -429,7 +428,7 @@ class WindowManager(OpMixin):
             or not is_app_window(hwnd)
             or self.check_window_ignored(Window(hwnd))
         ):
-            print("      ", *a)
+            # print("      ", *a)
             return
         logger.debug(
             "_winevent_callback: event %s restrict %s %s",
@@ -437,7 +436,7 @@ class WindowManager(OpMixin):
             restrict,
             wintitle,
         )
-        print(*a)
+        # print(*a)
         self.sync(restrict=restrict, delay=delay)
 
     def install_hooks(self):

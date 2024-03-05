@@ -3,6 +3,9 @@ from ctypes import *
 from ctypes.wintypes import *
 from functools import cached_property
 from typing import Iterator, List, Tuple
+import screeninfo
+from dataclasses import dataclass
+import math
 
 user32 = WinDLL("user32", use_last_error=True)
 shcore = WinDLL("shcore", use_last_error=True)
@@ -81,7 +84,7 @@ class MONITORINFOEX(Structure):
     rcMonitor: RECT
     rcWork: RECT
     dwFlags: int
-    szDevice: CHAR * CCHDEVICENAME
+    szDevice: CHAR
 
     _fields_ = (
         ("cbSize", DWORD),
@@ -167,6 +170,28 @@ class Monitor:
             raise WinError(get_last_error())
         return DEVICE_SCALE_FACTOR(scale_factor.value)
 
+    def get_screen_info(self) -> screeninfo.Monitor:
+        for monitor in screeninfo.get_monitors():
+            if monitor.name == self.name:
+                return ScreenInfo(
+                    monitor.width,
+                    monitor.height,
+                    monitor.width_mm,
+                    monitor.height_mm,
+                    ratio=monitor.width / monitor.height,
+                    is_primary=monitor.is_primary,
+                    inch=round(math.sqrt(monitor.width_mm ** 2 + monitor.height_mm ** 2) / 25.4),
+                )
+
+@dataclass
+class ScreenInfo:
+    width_px: int
+    height_px: int
+    width_mm: int
+    height_mm: int
+    ratio: float
+    is_primary: bool
+    inch: int
 
 def get_monitors() -> Iterator[Monitor]:
     """Retrieves all display monitors(mirroring monitors are excluded)
@@ -240,6 +265,7 @@ if __name__ == "__main__":
         print("scale factor     :", monitor.get_scale_factor())
         monitor_info = monitor.get_info()
         print("device           :", monitor_info.szDevice)
+        print("screen info    :", monitor.get_screen_info())
         m = monitor_info.rcWork
         print(
             f"monitor workarea : left {m.left} top {m.top}  right {m.right}  bottom {m.bottom}"
@@ -248,3 +274,7 @@ if __name__ == "__main__":
         print(
             f"monitor react    : left {m.left} top {m.top}  right {m.right}  bottom {m.bottom}"
         )
+
+    # import screeninfo
+    # for monitor in screeninfo.get_monitors():
+    #     print(monitor)
