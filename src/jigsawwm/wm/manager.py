@@ -1,7 +1,10 @@
 import logging
-from functools import partial
 from os import path
 from typing import Dict, List, Optional, Set
+from threading import Thread
+from queue import SimpleQueue
+import multiprocessing.pool
+import time
 
 from jigsawwm import ui
 from jigsawwm.tiler.tilers import *
@@ -24,9 +27,11 @@ from jigsawwm.w32.window import (
     get_window_from_pos,
     get_window_title,
     is_app_window,
+    is_top_level_window,
     is_window,
 )
 from jigsawwm.w32.winevent import WinEvent
+from jigsawwm.jmk import sysinout, Vk
 
 from .op_mixin import OpMixin
 from .state import MonitorState, VirtDeskState
@@ -87,6 +92,10 @@ class WindowManager(OpMixin):
         self.force_managed_exe_names = set(force_managed_exe_names or [])
         self.init_exe_sequence = init_exe_sequence or []
         self.theme = self.themes[0].name
+        self.wait_mouse_released = False
+        self._sync_queue = SimpleQueue()
+        self._sync_pool = multiprocessing.pool.ThreadPool()
+        self.start_sync_thread()
         self.sync(init=True)
 
     @property
@@ -113,76 +122,64 @@ class WindowManager(OpMixin):
         except:
             return False
 
-    def sync(self, init=False, restrict=False) -> bool:
-        """Update manager state(monitors, windows) to match OS's and arrange windows if it is changed"""
+    def sync(self, init=False, restrict=False, delay=0.2) -> bool:
+        self._sync_queue.put_nowait((init, restrict, delay))
 
+    def start_sync_thread(self):
+        """Start a thread to watch for the queue and manage windows accordingly"""
+        self._thread = Thread(
+            target=self._consume_sync_queue,
+            name="sync_queue_consumer",
+        )
+        self._thread.start()
+
+    def _consume_sync_queue(self):
+        while True:
+            try:
+                init, restrict, delay = self._sync_queue.get()
+                if delay:
+                    time.sleep(delay)
+                while not self._sync_queue.empty():
+                    sync_args = self._sync_queue.get()
+                self._sync(init, restrict)
+            except:
+                import traceback
+                traceback.print_exc()
+
+    def _sync(self, init=False, restrict=False) -> bool:
         virtdesk_state = self.virtdesk_state
-
-
-        #
         # gather all manageable windows
-        #
-
         manageable_windows = list(get_manageable_windows(self.check_force_managed))
         if not manageable_windows:
             return
-
-
-        #
+        # print("_sync", len(manageable_windows))
         # group manageable windows by their current monitor
-        #
-
         group_wins_by_mons: Dict[Monitor, Set[Window]] = {}
         managed_windows = set()
         for window in manageable_windows:
-
-
-            #
             # skip this window if to be ignored
-            #
-
             if self.check_window_ignored(window):
                 continue
-
-
-            #
             # determine relevant monitor
-            #
-
             if init or window in virtdesk_state.managed_windows:
-
                 # use previous monitor
                 monitor = get_monitor_from_window(window.handle)
-
             else:
                 # use the monitor currently showing the cursor
                 monitor = get_monitor_from_cursor()
-
-
-            #
             # build list of windows for each monitor
-            #
-
             # get current list of windows for relevant monitor
             windows = group_wins_by_mons.get(monitor)
-
             # init list if not yet existing
             if windows is None:
                 windows = set()
                 group_wins_by_mons[monitor] = windows
-
             # add window to lists
             windows.add(window)
             managed_windows.add(window)
             logger.debug("%s is managed by monitor %s", window, monitor)
-
-
-        #
         # synchronize windows on each monitor
-        #
-
         virtdesk_state.managed_windows = managed_windows
-
         # pass down to monitor_state for further synchronization
         for monitor, windows in group_wins_by_mons.items():
             monitor_state = virtdesk_state.get_monitor(monitor)
@@ -390,51 +387,67 @@ class WindowManager(OpMixin):
         id_evt_thread: DWORD,
         evt_time: DWORD,
         restrict: bool = False,
+        delay: float = 0.0,
     ):
-        if (
+        # ignore if left mouse button is pressed in case of dragging
+        force_sync = False
+        if sysinout.state.get( Vk.LBUTTON ) and event == WinEvent.EVENT_SYSTEM_MOVESIZEEND:
+            # delay the sync until button released to avoid flickering
+            self.wait_mouse_released = True
+            return
+        elif self.wait_mouse_released:
+            if not sysinout.state.get( Vk.LBUTTON ):
+                self.wait_mouse_released = False
+                force_sync = True
+            else:
+                return
+        # filter by event
+        # print(event.name, hwnd, id_obj, id_chd, id_evt_thread, evt_time, restrict, delay)
+        if not force_sync and event not in (
+            WinEvent.EVENT_OBJECT_DESTROY, # close window
+            WinEvent.EVENT_SYSTEM_MINIMIZESTART, # minimize
+            WinEvent.EVENT_SYSTEM_MINIMIZEEND, # unminimized
+            WinEvent.EVENT_SYSTEM_MOVESIZEEND, # move/resize
+            # WinEvent.EVENT_OBJECT_CREATE,
+            WinEvent.EVENT_OBJECT_SHOW, # new window
+            # WinEvent.EVENT_OBJECT_HIDE,
+            WinEvent.EVENT_OBJECT_CLOAKED, # new window maybe
+            # WinEvent.EVENT_OBJECT_UNCLOAKED,
+            # WinEvent.EVENT_SYSTEM_FOREGROUND,
+        ):
+            return
+        elif event == WinEvent.EVENT_SYSTEM_MOVESIZEEND: 
+            restrict = True
+        wintitle = get_window_title(hwnd)
+        a = ("event", event.name, "restrict", restrict, wintitle, delay)
+        if not force_sync and (
             id_obj
+            or not wintitle
             or id_chd
             or not is_window(hwnd)
+            or not is_top_level_window(hwnd)
             or not is_app_window(hwnd)
             or self.check_window_ignored(Window(hwnd))
         ):
+            print("      ", *a)
             return
         logger.debug(
             "_winevent_callback: event %s restrict %s %s",
             event.name,
             restrict,
-            get_window_title(hwnd),
+            wintitle,
         )
-        self.sync(restrict=restrict)
+        print(*a)
+        self.sync(restrict=restrict, delay=delay)
 
     def install_hooks(self):
         """Install hooks for window events"""
         self.hook_ids = [
             hook.hook_winevent(
-                WinEvent.EVENT_OBJECT_SHOW,
-                WinEvent.EVENT_OBJECT_HIDE,
+                WinEvent.EVENT_MIN,
+                WinEvent.EVENT_MAX,
                 self._winevent_callback,
             ),
-            hook.hook_winevent(
-                WinEvent.EVENT_OBJECT_CLOAKED,
-                WinEvent.EVENT_OBJECT_UNCLOAKED,
-                self._winevent_callback,
-            ),
-            hook.hook_winevent(
-                WinEvent.EVENT_SYSTEM_MINIMIZESTART,
-                WinEvent.EVENT_SYSTEM_MINIMIZEEND,
-                self._winevent_callback,
-            ),
-            hook.hook_winevent(
-                WinEvent.EVENT_SYSTEM_MOVESIZEEND,
-                WinEvent.EVENT_SYSTEM_MOVESIZEEND,
-                partial(self._winevent_callback, restrict=True),
-            ),
-            # hook.hook_winevent(
-            #     WinEvent.EVENT_SYSTEM_FOREGROUND,
-            #     WinEvent.EVENT_SYSTEM_FOREGROUND,
-            #     partial(self._winevent_callback, restrict=True),
-            # ),
         ]
 
     def uninstall_hooks(self):
