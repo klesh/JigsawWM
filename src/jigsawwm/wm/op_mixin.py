@@ -1,3 +1,7 @@
+from jigsawwm.w32 import virtdesk
+from jigsawwm.w32.window import Window
+from typing import Optional
+
 class OpMixin:
     def prev_theme(self):
         """Switch to previous theme in the themes list"""
@@ -38,3 +42,13 @@ class OpMixin:
     def move_to_next_monitor(self):
         """Move active window to next monitor"""
         self.move_to_monitor_by_offset(+1)
+
+    def move_to_desktop(self, desktop_number: int, window: Optional[Window] = None):
+        """Move active window to another virtual desktop"""
+        virtdesk.move_to_desktop(desktop_number, window)
+        self.sync()
+
+    def switch_desktop(self, desktop_number: int):
+        """Switch to another virtual desktop"""
+        virtdesk.switch_desktop(desktop_number)
+        self.sync()

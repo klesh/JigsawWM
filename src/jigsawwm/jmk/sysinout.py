@@ -11,7 +11,7 @@ from jigsawwm.w32.window import Window, get_active_window
 from .core import *
 
 q = SimpleQueue()
-
+state = {}
 
 class SystemInput:
     """A handler that handles system input events.
@@ -194,6 +194,7 @@ class SystemOutput(JmkHandler):
 def consume_queue():
     while True:
         evt = q.get()
+        state[evt.vk] = evt.pressed
         send_input(vk_to_input(evt.vk, evt.pressed, flags=evt.flags))
 
 
