@@ -333,6 +333,13 @@ if __name__ == "__main__":
         id_evt_thread: DWORD,
         time: DWORD,
     ):
+        if event in (
+            WinEvent.EVENT_OBJECT_LOCATIONCHANGE,
+            WinEvent.EVENT_OBJECT_NAMECHANGE,
+            WinEvent.EVENT_SYSTEM_CAPTURESTART,
+            WinEvent.EVENT_SYSTEM_CAPTUREEND,
+        ):
+            return
         print("==================================")
         print(
             "[{now}] {event:30s} {hwnd:8d} ido: {id_obj:6d} idc: {id_chd:6d} {title}".format(

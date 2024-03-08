@@ -138,8 +138,7 @@ class WindowManager(OpMixin):
                 init, restrict, delay = self._sync_queue.get()
                 if delay:
                     time.sleep(delay)
-                while not self._sync_queue.empty():
-                    sync_args = self._sync_queue.get()
+                    continue
                 self._sync(init, restrict)
             except:
                 import traceback
@@ -401,7 +400,11 @@ class WindowManager(OpMixin):
             else:
                 return
         # filter by event
-        # print(event.name, hwnd, id_obj, id_chd, id_evt_thread, evt_time, restrict, delay)
+        # if event not in (
+        #     WinEvent.EVENT_OBJECT_LOCATIONCHANGE,
+        #     WinEvent.EVENT_OBJECT_NAMECHANGE,
+        # ):
+        #     print("            ", event.name, hwnd, id_obj, id_chd, id_evt_thread, evt_time, restrict, delay)
         if not force_sync and event not in (
             WinEvent.EVENT_OBJECT_DESTROY, # close window
             WinEvent.EVENT_SYSTEM_MINIMIZESTART, # minimize
@@ -409,14 +412,16 @@ class WindowManager(OpMixin):
             WinEvent.EVENT_SYSTEM_MOVESIZEEND, # move/resize
             # WinEvent.EVENT_OBJECT_CREATE,
             WinEvent.EVENT_OBJECT_SHOW, # new window
-            # WinEvent.EVENT_OBJECT_HIDE,
-            WinEvent.EVENT_OBJECT_CLOAKED, # new window maybe
+            WinEvent.EVENT_OBJECT_HIDE, # window hidden
+            # WinEvent.EVENT_OBJECT_CLOAKED,
             # WinEvent.EVENT_OBJECT_UNCLOAKED,
             # WinEvent.EVENT_SYSTEM_FOREGROUND,
         ):
             return
         elif event == WinEvent.EVENT_SYSTEM_MOVESIZEEND: 
             restrict = True
+        # elif event == WinEvent.EVENT_SYSTEM_MINIMIZESTART:
+        #     delay = 0.2
         wintitle = get_window_title(hwnd)
         # a = ("event", event.name, "restrict", restrict, wintitle, delay)
         if not force_sync and (

@@ -198,7 +198,7 @@ class VirtDeskState:
         monitor_state = self.monitors.get(monitor)
         if monitor_state is None:
             theme = sorted(self.themes, key=lambda x: x.affinity_index(monitor.get_screen_info()), reverse=True)[0]
-            print("default them for monitor", theme.name)
+            logger.info("default to theme %s for monito %s", theme.name, monitor.name)
             monitor_state = MonitorState(self, monitor, theme=theme.name)
             self.monitors[monitor] = monitor_state
         return monitor_state
