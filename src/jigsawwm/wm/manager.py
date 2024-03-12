@@ -138,7 +138,8 @@ class WindowManager(OpMixin):
                 init, restrict, delay = self._sync_queue.get()
                 if delay:
                     time.sleep(delay)
-                    continue
+                    while not self._sync_queue.empty(): # ignore sync requests during the time
+                        self._sync_queue.get_nowait()
                 self._sync(init, restrict)
             except:
                 import traceback
@@ -148,9 +149,9 @@ class WindowManager(OpMixin):
         virtdesk_state = self.virtdesk_state
         # gather all manageable windows
         manageable_windows = list(get_manageable_windows(self.check_force_managed))
+        # print("_sync", len(manageable_windows), virtdesk_state.desktop_id)
         if not manageable_windows:
             return
-        # print("_sync", len(manageable_windows))
         # group manageable windows by their current monitor
         group_wins_by_mons: Dict[Monitor, Set[Window]] = {}
         managed_windows = set()
