@@ -14,6 +14,8 @@ from jigsawwm.w32.window import minimize_active_window, toggle_maximize_active_w
 
 send_today = lambda: send_text(datetime.now().strftime("%Y-%m-%d"))
 send_now = lambda: send_text(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+send_today_compact = lambda: send_text(datetime.now().strftime("%Y%m%d"))
+send_now_compact = lambda: send_text(datetime.now().strftime("%Y%m%d%H%M%S"))
 ctrl_w = lambda: send_combination(Vk.LCONTROL, Vk.W)
 ctrl_shift_t = lambda: send_combination(Vk.LCONTROL, Vk.LSHIFT, Vk.T)
 ctrl_pgup = lambda: send_combination(Vk.LCONTROL, Vk.PRIOR)
@@ -40,8 +42,7 @@ layers = [
         Vka.SEMICOLON: JmkTapHold(tap=Vka.SEMICOLON, hold=Vk.RMENU),
         # Vk.TAB: JmkTapHold(tap=Vk.TAB, hold=2),
         # hold ' to switch to layer 2
-        Vk.N: JmkTapHold(tap=Vk.N, hold=2),
-        Vk.B: JmkTapHold(tap=Vk.B, hold=2),
+        Vk.OEM_PERIOD: JmkTapHold(tap=Vk.OEM_PERIOD, hold=2),
         # hold Forward Button on the Mouse for swithcing to layer 1
         Vk.XBUTTON2: JmkTapHold(tap=Vk.XBUTTON2, hold=2),
         Vk.BROWSER_FORWARD: JmkTapHold(tap=Vk.XBUTTON2, hold=2),
@@ -73,8 +74,9 @@ layers = [
     {  # layer 2
         # tap to send today's date, hold to send now
         Vk.T: JmkTapHold(on_tap=send_today, on_hold_down=send_now),
+        Vk.C: JmkTapHold(on_tap=send_today_compact, on_hold_down=send_now_compact),
         # tap to close tab, hold to reopen for Chrome
-        Vk.LBUTTON: JmkTapHold(on_tap=ctrl_w, on_hold_down=ctrl_shift_t, term=0.5),
+        Vk.RBUTTON: JmkTapHold(on_tap=ctrl_w, on_hold_down=ctrl_shift_t, term=0.5),
         # forward button + whell up  = ctrl + page up (previous tab)
         Vk.WHEEL_UP: JmkKey(ctrl_pgup),
         # forward button + wheel down  = ctrl + page down (next tab)
