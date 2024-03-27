@@ -336,10 +336,15 @@ class Window:
 
     def toggle_maximize(self):
         """Toggle maximize style"""
-        if self.get_style() & WindowStyle.MAXIMIZE:
+        if self.is_maximized:
             self.restore()
         else:
             self.maximize()
+
+    @property
+    def is_maximized(self) -> bool:
+        """Check if window is maximized"""
+        return self.get_style() & WindowStyle.MAXIMIZE
 
     @property
     def is_evelated(self):
@@ -383,6 +388,8 @@ class Window:
 
         :param rect: RECT with top/left/bottom/right properties
         """
+        if self.is_maximized:
+            self.restore()
         set_window_rect(self._hwnd, rect)
         self._restricted_rect = rect
         logger.debug("set_rect %s for %s", rect, self.title)
@@ -394,6 +401,8 @@ class Window:
 
     def activate(self) -> bool:
         """Brings the thread that created current window into the foreground and activates the window"""
+        print("activate")
+        import traceback; traceback.print_stack()
         return set_active_window(self)
 
     @property
