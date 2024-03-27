@@ -25,10 +25,9 @@ from jigsawwm.w32.window import (
     get_foreground_window,
     get_manageable_windows,
     get_window_from_pos,
+    is_top_level_window,
     get_window_title,
     is_app_window,
-    is_top_level_window,
-    is_window,
 )
 from jigsawwm.w32.winevent import WinEvent
 from jigsawwm.jmk import sysinout, Vk
@@ -146,10 +145,10 @@ class WindowManager(OpMixin):
                 traceback.print_exc()
 
     def _sync(self, init=False, restrict=False) -> bool:
+        logger.warning("_sync")
         virtdesk_state = self.virtdesk_state
         # gather all manageable windows
         manageable_windows = list(get_manageable_windows(self.check_force_managed))
-        # print("_sync", len(manageable_windows), virtdesk_state.desktop_id)
         if not manageable_windows:
             return
         # group manageable windows by their current monitor
@@ -386,7 +385,7 @@ class WindowManager(OpMixin):
         id_evt_thread: DWORD,
         evt_time: DWORD,
         restrict: bool = False,
-        delay: float = 0.0,
+        delay: float = 0.1,
     ):
         # ignore if left mouse button is pressed in case of dragging
         force_sync = False
@@ -400,49 +399,59 @@ class WindowManager(OpMixin):
                 force_sync = True
             else:
                 return
-        # filter by event
+        if force_sync:
+            logger.debug("force sync")
+            self.sync(restrict=restrict, delay=delay)
+            return
+        # # filter by event
         # if event not in (
         #     WinEvent.EVENT_OBJECT_LOCATIONCHANGE,
         #     WinEvent.EVENT_OBJECT_NAMECHANGE,
         # ):
-        #     print("            ", event.name, hwnd, id_obj, id_chd, id_evt_thread, evt_time, restrict, delay)
-        if not force_sync and event not in (
-            WinEvent.EVENT_OBJECT_DESTROY, # close window
-            WinEvent.EVENT_SYSTEM_MINIMIZESTART, # minimize
-            WinEvent.EVENT_SYSTEM_MINIMIZEEND, # unminimized
-            WinEvent.EVENT_SYSTEM_MOVESIZEEND, # move/resize
-            # WinEvent.EVENT_OBJECT_CREATE,
-            WinEvent.EVENT_OBJECT_SHOW, # new window
-            WinEvent.EVENT_OBJECT_HIDE, # window hidden
-            # WinEvent.EVENT_OBJECT_CLOAKED,
-            # WinEvent.EVENT_OBJECT_UNCLOAKED,
-            # WinEvent.EVENT_SYSTEM_FOREGROUND,
-        ):
-            return
-        elif event == WinEvent.EVENT_SYSTEM_MOVESIZEEND: 
+        # logger.warning(
+        #     "[A] event: %30s hwnd: %8s id_obj: %8x id_chd: %8x id_evt_thread: %8d title: %s",
+        #     event.name, hwnd, id_obj, id_chd, id_evt_thread, get_window_title(hwnd)
+        # )
+        window = Window(hwnd)
+        def manageable(hwnd):
+            return (
+                is_top_level_window(hwnd)
+                and is_app_window(hwnd)
+                and get_window_title(hwnd)
+                and not self.check_window_ignored(window)
+            )
+        if event == WinEvent.EVENT_OBJECT_CREATE:
+            if not manageable(hwnd):
+                return
+        elif event == WinEvent.EVENT_OBJECT_DESTROY:
+            if window not in self.virtdesk_state.managed_windows:
+                return
+        elif event == WinEvent.EVENT_SYSTEM_MOVESIZEEND:
             restrict = True
-        # elif event == WinEvent.EVENT_SYSTEM_MINIMIZESTART:
+        # elif event == WinEvent.EVENT_OBJECT_STATECHANGE:
+        #     if not manageable(hwnd):
+        #         return
         #     delay = 0.2
-        wintitle = get_window_title(hwnd)
-        # a = ("event", event.name, "restrict", restrict, wintitle, delay)
-        if not force_sync and (
-            id_obj
-            or not wintitle
-            or id_chd
-            or not is_window(hwnd)
-            or not is_top_level_window(hwnd)
-            or not is_app_window(hwnd)
-            or self.check_window_ignored(Window(hwnd))
+        elif event not in (
+            WinEvent.EVENT_SYSTEM_MINIMIZESTART,
+            WinEvent.EVENT_SYSTEM_MINIMIZEEND,
         ):
-            # print("      ", *a)
+            # if event not in (WinEvent.EVENT_OBJECT_LOCATIONCHANGE, WinEvent.EVENT_OBJECT_NAMECHANGE):
+            #     logger.warning(
+            #         "[B] event: %30s hwnd: %8s id_obj: %8x id_chd: %8x thread %8x top_level: %1s app_window: %1s ignored: %1s title: %s",
+            #         event.name, hwnd, id_obj, id_chd,id_evt_thread, is_top_level_window(hwnd),is_app_window(hwnd), self.check_window_ignored(Window(hwnd)), get_window_title(hwnd)
+            #     )
             return
-        logger.debug(
-            "_winevent_callback: event %s restrict %s %s",
-            event.name,
-            restrict,
-            wintitle,
-        )
-        # print(*a)
+
+        # logger.warning(
+        #     "[B] event: %30s hwnd: %8s is_window: %1s top_level: %1s app_window: %1s ignored: %1s title: %s",
+        #     event.name, hwnd, is_window(hwnd), is_top_level_window(hwnd),is_app_window(hwnd), self.check_window_ignored(Window(hwnd)), get_window_title(hwnd)
+        # )
+
+        # logger.warning(
+        #     "[C] event: %30s hwnd: %8s title: %s",
+        #     event.name, hwnd,  get_window_title(hwnd)
+        # )
         self.sync(restrict=restrict, delay=delay)
 
     def install_hooks(self):
