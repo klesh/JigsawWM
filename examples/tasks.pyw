@@ -1,3 +1,4 @@
+import os
 from datetime import timedelta
 
 from log import *
@@ -11,18 +12,7 @@ class DailyRoutine(daemon.Task):
 
     def run(self):
         browser.wait_for_network_ready()
-        # browser.open_chrome_fav_folder("bookmark_bar", "daily")
-        browser.open_chrome_fav_folder("bookmark_bar", "daily", bookmarks_path=os.path.join(
-            os.getenv("LOCALAPPDATA"),
-            "Thorium",
-            "User Data",
-            "Default",
-            "Bookmarks",
-        ))
-        # browser.open_edge_fav_folder("bookmark_bar", "daily")
-        # Firefox profile path: Menu -> Help -> More Troubleshooting Information -> Application Basics -> Profile Folder
-        # browser.open_firefox_fav_folder(r"C:\Users\Klesh\AppData\Roaming\Mozilla\Firefox\Profiles\jmhvf542.default-release\places.sqlite")
-        # browser.open_firefox_fav_folder(r"C:\Users\Klesh\AppData\Roaming\Floorp\Profiles\qv6occsk.default-release\places.sqlite")
+        browser.open_fav_folder(os.getenv("JWM_TASK_DAILY_BROWSER",  "chrome"), "daily")
 
     def condition(self):
         return smartstart.daily_once("daily websites")

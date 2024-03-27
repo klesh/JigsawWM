@@ -1,12 +1,17 @@
 import time
 import json
 import os
+import os.path
+import logging
+from typing import Callable
+from dataclasses import dataclass
 
+logger = logging.getLogger(__name__)
 
-def open_fav_folder_with(
+def open_chrome_fav_folder(
     bookmarks_path: str,
-    root_folder: str,
-    fav_folder: str,
+    fav_folder: str = "daily",
+    root_folder: str = "bookmark_bar",
     start_proto: str = None,
 ):
     bookmarks = None
@@ -34,7 +39,13 @@ def open_fav_folder_with(
     open_folder(folder)
 
 
-def open_firefox_fav_folder(places_path, fav_folder='daily'):
+def open_firefox_fav_folder(
+    places_path,
+    fav_folder='daily'
+):
+    # Firefox profile path: Menu -> Help -> More Troubleshooting Information -> Application Basics -> Profile Folder
+    # browser.open_firefox_fav_folder(r"C:\Users\Klesh\AppData\Roaming\Mozilla\Firefox\Profiles\jmhvf542.default-release\places.sqlite")
+    # browser.open_firefox_fav_folder(r"C:\Users\Klesh\AppData\Roaming\Floorp\Profiles\qv6occsk.default-release\places.sqlite")
     import sqlite3
     sql_query = f"""
         select
@@ -60,34 +71,76 @@ def open_firefox_fav_folder(places_path, fav_folder='daily'):
     for url, in res.fetchall():
         time.sleep(1) # open too fast will cause firefox to skip some tabs
         os.startfile(url)
+    res.close()
+    cur.close()
 
+@dataclass
+class BrowserProfile:
+    name: str
+    path: str
+    entry: Callable[[str, str], None]
 
-def open_chrome_fav_folder(root_folder, fav_folder, bookmarks_path=None):
-    """Opens the Chrome Favorites folder"""
-    bookmarks_path = bookmarks_path or os.path.join(
-        os.getenv("LOCALAPPDATA"),
-        "Google",
-        "Chrome",
-        "User Data",
-        "Default",
-        "Bookmarks",
-    )
-    return open_fav_folder_with(bookmarks_path, root_folder, fav_folder)
-
-
-def open_edge_fav_folder(root_folder, fav_folder):
-    """Opens the Chrome Favorites folder"""
-    bookmarks_path = os.path.join(
-        os.getenv("LOCALAPPDATA"),
+BROWSER_BOOKMARK_PATHS = {
+    "chrome": BrowserProfile(
+        name="chrome",
+        path=os.path.join(os.getenv("LOCALAPPDATA"),
+            "Google",
+            "Chrome",
+            "User Data",
+            "Default",
+            "Bookmarks",
+        ),
+        entry=open_chrome_fav_folder
+    ),
+    "thorium": BrowserProfile(
+        name="chrome",
+        path=os.path.join(os.getenv("LOCALAPPDATA"),
+            "Thorium",
+            "User Data",
+            "Default",
+            "Bookmarks",
+        ),
+        entry=open_chrome_fav_folder
+    ),
+    "edge": BrowserProfile(
+        name="chrome",
+        path=os.path.join(os.getenv("LOCALAPPDATA"),
         "Microsoft",
         "Edge",
         "User Data",
         "Default",
         "Bookmarks",
-    )
-    return open_fav_folder_with(
-        bookmarks_path, root_folder, fav_folder, "microsoft-edge"
-    )
+        ),
+        entry=open_chrome_fav_folder
+    ),
+    "firefox": BrowserProfile( # to be done
+        name="chrome",
+        path=os.path.join(os.getenv("APPDATA"),
+            "Mozilla",
+            "Firefox",
+            "Profiles",
+            "?",
+            "places.sqlite",
+        ),
+        entry=open_firefox_fav_folder
+    ),
+    "floorp": BrowserProfile( # to be done
+        name="chrome",
+        path=os.path.join(os.getenv("APPDATA"),
+            "Floorp",
+            "Profiles",
+            "?",
+            "places.sqlite",
+        ),
+        entry=open_firefox_fav_folder
+    ),
+}
+
+def open_fav_folder(browser_name, fav_folder):
+    profile = BROWSER_BOOKMARK_PATHS.get(browser_name)
+    if not profile:
+        logger.error(f"Unsupported browser {browser_name}")
+    profile.entry(profile.path, fav_folder)
 
 def wait_for_network_ready():
     import urllib.request
@@ -95,7 +148,7 @@ def wait_for_network_ready():
 
     while True:
         try:
-            res = urllib.request.urlopen("https://baidu.com")
+            res = urllib.request.urlopen("https://baidu.com", timeout=1)
             if res:
                 break
         except Exception as e:

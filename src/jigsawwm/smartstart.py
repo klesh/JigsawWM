@@ -19,7 +19,7 @@ def daily_once(name: str, day_start: Optional[time] = time(hour=8)):
     return last_date != today
 
 
-def start_if_not_running(exe_path: str):
+def start_if_not_running(exe_path: str, name_only: bool=False):
     """Returns True if the given name has not been called today"""
-    if not is_exe_running(exe_path):
+    if not is_exe_running(exe_path, name_only):
         os.startfile(exe_path)
