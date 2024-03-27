@@ -41,7 +41,8 @@ class WorkdayRoutine(daemon.Task):
 
     def run(self):
         smartstart.start_if_not_running(
-            r"C:\Users\Klesh\AppData\Local\Feishu\Feishu.exe"
+            r"C:\Users\Klesh\AppData\Local\Feishu\Feishu.exe",
+            name_only=True,
         )
         smartstart.start_if_not_running(
             r"C:\Program Files\Mozilla Thunderbird\thunderbird.exe"
