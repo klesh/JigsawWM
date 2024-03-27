@@ -7,7 +7,7 @@ def read_reg_key(key, subkey, value):
     """
     try:
         with winreg.OpenKey(key, subkey) as handle:
-            return winreg.QueryValueEx(handle, value)[0]
+            return winreg.QueryValueEx(handle, value)[0].hex()
     except FileNotFoundError:
         return None
 
