@@ -17,10 +17,6 @@ class DailyRoutine(daemon.Task):
     def condition(self):
         return smartstart.daily_once("daily websites")
 
-    @property
-    def nonblocking(self):
-        return True
-
 
 class WorkdayRoutine(daemon.Task):
     name = "workday routine"
@@ -31,8 +27,7 @@ class WorkdayRoutine(daemon.Task):
 
     def run(self):
         smartstart.start_if_not_running(
-            r"C:\Users\Klesh\AppData\Local\Feishu\Feishu.exe",
-            name_only=True,
+            r"C:\Users\Klesh\AppData\Local\Feishu\Feishu.exe"
         )
         smartstart.start_if_not_running(
             r"C:\Program Files\Mozilla Thunderbird\thunderbird.exe"

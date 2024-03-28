@@ -179,19 +179,14 @@ class Task(Job):
 
     def launch(self):
         if self.condition():
-            if self.nonblocking:
-                self.pool.apply_async(self.run)
-            else:
-                self.run()
+            self.launch_anyway()
+
+    def launch_anyway(self):
+        self.pool.apply_async(self.run)
 
     @property
     def text(self):
         return self.name
-
-    @property
-    def nonblocking(self):
-        return False
-
 
 class Daemon:
     """JigsawWM Daemon serivce, you must inherite this class and override the `setup` function
@@ -229,7 +224,7 @@ class Daemon:
         for job in self.jobs:
             if isinstance(job, Task):
                 act = QAction(job.text)
-                act.triggered.connect(job.run)
+                act.triggered.connect(job.launch_anyway)
                 self.traymenu.addAction(act)
                 self.menuitems.append(act)
         self.traymenu.addSeparator()

@@ -404,14 +404,14 @@ class WindowManager(OpMixin):
             self.sync(restrict=restrict, delay=delay)
             return
         # # filter by event
-        if event not in (
-            WinEvent.EVENT_OBJECT_LOCATIONCHANGE,
-            WinEvent.EVENT_OBJECT_NAMECHANGE,
-        ):
-            logger.warning(
-                "[A] event: %30s hwnd: %8s id_obj: %8x id_chd: %8x id_evt_thread: %8d title: %s",
-                event.name, hwnd, id_obj, id_chd, id_evt_thread, get_window_title(hwnd)
-            )
+        # if event not in (
+        #     WinEvent.EVENT_OBJECT_LOCATIONCHANGE,
+        #     WinEvent.EVENT_OBJECT_NAMECHANGE,
+        # ):
+        #     logger.warning(
+        #         "[A] event: %30s hwnd: %8s id_obj: %8x id_chd: %8x id_evt_thread: %8d title: %s",
+        #         event.name, hwnd, id_obj, id_chd, id_evt_thread, get_window_title(hwnd)
+        #     )
         window = Window(hwnd)
         def manageable(hwnd):
             return (
@@ -442,11 +442,6 @@ class WindowManager(OpMixin):
             #         event.name, hwnd, id_obj, id_chd,id_evt_thread, is_top_level_window(hwnd),is_app_window(hwnd), self.check_window_ignored(Window(hwnd)), get_window_title(hwnd)
             #     )
             return
-
-        logger.warning(
-            "[B] event: %30s hwnd: %8s top_level: %1s app_window: %1s ignored: %1s title: %s",
-            event.name, hwnd, is_top_level_window(hwnd),is_app_window(hwnd), self.check_window_ignored(Window(hwnd)), get_window_title(hwnd)
-        )
 
         # logger.warning(
         #     "[C] event: %30s hwnd: %8s title: %s",

@@ -5,23 +5,31 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "example.pyw",
-      "type": "python",
+      "name": "jigsaw.pyw",
+      "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/example.pyw",
-      "console": "integratedTerminal",
+      "program": "${workspaceFolder}/example/jigsaw.pyw",
+      "console": "internalConsole",
+      "justMyCode": true
+    },
+    {
+      "name": "tasks.pyw",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/examples/tasks.pyw",
+      "console": "internalConsole",
       "justMyCode": true
     },
     {
       "name": "w32.window",
-      "type": "python",
+      "type": "debugpy",
       "request": "launch",
       "module": "jigsawwm.w32.window",
       "justMyCode": true
     },
     {
       "name": "jmk2",
-      "type": "python",
+      "type": "debugpy",
       "request": "launch",
       "module": "jigsawwm.jmk2",
       "justMyCode": true
