@@ -145,7 +145,7 @@ class WindowManager(OpMixin):
                 traceback.print_exc()
 
     def _sync(self, init=False, restrict=False) -> bool:
-        logger.warning("_sync")
+        # logger.warning("_sync")
         virtdesk_state = self.virtdesk_state
         # gather all manageable windows
         manageable_windows = list(get_manageable_windows(self.check_force_managed))
