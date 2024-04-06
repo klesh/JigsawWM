@@ -2,10 +2,12 @@ import os
 from ctypes import *
 from ctypes.wintypes import *
 from typing import List
+from enum import IntEnum
 
 kernel32 = WinDLL("kernel32", use_last_error=True)
 advapi32 = WinDLL("advapi32", use_last_error=True)
 psapi = WinDLL("psapi", use_last_error=True)
+shcore  = WinDLL("shcore", use_last_error=True)
 
 TOKEN_QUERY = DWORD(8)
 
@@ -125,6 +127,18 @@ def get_session_id():
     kernel32.ProcessIdToSessionId(kernel32.GetCurrentProcessId(), byref(session_id))
     return kernel32.WTSGetActiveConsoleSessionId()
 
+class ProcessDpiAwareness(IntEnum):
+  PROCESS_DPI_UNAWARE = 0,
+  PROCESS_SYSTEM_DPI_AWARE = 1,
+  PROCESS_PER_MONITOR_DPI_AWARE = 2
+
+def get_process_dpi_awareness(pid: int) -> ProcessDpiAwareness:
+    """Retrieves the DPI awareness of the process"""
+    hprc = open_process_for_limited_query(pid)
+    awareness = c_int()
+    if shcore.GetProcessDpiAwareness(hprc, pointer(awareness)):
+        raise WinError(get_last_error())
+    return ProcessDpiAwareness(awareness.value) 
 
 if __name__ == "__main__":
     # import sys

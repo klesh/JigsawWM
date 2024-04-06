@@ -352,6 +352,11 @@ class Window:
         return process.is_elevated(self.pid)
 
     @property
+    def dpi_awareness(self):
+        """Check if window is api aware"""
+        return process.get_process_dpi_awareness(self.pid)
+
+    @property
     def is_cloaked(self) -> bool:
         """Check if window is cloaked (DWM)
 
@@ -547,6 +552,7 @@ def inspect_window(hwnd: HWND, file=sys.stdout):
     print("is_app_window:", is_app_window(hwnd), file=file)
     print("is_manageable:", is_manageable_window(hwnd), file=file)
     print("is_evelated  :", window.is_evelated, file=file)
+    print("dpi_awareness:", window.dpi_awareness.name, file=file)
 
 
 def inspect_active_window():

@@ -5,6 +5,7 @@ from os import path
 from jigsawwm.tiler.tilers import *
 from jigsawwm.w32.monitor import Monitor, get_monitor_from_window
 from jigsawwm.w32.window import RECT, Window, get_active_window
+from jigsawwm.w32.process import ProcessDpiAwareness
 
 from .theme import Theme
 
@@ -146,6 +147,12 @@ class MonitorState:
             rect = RECT(left, top, right, bottom)
             logger.debug("arrange %s %s", window, rect)
             window.set_rect(rect)
+            i += 1
+            if window.dpi_awareness == ProcessDpiAwareness.PROCESS_DPI_UNAWARE:
+                # seems like the `get_extended_frame_bounds` would return physical size 
+                # for DPI unware window, skip them for now
+                # TODO: convert physical size to logical size for DPI unware window
+                continue
             # compensation
             r = window.get_rect()
             b = window.get_extended_frame_bounds()
@@ -156,7 +163,6 @@ class MonitorState:
                 round(bottom + r.bottom - b.bottom),
             )
             window.set_rect(RECT(*compensated_rect))
-            i += 1
 
     def restrict(self, theme: Optional[Theme] = None):
         """Restrict all managed windows to their specified rect"""
