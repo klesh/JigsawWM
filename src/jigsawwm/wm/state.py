@@ -148,7 +148,7 @@ class MonitorState:
             logger.debug("arrange %s %s", window, rect)
             window.set_rect(rect)
             i += 1
-            if window.dpi_awareness == ProcessDpiAwareness.PROCESS_DPI_UNAWARE:
+            if window.dpi_awareness != ProcessDpiAwareness.PROCESS_PER_MONITOR_DPI_AWARE:
                 # seems like the `get_extended_frame_bounds` would return physical size 
                 # for DPI unware window, skip them for now
                 # TODO: convert physical size to logical size for DPI unware window
