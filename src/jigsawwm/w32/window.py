@@ -305,6 +305,33 @@ class Window:
         """
         return is_window_visible(self._hwnd)
 
+    @property
+    def is_maximized(self) -> bool:
+        """Check if window is maximized"""
+        return self.get_style() & WindowStyle.MAXIMIZE
+
+    @property
+    def is_evelated(self):
+        """Check if window is elevated (Administrator)"""
+        return process.is_elevated(self.pid)
+
+    @property
+    def dpi_awareness(self):
+        """Check if window is api aware"""
+        return process.get_process_dpi_awareness(self.pid)
+
+    @property
+    def is_cloaked(self) -> bool:
+        """Check if window is cloaked (DWM)
+
+        Ref: https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/ne-dwmapi-dwmwindowattribute
+        """
+        return is_window_cloaked(self._hwnd)
+
+    @property
+    def icon_handle(self) -> HANDLE:
+        return get_window_icon(self._hwnd)
+
     def get_style(self) -> WindowStyle:
         """Retrieves style
 
@@ -340,29 +367,6 @@ class Window:
             self.restore()
         else:
             self.maximize()
-
-    @property
-    def is_maximized(self) -> bool:
-        """Check if window is maximized"""
-        return self.get_style() & WindowStyle.MAXIMIZE
-
-    @property
-    def is_evelated(self):
-        """Check if window is elevated (Administrator)"""
-        return process.is_elevated(self.pid)
-
-    @property
-    def dpi_awareness(self):
-        """Check if window is api aware"""
-        return process.get_process_dpi_awareness(self.pid)
-
-    @property
-    def is_cloaked(self) -> bool:
-        """Check if window is cloaked (DWM)
-
-        Ref: https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/ne-dwmapi-dwmwindowattribute
-        """
-        return is_window_cloaked(self._hwnd)
 
     def exists(self) -> bool:
         return is_window(self._hwnd)
@@ -408,9 +412,13 @@ class Window:
         """Brings the thread that created current window into the foreground and activates the window"""
         return set_active_window(self)
 
-    @property
-    def icon_handle(self) -> HANDLE:
-        return get_window_icon(self._hwnd)
+    def show(self):
+        """Shows the window"""
+        user32.ShowWindow(self._hwnd, ShowWindowCmd.SW_SHOW)
+
+    def hide(self):
+        """Hides the window"""
+        user32.ShowWindow(self._hwnd, ShowWindowCmd.SW_HIDE)
 
 
 def get_app_windows() -> Iterator[Window]:
