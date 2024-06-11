@@ -406,8 +406,6 @@ class Window:
 
     def activate(self) -> bool:
         """Brings the thread that created current window into the foreground and activates the window"""
-        print("activate")
-        import traceback; traceback.print_stack()
         return set_active_window(self)
 
     @property

@@ -26,6 +26,8 @@ layers = [
     {  # layer 0
         # map capslock to ctrl when held and `  when tapped
         Vk.CAPITAL: JmkTapHold(tap=parse_key("`"), hold=Vk.LCONTROL),
+        Vk.OEM_3: JmkTapHold(tap=Vk.ESCAPE, hold=Vk.LWIN),
+        Vk.BACK: JmkTapHold(tap=Vk.BACK, hold=Vk.RWIN),
         # Vk.ESCAPE: JmkTapHold(tap=Vk.ESCAPE, hold=Vk.LWIN),
         # Vk.T: JmkTapHold(tap=Vk.T, hold=3),
         # Vk.Y: JmkTapHold(tap=Vk.Y, hold=3),
@@ -38,14 +40,13 @@ layers = [
         # Vk.J: JmkTapHold(tap=Vk.J, hold=Vk.RCONTROL),
         # Vk.K: JmkTapHold(tap=Vk.K, hold=Vk.RWIN),
         # Vk.L: JmkTapHold(tap=Vk.L, hold=Vk.RSHIFT),
-        # hold ; as Alt
-        Vka.SEMICOLON: JmkTapHold(tap=Vka.SEMICOLON, hold=Vk.RMENU),
-        # Vk.TAB: JmkTapHold(tap=Vk.TAB, hold=2),
+        # Vka.SEMICOLON: JmkTapHold(tap=Vka.SEMICOLON, hold=Vk.RMENU),
+        Vk.TAB: JmkTapHold(tap=Vk.TAB, hold=1),
         # hold ' to switch to layer 2
         Vk.OEM_PERIOD: JmkTapHold(tap=Vk.OEM_PERIOD, hold=2),
         # hold Forward Button on the Mouse for swithcing to layer 1
-        Vk.XBUTTON2: JmkTapHold(tap=Vk.XBUTTON2, hold=2),
-        Vk.BROWSER_FORWARD: JmkTapHold(tap=Vk.XBUTTON2, hold=2),
+        # Vk.XBUTTON2: JmkTapHold(tap=Vk.XBUTTON2, hold=2),
+        # Vk.BROWSER_FORWARD: JmkTapHold(tap=Vk.XBUTTON2, hold=2),
         Vk.SPACE: JmkTapHold(tap=Vk.SPACE, hold=Vk.LSHIFT),
         Vka.SLASH: JmkTapHold(
             tap=Vka.SLASH, on_hold_up=lambda: rootLogger.setLevel(logging.DEBUG)
