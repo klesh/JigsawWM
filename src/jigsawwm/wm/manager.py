@@ -300,24 +300,23 @@ class WindowManager(OpMixin):
             i -= 1
         return i
 
+    def get_active_monitor_state(self):
+        virtdesk_state = self.virtdesk_state
+        monitor = (
+            get_monitor_from_window(get_foreground_window())
+            or get_monitor_from_cursor()
+        )
+        return virtdesk_state.get_monitor(monitor)
+
+
     def switch_theme_by_offset(self, delta: int):
         """Switch theme by offset"""
-        try:
-            virtdesk_state = self.virtdesk_state
-            monitor = (
-                get_monitor_from_window(get_foreground_window())
-                or get_monitor_from_cursor()
-            )
-            monitor_state = virtdesk_state.get_monitor(monitor)
-            theme_index = self.get_theme_index(monitor_state.theme)
-            theme = self.themes[(theme_index + delta) % len(self.themes)]
-            # new_theme_name = self.themes[(theme_index + delta) % len(self.themes)].name
-            monitor_state.theme = theme.name
-            monitor_state.arrange(theme)
-        except:
-            import traceback
-
-            traceback.print_exc()
+        monitor_state = self.get_active_monitor_state()
+        theme_index = self.get_theme_index(monitor_state.theme)
+        theme = self.themes[(theme_index + delta) % len(self.themes)]
+        # new_theme_name = self.themes[(theme_index + delta) % len(self.themes)].name
+        monitor_state.theme = theme.name
+        monitor_state.arrange(theme)
 
     def get_monitor_state_pair(
         self, delta: int, virtdesk_state: Optional[VirtDeskState] = None, window: Optional[Window]=None
@@ -375,6 +374,23 @@ class WindowManager(OpMixin):
         #     next_window = src_monitor_state.windows[idx % src_win_len]
         #     self.activate(next_window)
         self.activate(window)
+
+    def switch_workspace(self, workspace_index: int):
+        """Switch to a specific workspace"""
+        self.get_active_monitor_state().switch_workspace(workspace_index)
+
+    def move_to_workspace(self, workspace_index: int):
+        """Move active window to a specific workspace"""
+        virtdesk_state = self.virtdesk_state
+        window = virtdesk_state.get_managed_active_window()
+        monitor_state = self.get_active_monitor_state()
+        monitor_state.windows.remove(window)
+        monitor_state.move_to_workspace(window, workspace_index)
+
+    def unhide_workspaces(self):
+        for virtdesk_state in self._state.values():
+            for monitor_state in virtdesk_state.monitors.values():
+                monitor_state.unhide_workspaces()
 
     def _winevent_callback(
         self,
@@ -463,6 +479,7 @@ class WindowManager(OpMixin):
         for hook_id in self.hook_ids:
             hook.unhook_winevent(hook_id)
         self.hook_ids = []
+        self.unhide_workspaces()
 
 
 if __name__ == "__main__":

@@ -74,14 +74,14 @@ hotkeys = [
     ([Vk.WIN, Vk.SHIFT, Vk.U], wm.move_to_prev_monitor),
     ([Vk.WIN, Vk.SHIFT, Vk.I], wm.move_to_next_monitor),
     ([Vk.WIN, Vk.CONTROL, Vk.I], inspect_active_window),
-    ("Win+Ctrl+a", partial(wm.switch_desktop, 1)),
-    ("Win+Ctrl+s", partial(wm.switch_desktop, 2)),
-    ("Win+Ctrl+d", partial(wm.switch_desktop, 3)),
-    ("Win+Ctrl+f", partial(wm.switch_desktop, 4)),
-    ("Win+Shift+a", partial(wm.move_to_desktop, 1)),
-    ("Win+Shift+s", partial(wm.move_to_desktop, 2)),
-    ("Win+Shift+d", partial(wm.move_to_desktop, 3)),
-    ("Win+Shift+f", partial(wm.move_to_desktop, 4)),
+    ("Win+Ctrl+a", partial(wm.switch_workspace, 0)),
+    ("Win+Ctrl+s", partial(wm.switch_workspace, 1)),
+    ("Win+Ctrl+d", partial(wm.switch_workspace, 2)),
+    ("Win+Ctrl+f", partial(wm.switch_workspace, 3)),
+    ("Win+Shift+a", partial(wm.move_to_workspace, 0)),
+    ("Win+Shift+s", partial(wm.move_to_workspace, 1)),
+    ("Win+Shift+d", partial(wm.move_to_workspace, 2)),
+    ("Win+Shift+f", partial(wm.move_to_workspace, 3)),
 ]
 
 

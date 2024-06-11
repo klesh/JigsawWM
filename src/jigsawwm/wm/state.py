@@ -12,6 +12,24 @@ from .theme import Theme
 logger = logging.getLogger(__name__)
 
 
+class WorkspaceState:
+    monitor: Monitor
+    theme: Optional[str]
+    windows: List[Window]
+
+    def __init__(self, theme: Optional[str] = None):
+        self.theme = theme
+        self.windows = []
+
+    def toggle(self, show: bool):
+        for window in self.windows:
+            if show:
+                window.show()
+            else:
+                window.hide()
+
+
+
 class MonitorState:
     """MonitorState holds variables needed by a Monitor
 
@@ -23,9 +41,10 @@ class MonitorState:
 
     virtdesk_state: "VirtDeskState"
     monitor: Monitor
-    theme: Optional[str]
-    windows: List[Window]
+    monitor_theme: Optional[str]
     last_active_window: Optional[Window] = None
+    workspaces: list[WorkspaceState]
+    active_workspace_index: int
 
     def __init__(
         self,
@@ -35,10 +54,56 @@ class MonitorState:
     ):
         self.virtdesk_state = virtdesk_state
         self.monitor = monitor
-        self.theme = theme
-        self.windows = []
         self.last_active_window = None
         self.hook_ids = []
+        self.monitor_theme = theme
+        self.workspaces = [
+            WorkspaceState(theme=theme),
+        ]
+        self.active_workspace_index = 0
+
+    @property
+    def workspace(self):
+        return self.workspaces[self.active_workspace_index]
+
+    @property
+    def windows(self):
+        return self.workspace.windows
+
+    @windows.setter
+    def windows(self, windows: List[Window]):
+        self.workspace.windows = windows
+
+    @property
+    def theme(self):
+        return self.workspace.theme
+
+    @theme.setter
+    def theme(self, theme: str):
+        self.workspace.theme = theme
+
+    def _ensure_workspace(self, workspace_index: int):
+        while len(self.workspaces) < workspace_index + 1:
+            self.workspaces.append(WorkspaceState(theme=self.monitor_theme))
+    
+    def switch_workspace(self, workspace_index: int):
+        if workspace_index == self.active_workspace_index:
+            return
+        self.workspace.toggle(False)
+        self._ensure_workspace(workspace_index)
+        self.active_workspace_index = workspace_index
+        self.workspace.toggle(True)
+        self.sync(self.windows)
+
+    def move_to_workspace(self, window: Window, workspace_index: int):
+        if workspace_index == self.active_workspace_index:
+            return
+        self._ensure_workspace(workspace_index)
+        self.workspaces[workspace_index].windows.append(window)
+
+    def unhide_workspaces(self):
+        for workspace in self.workspaces:
+            workspace.toggle(True)
 
     def get_existing_windows(self) -> List[Window]:
         """Retrieves current managed windows"""
