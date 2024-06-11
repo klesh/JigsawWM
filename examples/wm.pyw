@@ -57,6 +57,7 @@ wm = WindowManager(
         "MediaInfo.exe",
         "SnippingTool.exe",
         "WeChat.exe",
+        "WindowsTerminal.exe",
     ],
     force_managed_exe_names=["Lens.exe"],
 )

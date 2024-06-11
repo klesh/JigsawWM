@@ -134,6 +134,7 @@ layers = [
 ]
 
 hotkeys = [
+    ("Ctrl+Space", "LWin+Space"),
     ("Win+q", "LAlt+F4"),
     ("Win+OEM_PERIOD", "LAlt+OEM_PERIOD"),
     ("Win+Ctrl+l", "LWin+LCtrl+Right"),
