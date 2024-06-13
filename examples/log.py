@@ -7,17 +7,24 @@ import os
 
 
 logFormatter = logging.Formatter(
-    "%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s"
+    "%(asctime)s [%(name)s] [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s"
 )
-rootLogger = logging.getLogger()
-
 fileHandler = logging.FileHandler("jigsaw.log", mode="w", encoding="utf-8")
 fileHandler.setFormatter(logFormatter)
-rootLogger.addHandler(fileHandler)
-
 consoleHandler = logging.StreamHandler()
 consoleHandler.setFormatter(logFormatter)
+
+rootLogger = logging.getLogger()
+rootLogger.addHandler(fileHandler)
 rootLogger.addHandler(consoleHandler)
 
-if os.environ.get("DEBUG_JIGSAWWM"):
+debugging = os.environ.get("DEBUG_JIGSAWWM")
+if debugging:
     rootLogger.setLevel(logging.DEBUG)
+    if debugging != "*":
+
+        def f(record: logging.LogRecord) -> bool:
+            return record.name.startswith(debugging)
+
+        consoleHandler.addFilter(f)
+        fileHandler.addFilter(f)
