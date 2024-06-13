@@ -213,10 +213,10 @@ class Daemon:
         self.trayicon.setContextMenu(self.traymenu)
         # self.trayicon.activated.connect(self.update_traymenu)
         self.trayicon.activated.connect(self.update_traymenu)
-        self.update_traymenu("init")
+        self.update_traymenu()
         self.trayicon.show()
 
-    def update_traymenu(self, reason):
+    def update_traymenu(self):
         """Update traymenu"""
         self.traymenu.clear()
         self.menuitems.clear()
@@ -246,22 +246,24 @@ class Daemon:
 
     def stop(self):
         """Stop daemon service"""
-        logger.info(f"stopping daemon")
+        logger.info("stopping daemon")
         for job in self.jobs:
             job.stop()
         ui.app.quit()
         signal.raise_signal(signal.SIGINT)
 
     def register(self, job: Callable[[], Job]):
-        logger.info(f"registering {job.name}")
+        """Register a job to the daemon service"""
+        logger.info("registering %s", job.name)
         job: Job = job()
         if job.autorun:
-            logger.info(f"autorun {job.name}")
+            logger.info("autorun %s", job.name)
             job.launch()
         self.jobs.append(job)
 
     def message_loop(self):
-        logger.info(f"start message loop")
+        """Start message loop"""
+        logger.info("start message loop")
         self.create_trayicon()
         ui.app.exec()
 
