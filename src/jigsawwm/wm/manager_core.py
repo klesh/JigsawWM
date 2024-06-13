@@ -178,7 +178,7 @@ class WindowManagerCore:
                 return
         if force_sync:
             logger.debug("force sync")
-            time.sleep(0.1)
+            time.sleep(0.1) # fix case: dragging chrome tab as a new window and it doesn't show up in the right place
             self.sync_windows()
             return
         # # filter by event
@@ -186,6 +186,7 @@ class WindowManagerCore:
         if event == WinEvent.EVENT_OBJECT_SHOW: # for app that minimized to tray, show event is the only way to detect
             if not self.is_window_manageable(window):
                 return
+            time.sleep(0.1) # fix case: firefox takes took long to show up
         elif event == WinEvent.EVENT_OBJECT_HIDE: # same as above
             if not self.is_window_manageable(window):
                 return
