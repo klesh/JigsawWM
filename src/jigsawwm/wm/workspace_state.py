@@ -99,7 +99,7 @@ class WorkspaceState:
 
     def set_windows(self, windows: List[Window]):
         """Set windows for the workspace"""
-        logger.debug("set windows %s for workspace %s", self.name, windows)
+        logger.debug("set windows %s for workspace %s", windows, self.name)
         windows = [w for w in windows if w.exists()]
         if windows == self.windows:
             return self.restrict()

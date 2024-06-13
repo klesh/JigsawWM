@@ -1,5 +1,6 @@
 """WindowManagerCore is the core of the WindowManager, it manages the windows"""
 import logging
+import time
 from typing import Dict, List, Set, Tuple, Optional
 
 from jigsawwm.w32 import hook
@@ -163,29 +164,24 @@ class WindowManagerCore:
     ):
         # ignore if left mouse button is pressed in case of dragging
         force_sync = False
-        if sysinout.state.get( Vk.LBUTTON ) and event == WinEvent.EVENT_SYSTEM_MOVESIZEEND:
+        if sysinout.state.get( Vk.LBUTTON ):
             # delay the sync until button released to avoid flickering
+            logger.debug("wait_mouse_released")
             self._wait_mouse_released = True
             return
         elif self._wait_mouse_released:
             if not sysinout.state.get( Vk.LBUTTON ):
+                logger.debug("mouse_released")
                 self._wait_mouse_released = False
                 force_sync = True
             else:
                 return
         if force_sync:
             logger.debug("force sync")
-            self.sync()
+            time.sleep(0.1)
+            self.sync_windows()
             return
         # # filter by event
-        # if event not in (
-        #     WinEvent.EVENT_OBJECT_LOCATIONCHANGE,
-        #     WinEvent.EVENT_OBJECT_NAMECHANGE,
-        # ):
-        #     logger.warning(
-        #         "[A] event: %30s hwnd: %8s id_obj: %8x id_chd: %8x id_evt_thread: %8d title: %s",
-        #         event.name, hwnd, id_obj, id_chd, id_evt_thread, get_window_title(hwnd)
-        #     )
         window = Window(hwnd)
         if event == WinEvent.EVENT_OBJECT_SHOW: # for app that minimized to tray, show event is the only way to detect
             if not self.is_window_manageable(window):
