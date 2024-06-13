@@ -6,7 +6,7 @@ from ctypes.wintypes import *
 from dataclasses import dataclass
 from io import StringIO
 from tkinter import messagebox
-from typing import Callable, Iterator, List, Optional
+from typing import Callable, List, Optional
 
 from . import process
 from .sendinput import *
@@ -125,7 +125,7 @@ def is_window(hwnd: HWND) -> bool:
     return user32.IsWindow(hwnd)
 
 
-def is_top_level_window(hwnd: HWND) -> bool:
+def is_toplevel_window(hwnd: HWND) -> bool:
     """Check if window is a top-level window"""
     return user32.IsTopLevelWindow(hwnd)
 
@@ -135,26 +135,14 @@ def is_app_window(hwnd: HWND, style: Optional[WindowExStyle] = None) -> bool:
     style = style or get_window_style(hwnd)
     return bool(
         not is_window_cloaked(hwnd)
+        and is_toplevel_window(hwnd)
         and WindowStyle.SIZEBOX in style
-        and not process.is_elevated(get_window_pid(hwnd))
-    )
-
-
-def is_manageable_window(
-    hwnd: HWND,
-    is_force_managed: Optional[Callable[[HWND], bool]] = None,
-) -> bool:
-    """Check if window is able to be managed by us"""
-    is_force_managed = is_force_managed or (lambda hwnd: False)
-    #  or is_force_managed(hwnd)
-    style = get_window_style(hwnd)
-    return bool(
-        is_app_window(hwnd, style)
-        and (get_window_title(hwnd) or is_force_managed(hwnd))
         and WindowStyle.MAXIMIZEBOX & style
         and WindowStyle.MINIMIZEBOX & style
         and WindowStyle.VISIBLE in style
         and not WindowStyle.MINIMIZE & style
+        and not process.is_elevated(get_window_pid(hwnd))
+        and process.get_exepath(get_window_pid(hwnd))
     )
 
 
@@ -421,30 +409,13 @@ class Window:
         user32.ShowWindow(self._hwnd, ShowWindowCmd.SW_HIDE)
 
 
-def get_app_windows() -> Iterator[Window]:
-    """Get all manageable windows of specified/current desktop"""
-    return map(
-        Window,
-        enum_windows(
-            lambda hwnd: EnumCheckResult.CAPTURE
-            if is_app_window(hwnd)
-            else EnumCheckResult.SKIP
-        ),
-    )
-
-
-def get_manageable_windows(
-    is_force_managed: Optional[Callable[[HWND], bool]] = None,
-) -> Iterator[Window]:
-    """Get all manageable windows of specified/current desktop"""
-    return map(
-        Window,
-        enum_windows(
-            lambda hwnd: EnumCheckResult.CAPTURE
-            if is_manageable_window(hwnd, is_force_managed)
-            else EnumCheckResult.SKIP
-        ),
-    )
+def get_app_windows() -> List[Window]:
+    """Get all app windows of the current desktop"""
+    return map(Window, enum_windows(
+        lambda hwnd: EnumCheckResult.CAPTURE
+        if is_app_window(hwnd)
+        else EnumCheckResult.SKIP
+    ))
 
 
 def get_window_from_pos(x, y: int) -> Optional[Window]:
@@ -556,7 +527,6 @@ def inspect_window(hwnd: HWND, file=sys.stdout):
     bound = window.get_extended_frame_bounds()
     print("bound        :", bound.left, bound.top, bound.right, bound.bottom, file=file)
     print("is_app_window:", is_app_window(hwnd), file=file)
-    print("is_manageable:", is_manageable_window(hwnd), file=file)
     print("is_evelated  :", window.is_evelated, file=file)
     print("dpi_awareness:", window.dpi_awareness.name, file=file)
 

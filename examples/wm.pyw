@@ -8,6 +8,7 @@ from jigsawwm.w32.vk import Vk
 from jigsawwm.w32.window import inspect_active_window
 from jigsawwm.wm import Theme, WindowManager
 
+
 wm = WindowManager(
     themes=[
         # Theme(
@@ -86,17 +87,18 @@ hotkeys = [
 
 
 class WindowManagerService(daemon.Service):
+    """Window Manager Service"""
     name = "Window Manager"
     is_running = False
 
     def start(self):
         self.is_running = True
-        wm.install_hooks()
+        wm.start()
         for args in hotkeys:
             hks.register(*args)
 
     def stop(self):
-        wm.uninstall_hooks()
+        wm.stop()
         for args in hotkeys:
             hks.unregister(args[0])
         self.is_running = False

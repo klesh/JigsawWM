@@ -1,66 +1,20 @@
+"""Window Manager Operations"""
 import logging
-from os import path
-from typing import Dict, List, Optional, Set
-from threading import Thread
-from queue import SimpleQueue
-import multiprocessing.pool
-import time
-
+from typing import List, Callable, Optional, Set
 from jigsawwm import ui
-from jigsawwm.tiler.tilers import *
-from jigsawwm.w32 import hook
+from jigsawwm.w32 import virtdesk
+from jigsawwm.w32.window import Window
 from jigsawwm.w32.monitor import (
-    Monitor,
-    get_monitor_from_cursor,
-    get_monitor_from_window,
-    get_topo_sorted_monitors,
-    set_cursor_pos,
+  set_cursor_pos,
 )
-from jigsawwm.w32.reg import get_current_desktop_id
-from jigsawwm.w32.window import (
-    DWORD,
-    HWND,
-    LONG,
-    Window,
-    get_foreground_window,
-    get_manageable_windows,
-    get_window_from_pos,
-    is_top_level_window,
-    get_window_title,
-    is_app_window,
-)
-from jigsawwm.w32.winevent import WinEvent
-from jigsawwm.jmk import sysinout, Vk
-
-from .op_mixin import OpMixin
-from .state import MonitorState, VirtDeskState
+from .manager_core import WindowManagerCore
 from .theme import Theme
+from .config import WmConfig
 
 logger = logging.getLogger(__name__)
 
-
-class WindowManager(OpMixin):
-    """WindowManager detect the monitors/windows state and arrange them dynamically
-    keep in mind that not all windows are managed by the WindowManager, only those
-    returned by `jigsawwm.w32.get_normal_windows()` and not ignored would be managed.
-
-    The WindowManager works just like other Dynamic Window Managers, it store all
-    managed windows in a list, the first one in the list is called Master, it would
-    normally take up most area of the screen while others occuppy the rest.
-
-    :param List[Theme] themes: all avaiable themes for user to switch
-    :param ignore_exe_names: list of executable filenames that you don't want them
-                             to be managed/arranged
-    :param init_exe_sequence: list of executable filenames and title search criteria
-                              that are to be kept in exactly this order when
-                              distributing into windows
-    """
-
-    _state: Dict[bytearray, VirtDeskState]
-    themes: List[Theme]
-    ignore_exe_names: Set[str]
-    force_managed_exe_names: Set[str]
-    init_exe_sequence: List[List[str]]
+class WindowManager(WindowManagerCore):
+    """Window Manager Operations"""
 
     def __init__(
         self,
@@ -69,134 +23,16 @@ class WindowManager(OpMixin):
         force_managed_exe_names: Set[str] = None,
         init_exe_sequence: List[List[str]] = None,
     ):
-        self._state = {}
-        self.themes = themes or [
-            Theme(
-                name="WideScreen Dwindle",
-                layout_tiler=widescreen_dwindle_layout_tiler,
-                icon_name="wide-dwindle.png",
-            ),
-            Theme(
-                name="OBS Dwindle",
-                layout_tiler=obs_dwindle_layout_tiler,
-                icon_name="obs.png",
-            ),
-            Theme(
-                name="Dwindle",
-                layout_tiler=dwindle_layout_tiler,
-                icon_name="dwindle.png",
-            ),
-        ]
-        self.ignore_exe_names = set(ignore_exe_names or [])
-        self.force_managed_exe_names = set(force_managed_exe_names or [])
-        self.init_exe_sequence = init_exe_sequence or []
-        self.wait_mouse_released = False
-        self._sync_queue = SimpleQueue()
-        self._sync_pool = multiprocessing.pool.ThreadPool()
-        self.start_sync_thread()
-        self.sync(init=True)
-
-    @property
-    def virtdesk_state(self) -> Optional[VirtDeskState]:
-        """Retrieve virtual desktop state"""
-        desktop_id = get_current_desktop_id()
-        virtdesk_state = self._state.get(desktop_id)
-        if virtdesk_state is None:
-            # make sure monitor_state for current virtual desktop exists
-            virtdesk_state = VirtDeskState(
-                lambda theme: self.themes[self.get_theme_index(theme)], desktop_id, self.themes
-            )
-            self._state[desktop_id] = virtdesk_state
-        return virtdesk_state
-
-    def check_window_ignored(self, window: Window) -> bool:
-        exepath = window.exe
-        return not exepath or path.basename(exepath) in self.ignore_exe_names
-
-    def check_force_managed(self, hwnd: HWND) -> bool:
-        try:
-            exepath = Window(hwnd).exe
-            return exepath and path.basename(exepath) in self.force_managed_exe_names
-        except:
-            return False
-
-    def sync(self, init=False, restrict=False, delay=0.2) -> bool:
-        self._sync_queue.put_nowait((init, restrict, delay))
-
-    def start_sync_thread(self):
-        """Start a thread to watch for the queue and manage windows accordingly"""
-        self._thread = Thread(
-            target=self._consume_sync_queue,
-            name="sync_queue_consumer",
+        config = WmConfig(
+            themes=themes,
+            ignore_exe_names=set(ignore_exe_names or []),
+            force_managed_exe_names = set(force_managed_exe_names or []),
+            init_exe_sequence = init_exe_sequence or [],
         )
-        self._thread.start()
-
-    def _consume_sync_queue(self):
-        while True:
-            try:
-                init, restrict, delay = self._sync_queue.get()
-                if delay:
-                    time.sleep(delay)
-                    while not self._sync_queue.empty(): # ignore sync requests during the time
-                        self._sync_queue.get_nowait()
-                self._sync(init, restrict)
-            except:
-                import traceback
-                traceback.print_exc()
-
-    def _sync(self, init=False, restrict=False) -> bool:
-        # logger.warning("_sync")
-        virtdesk_state = self.virtdesk_state
-        # gather all manageable windows
-        manageable_windows = list(get_manageable_windows(self.check_force_managed))
-        if not manageable_windows:
-            return
-        # group manageable windows by their current monitor
-        group_wins_by_mons: Dict[Monitor, Set[Window]] = {}
-        managed_windows = set()
-        for window in manageable_windows:
-            # skip this window if to be ignored
-            if self.check_window_ignored(window):
-                continue
-            # determine relevant monitor
-            if init or window in virtdesk_state.managed_windows:
-                # use previous monitor
-                monitor = get_monitor_from_window(window.handle)
-            else:
-                # use the monitor currently showing the cursor
-                monitor = get_monitor_from_cursor()
-            # build list of windows for each monitor
-            # get current list of windows for relevant monitor
-            windows = group_wins_by_mons.get(monitor)
-            # init list if not yet existing
-            if windows is None:
-                windows = set()
-                group_wins_by_mons[monitor] = windows
-            # add window to lists
-            windows.add(window)
-            managed_windows.add(window)
-            logger.debug("%s is managed by monitor %s", window, monitor)
-        # synchronize windows on each monitor
-        virtdesk_state.managed_windows = managed_windows
-        # pass down to monitor_state for further synchronization
-        for monitor, windows in group_wins_by_mons.items():
-            monitor_state = virtdesk_state.get_monitor(monitor)
-            monitor_state.sync(
-                    windows,
-                    restrict=restrict,
-                    #window_sort_order=self.init_exe_sequence if init else [],
-                    window_sort_order=self.init_exe_sequence,
-                    )
-
-    def arrange_all_monitors(self):
-        """Arrange all windows in all monitors to where their suppose to be"""
-        virtdesk_state = self.virtdesk_state
-        for monitor in virtdesk_state.monitors.values():
-            monitor.arrange()
+        super().__init__(config)
 
     def activate(self, window: Window):
         """Activate specified window"""
-        virtdesk_state = self.virtdesk_state
         window.activate()
         # move cursor to the center of the window
         rect = window.get_rect()
@@ -204,51 +40,34 @@ class WindowManager(OpMixin):
             rect.left + (rect.right - rect.left) / 2,
             rect.top + (rect.bottom - rect.top) / 2,
         )
-        virtdesk_state.last_active_window = window
-        monitor = get_monitor_from_window(window.handle)
-        virtdesk_state.get_monitor(monitor).last_active_window = window
 
     def activate_by_offset(self, offset: int):
         """Activate managed window by offset
 
         When the active window is managed, activate window in the same monitor by offset
-        When the active window is unmanaged, activate the last active window
-        When none of above viable, activate the Master window in the montior under cursor
-        Or, do nothing!
+        When the active window is unmanaged, activate the first in the list or do nothing
         """
-        virtdesk_state = self.virtdesk_state
-        src_window = virtdesk_state.get_managed_active_window()
-        dst_window = None
-        if src_window:
-            monitor_state = virtdesk_state.find_owner(src_window)
-            if len(monitor_state.windows) > 0:
-                src_index = monitor_state.windows.index(src_window)
-                dst_index = (src_index + offset) % len(monitor_state.windows)
-                dst_window = monitor_state.windows[dst_index]
-        else:
-            dst_window = virtdesk_state.last_active_window
-        if not dst_window:
-            monitor_state = virtdesk_state.get_monitor(get_monitor_from_cursor())
-            if len(monitor_state.windows) > 0:
-                dst_window = monitor_state.windows[0]
-        if not dst_window:
+        active_window, monitor_state = self.get_active_managed_winmon()
+        if not active_window:
             return
+        try:
+            src_index = monitor_state.windows.index(active_window)
+        except ValueError:
+            src_index = 0
+        dst_index = (src_index + offset) % len(monitor_state.windows)
+        dst_window = monitor_state.windows[dst_index]
         self.activate(dst_window)
         ui.show_windows_splash(monitor_state, dst_window)
 
     def _reorder(self, reorderer: Callable[[List[Window], int], None]):
-        virtdesk_state = self.virtdesk_state
-        src_window = virtdesk_state.get_managed_active_window()
-        if not src_window:
-            return
-        monitor_state = virtdesk_state.find_owner(src_window)
-        if monitor_state is None:
+        active_window, monitor_state = self.get_active_managed_winmon()
+        if not active_window:
             return
         if len(monitor_state.windows) < 2:
             return
-        reorderer(monitor_state.windows, monitor_state.windows.index(src_window))
+        reorderer(monitor_state.windows, monitor_state.windows.index(active_window))
         monitor_state.arrange()
-        self.activate(src_window)
+        self.activate(active_window)
 
     def swap_by_offset(self, offset: int):
         """Swap current active managed window with its sibling by offset"""
@@ -291,201 +110,95 @@ class WindowManager(OpMixin):
 
         self._reorder(reorderer)
 
-    def get_theme_index(self, theme_name: str) -> int:
-        """Retrieves the index of given theme name, useful to switching theme"""
-        i = len(self.themes) - 1
-        while i > 0:
-            if self.themes[i].name == theme_name:
-                return i
-            i -= 1
-        return i
-
-    def get_active_monitor_state(self):
-        virtdesk_state = self.virtdesk_state
-        monitor = (
-            get_monitor_from_window(get_foreground_window())
-            or get_monitor_from_cursor()
-        )
-        return virtdesk_state.get_monitor(monitor)
-
-
     def switch_theme_by_offset(self, delta: int):
         """Switch theme by offset"""
-        monitor_state = self.get_active_monitor_state()
-        theme_index = self.get_theme_index(monitor_state.theme)
-        theme = self.themes[(theme_index + delta) % len(self.themes)]
-        # new_theme_name = self.themes[(theme_index + delta) % len(self.themes)].name
-        monitor_state.theme = theme.name
-        monitor_state.arrange(theme)
-
-    def get_monitor_state_pair(
-        self, delta: int, virtdesk_state: Optional[VirtDeskState] = None, window: Optional[Window]=None
-    ) -> Tuple[MonitorState, MonitorState]:
-        """Retrieves a pair of monitor_states, from cursor and its offset in the list"""
-        virtdesk_state = virtdesk_state or self.virtdesk_state
-        if not virtdesk_state:
-            return
-        monitors = get_topo_sorted_monitors()
-        src_monitor = get_monitor_from_window(window.handle) if window else get_monitor_from_cursor()
-        src_idx = monitors.index(src_monitor)
-        dst_idx = (src_idx + delta) % len(monitors)
-        dst_monitor = monitors[dst_idx]
-        dst_monitor_state = virtdesk_state.get_monitor(dst_monitor)
-        src_monitor_state = virtdesk_state.get_monitor(src_monitor)
-        return src_monitor_state, dst_monitor_state
+        _, monitor_state = self.get_active_managed_winmon()
+        theme_index = self.config.get_theme_index(monitor_state.theme.name)
+        theme = self.config.themes[(theme_index + delta) % len(self.config.themes)]
+        monitor_state.set_theme(theme)
 
     def switch_monitor_by_offset(self, delta: int):
         """Switch to another monitor by given offset"""
         logger.debug("switch_monitor_by_offset: %s", delta)
-        _, dst_monitor_state = self.get_monitor_state_pair(delta)
-        rect = dst_monitor_state.monitor.get_info().rcWork
-        x, y = (
-            rect.left + (rect.right - rect.left) / 2,
-            rect.top + (rect.bottom - rect.top) / 2,
-        )
-        set_cursor_pos(x, y)
-        window = get_window_from_pos(x, y)
-        if not window:
-            window = dst_monitor_state.last_active_window
-        if window is None or not window.exists():
-            windows = dst_monitor_state.get_existing_windows()
-            if windows:
-                window = windows[0]
-        if window:
-            self.activate(window)
+        dst_monitor_state = self.get_monitor_state_by_offset(delta)
+        if dst_monitor_state.windows:
+            self.activate(dst_monitor_state.windows[0])
+        else:
+            rect = dst_monitor_state.monitor.get_info().rcWork
+            x, y = (
+                rect.left + (rect.right - rect.left) / 2,
+                rect.top + (rect.bottom - rect.top) / 2,
+            )
+            set_cursor_pos(x, y)
 
     def move_to_monitor_by_offset(self, delta: int):
         """Move active window to another monitor by offset"""
         logger.debug("move_to_monitor_by_offset(%s)", delta)
-        virtdesk_state = self.virtdesk_state
-        window = virtdesk_state.get_managed_active_window()
-        if not window:
+        active_window, src_monitor_state = self.get_active_managed_winmon()
+        if not active_window:
             return
-        src_monitor_state, dst_monitor_state = self.get_monitor_state_pair(
-            delta, virtdesk_state, window,
-        )
-        src_monitor_state.windows.remove(window)
-        src_monitor_state.arrange()
-        dst_monitor_state.windows.append(window)
-        dst_monitor_state.arrange()
-        # idx = src_monitor_state.windows.index(window)
-        # src_win_len = len(src_monitor_state.windows)
-        # if src_win_len:
-        #     next_window = src_monitor_state.windows[idx % src_win_len]
-        #     self.activate(next_window)
-        self.activate(window)
+        dst_monitor_state = self.get_monitor_state_by_offset(delta, src_monitor_state)
+        src_monitor_state.remove_window(active_window)
+        dst_monitor_state.add_window(active_window)
 
     def switch_workspace(self, workspace_index: int):
         """Switch to a specific workspace"""
-        self.get_active_monitor_state().switch_workspace(workspace_index)
+        _, monitor_state = self.get_active_managed_winmon()
+        monitor_state.switch_workspace(workspace_index)
 
     def move_to_workspace(self, workspace_index: int):
         """Move active window to a specific workspace"""
-        virtdesk_state = self.virtdesk_state
-        window = virtdesk_state.get_managed_active_window()
-        if not window:
+        active_window, src_monitor_state = self.get_active_managed_winmon()
+        if not active_window:
             return
-        monitor = get_monitor_from_window(window._hwnd)
-        monitor_state = virtdesk_state.get_monitor(monitor)
-        monitor_state.move_to_workspace(window, workspace_index)
+        src_monitor_state.move_to_workspace(active_window, workspace_index)
 
-    def unhide_workspaces(self):
-        for virtdesk_state in self._state.values():
-            for monitor_state in virtdesk_state.monitors.values():
-                monitor_state.unhide_workspaces()
+    def prev_theme(self):
+        """Switch to previous theme in the themes list"""
+        self.switch_theme_by_offset(-1)
 
-    def _winevent_callback(
-        self,
-        event: WinEvent,
-        hwnd: HWND,
-        id_obj: LONG,
-        id_chd: LONG,
-        id_evt_thread: DWORD,
-        evt_time: DWORD,
-        restrict: bool = False,
-        delay: float = 0.1,
-    ):
-        # ignore if left mouse button is pressed in case of dragging
-        force_sync = False
-        if sysinout.state.get( Vk.LBUTTON ) and event == WinEvent.EVENT_SYSTEM_MOVESIZEEND:
-            # delay the sync until button released to avoid flickering
-            self.wait_mouse_released = True
-            return
-        elif self.wait_mouse_released:
-            if not sysinout.state.get( Vk.LBUTTON ):
-                self.wait_mouse_released = False
-                force_sync = True
-            else:
-                return
-        if force_sync:
-            logger.debug("force sync")
-            self.sync(restrict=restrict, delay=delay)
-            return
-        # # filter by event
-        # if event not in (
-        #     WinEvent.EVENT_OBJECT_LOCATIONCHANGE,
-        #     WinEvent.EVENT_OBJECT_NAMECHANGE,
-        # ):
-        #     logger.warning(
-        #         "[A] event: %30s hwnd: %8s id_obj: %8x id_chd: %8x id_evt_thread: %8d title: %s",
-        #         event.name, hwnd, id_obj, id_chd, id_evt_thread, get_window_title(hwnd)
-        #     )
-        window = Window(hwnd)
-        def manageable(hwnd):
-            return (
-                is_top_level_window(hwnd)
-                and is_app_window(hwnd)
-                and get_window_title(hwnd)
-                and not self.check_window_ignored(window)
-            )
-        if event == WinEvent.EVENT_OBJECT_SHOW: # for app that minimized to tray, show event is the only way to detect
-            if not manageable(hwnd):
-                return
-        elif event == WinEvent.EVENT_OBJECT_HIDE: # same as above
-            if window not in self.virtdesk_state.managed_windows:
-                return
-        elif event == WinEvent.EVENT_SYSTEM_MOVESIZEEND:
-            restrict = True
-        # elif event == WinEvent.EVENT_OBJECT_STATECHANGE:
-        #     if not manageable(hwnd):
-        #         return
-        #     delay = 0.2
-        elif event not in (
-            WinEvent.EVENT_SYSTEM_MINIMIZESTART,
-            WinEvent.EVENT_SYSTEM_MINIMIZEEND,
-        ):
-            # if event not in (WinEvent.EVENT_OBJECT_LOCATIONCHANGE, WinEvent.EVENT_OBJECT_NAMECHANGE):
-            #     logger.warning(
-            #         "[B] event: %30s hwnd: %8s id_obj: %8x id_chd: %8x thread %8x top_level: %1s app_window: %1s ignored: %1s title: %s",
-            #         event.name, hwnd, id_obj, id_chd,id_evt_thread, is_top_level_window(hwnd),is_app_window(hwnd), self.check_window_ignored(Window(hwnd)), get_window_title(hwnd)
-            #     )
-            return
+    def next_theme(self):
+        """Switch to next theme in the themes list"""
+        self.switch_theme_by_offset(+1)
 
-        # logger.warning(
-        #     "[C] event: %30s hwnd: %8s title: %s",
-        #     event.name, hwnd,  get_window_title(hwnd)
-        # )
-        self.sync(restrict=restrict, delay=delay)
+    def activate_next(self):
+        """Activate the managed window next to the last activated managed window"""
+        self.activate_by_offset(+1)
 
-    def install_hooks(self):
-        """Install hooks for window events"""
-        self.hook_ids = [
-            hook.hook_winevent(
-                WinEvent.EVENT_MIN,
-                WinEvent.EVENT_MAX,
-                self._winevent_callback,
-            ),
-        ]
+    def activate_prev(self):
+        """Activate the managed window prior to the last activated managed window"""
+        self.activate_by_offset(-1)
 
-    def uninstall_hooks(self):
-        for hook_id in self.hook_ids:
-            hook.unhook_winevent(hook_id)
-        self.hook_ids = []
-        self.unhide_workspaces()
+    def swap_next(self):
+        """Swap the current active managed window with its next in list"""
+        self.swap_by_offset(+1)
 
+    def swap_prev(self):
+        """Swap the current active managed window with its previous in list"""
+        self.swap_by_offset(-1)
 
-if __name__ == "__main__":
-    wm = WindowManager()
-    wm.sync()
-    print()
-    wm.sync()
+    def prev_monitor(self):
+        """Switch to previous monitor"""
+        self.switch_monitor_by_offset(-1)
+
+    def next_monitor(self):
+        """Switch to next monitor"""
+        self.switch_monitor_by_offset(+1)
+
+    def move_to_prev_monitor(self):
+        """Move active window to previous monitor"""
+        self.move_to_monitor_by_offset(-1)
+
+    def move_to_next_monitor(self):
+        """Move active window to next monitor"""
+        self.move_to_monitor_by_offset(+1)
+
+    def move_to_desktop(self, desktop_number: int, window: Optional[Window] = None):
+        """Move active window to another virtual desktop"""
+        virtdesk.move_to_desktop(desktop_number, window)
+        self.sync_windows()
+
+    def switch_desktop(self, desktop_number: int):
+        """Switch to another virtual desktop"""
+        virtdesk.switch_desktop(desktop_number)
+        self.sync_windows()
