@@ -114,6 +114,16 @@ class DEVICE_SCALE_FACTOR(enum.IntEnum):
     SCALE_450_PERCENT = 450
     SCALE_500_PERCENT = 500
 
+@dataclass
+class ScreenInfo:
+    width_px: int
+    height_px: int
+    width_mm: int
+    height_mm: int
+    ratio: float
+    is_primary: bool
+    inch: int
+
 
 class Monitor:
     """Represents a Display Monitor
@@ -154,7 +164,7 @@ class Monitor:
         :rtype: MONITORINFOEX
         """
         monitor_info = MONITORINFOEX()
-        monitor_info.cbSize = sizeof(monitor_info)
+        monitor_info.cbSize = sizeof(monitor_info) # pylint: disable=invalid-name
         if not user32.GetMonitorInfoA(self._hmon, pointer(monitor_info)):
             raise WinError(get_last_error())
         return monitor_info
@@ -170,7 +180,8 @@ class Monitor:
             raise WinError(get_last_error())
         return DEVICE_SCALE_FACTOR(scale_factor.value)
 
-    def get_screen_info(self) -> screeninfo.Monitor:
+    def get_screen_info(self) -> ScreenInfo:
+        """Retrieves screen information"""
         for monitor in screeninfo.get_monitors():
             if monitor.name == self.name:
                 return ScreenInfo(
@@ -182,16 +193,6 @@ class Monitor:
                     is_primary=monitor.is_primary,
                     inch=round(math.sqrt(monitor.width_mm ** 2 + monitor.height_mm ** 2) / 25.4),
                 )
-
-@dataclass
-class ScreenInfo:
-    width_px: int
-    height_px: int
-    width_mm: int
-    height_mm: int
-    ratio: float
-    is_primary: bool
-    inch: int
 
 def get_monitors() -> Iterator[Monitor]:
     """Retrieves all display monitors(mirroring monitors are excluded)
@@ -256,8 +257,8 @@ def get_monitor_from_window(hwnd: HWND) -> Monitor:
     if hwnd:
         return Monitor(monitor_from_window(hwnd))
 
-
-if __name__ == "__main__":
+def inspect_monitors():
+    """Prints monitor information and cursor position"""
     p = get_cursor_pos()
     print(f"cursor pos       :  x {p.x} y {p.y}")
     for monitor in get_topo_sorted_monitors():
@@ -275,6 +276,7 @@ if __name__ == "__main__":
             f"monitor react    : left {m.left} top {m.top}  right {m.right}  bottom {m.bottom}"
         )
 
-    # import screeninfo
-    # for monitor in screeninfo.get_monitors():
-    #     print(monitor)
+
+
+if __name__ == "__main__":
+    inspect_monitors()
