@@ -38,7 +38,7 @@ def is_elevated(pid: int) -> bool:
     hprc = None
     try:
         hprc = open_process_for_limited_query(pid)
-    except:
+    except OSError:
         return True
     htoken = PHANDLE()
     if not windll.advapi32.OpenProcessToken(hprc, TOKEN_QUERY, byref(htoken)):
