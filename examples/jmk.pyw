@@ -26,7 +26,7 @@ layers = [
     {  # layer 0
         # map capslock to ctrl when held and `  when tapped
         Vk.CAPITAL: JmkTapHold(tap=parse_key("`"), hold=Vk.LCONTROL),
-        Vk.OEM_3: JmkTapHold(tap=Vk.ESCAPE, hold=Vk.LWIN),
+        # Vk.OEM_3: JmkTapHold(tap=Vk.ESCAPE, hold=Vk.LWIN),
         Vk.BACK: JmkTapHold(tap=Vk.BACK, hold=Vk.RWIN),
         # Vk.ESCAPE: JmkTapHold(tap=Vk.ESCAPE, hold=Vk.LWIN),
         # Vk.T: JmkTapHold(tap=Vk.T, hold=3),
