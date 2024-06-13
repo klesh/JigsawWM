@@ -383,8 +383,10 @@ class WindowManager(OpMixin):
         """Move active window to a specific workspace"""
         virtdesk_state = self.virtdesk_state
         window = virtdesk_state.get_managed_active_window()
-        monitor_state = self.get_active_monitor_state()
-        monitor_state.windows.remove(window)
+        if not window:
+            return
+        monitor = get_monitor_from_window(window._hwnd)
+        monitor_state = virtdesk_state.get_monitor(monitor)
         monitor_state.move_to_workspace(window, workspace_index)
 
     def unhide_workspaces(self):

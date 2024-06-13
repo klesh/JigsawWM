@@ -29,7 +29,6 @@ class WorkspaceState:
                 window.hide()
 
 
-
 class MonitorState:
     """MonitorState holds variables needed by a Monitor
 
@@ -93,12 +92,15 @@ class MonitorState:
         self._ensure_workspace(workspace_index)
         self.active_workspace_index = workspace_index
         self.workspace.toggle(True)
-        self.sync(self.windows)
+        self.arrange()
 
     def move_to_workspace(self, window: Window, workspace_index: int):
         if workspace_index == self.active_workspace_index:
             return
         self._ensure_workspace(workspace_index)
+        self.windows.remove(window)
+        window.hide()
+        self.arrange()
         self.workspaces[workspace_index].windows.append(window)
 
     def unhide_workspaces(self):
