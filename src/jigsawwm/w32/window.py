@@ -1,17 +1,19 @@
+"""Windows API for window management"""
 import logging
 import sys
 import time
-from ctypes import *
-from ctypes.wintypes import *
+from ctypes import * # pylint: disable=wildcard-import,unused-wildcard-import
+from ctypes.wintypes import * # pylint: disable=wildcard-import,unused-wildcard-import
 from dataclasses import dataclass
 from io import StringIO
-from tkinter import messagebox
 from typing import Callable, List, Optional
 
 from . import process
-from .sendinput import *
+from .sendinput import send_input, INPUT, INPUTTYPE, KEYBDINPUT, KEYEVENTF
 from .vk import Vk
-from .window_structs import *
+from .window_structs import (
+  WindowStyle, WindowExStyle, EnumCheckResult, ShowWindowCmd, DwmWindowAttribute
+)
 
 user32 = WinDLL("user32", use_last_error=True)
 kernel32 = WinDLL("kernel32", use_last_error=True)
@@ -34,7 +36,7 @@ def enum_windows(
     hwnds = []
 
     @WINFUNCTYPE(BOOL, HWND, LPARAM)
-    def enum_windows_proc(hwnd: HWND, lParam: LPARAM) -> BOOL:
+    def enum_windows_proc(hwnd: HWND, _lParam: LPARAM) -> BOOL: # pylint: disable=invalid-name
         r = check(hwnd)
         if EnumCheckResult.CAPTURE in r:
             hwnds.append(hwnd)
@@ -204,6 +206,7 @@ WM_GETICON = 0x7F
 
 
 def get_window_icon(hwnd: HWND) -> HANDLE:
+    """Retrieves the icon handle of the specified window"""
     handle = user32.SendMessageW(hwnd, WM_GETICON, ICON_SMALL2, 0)
     if not handle:
         handle = user32.SendMessageW(hwnd, WM_GETICON, ICON_SMALL, 0)
@@ -225,9 +228,11 @@ class Window:
 
     _hwnd: HWND
     _restricted_rect = None
+    attrs: dict = None
 
     def __init__(self, hwnd: HWND):
         self._hwnd = hwnd
+        self.attrs = {}
 
     def __eq__(self, other):
         return isinstance(other, Window) and self._hwnd == other._hwnd
@@ -236,10 +241,11 @@ class Window:
         return hash(self._hwnd)
 
     def __repr__(self):
-        return f"<Window title={self.title} hwnd={self._hwnd}>"
+        return f"<Window exe={self.exe} title={self.title} hwnd={self._hwnd}>"
 
     @property
     def handle(self) -> HWND:
+        """Retrieves the window handle"""
         return self._hwnd
 
     @property
@@ -318,6 +324,7 @@ class Window:
 
     @property
     def icon_handle(self) -> HANDLE:
+        """Retrieves the icon handle of the specified window"""
         return get_window_icon(self._hwnd)
 
     def get_style(self) -> WindowStyle:
@@ -357,6 +364,7 @@ class Window:
             self.maximize()
 
     def exists(self) -> bool:
+        """Check if window exists"""
         return is_window(self._hwnd)
 
     def get_extended_frame_bounds(self) -> RECT:
@@ -392,6 +400,7 @@ class Window:
         logger.debug("set_rect %s for %s", rect, self.title)
 
     def restrict(self):
+        """Restrict the window to the restricted rect"""
         if self._restricted_rect:
             set_window_rect(self._hwnd, self._restricted_rect)
             logger.debug("restricted %s for %s", self._restricted_rect, self.title)
@@ -419,6 +428,7 @@ def get_app_windows() -> List[Window]:
 
 
 def get_window_from_pos(x, y: int) -> Optional[Window]:
+    """Retrieves the window at the specified position"""
     hwnd = user32.WindowFromPoint(POINT(int(x), int(y)))
     if hwnd:
         return Window(user32.GetAncestor(hwnd, 2))
@@ -493,12 +503,14 @@ def toggle_maximize_active_window():
 
 
 def sprint_window(hwnd: HWND) -> str:
+    """Inspect window and return the information as string"""
     f = StringIO()
     inspect_window(hwnd, file=f)
     return f.getvalue()
 
 
 def inspect_window(hwnd: HWND, file=sys.stdout):
+    """Inspect window and print the information to the file"""
     print(file=file)
     window = Window(hwnd)
     if not window.exists():
@@ -532,9 +544,10 @@ def inspect_window(hwnd: HWND, file=sys.stdout):
 
 
 def inspect_active_window():
+    """Inspect active window and show the information in a message box"""
     text = sprint_window(get_foreground_window())
     print(text)
-    messagebox.showinfo("JigsawWM", text)
+    # messagebox.showinfo("JigsawWM", text)
 
 
 if __name__ == "__main__":

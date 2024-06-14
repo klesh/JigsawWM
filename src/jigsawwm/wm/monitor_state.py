@@ -5,7 +5,7 @@ from typing import Set, List
 from jigsawwm.w32.monitor import Monitor
 from jigsawwm.w32.window import Window
 
-from .config import WmConfig
+from .config import WmConfig, WmRule
 from .theme import Theme
 from .workspace_state import WorkspaceState
 
@@ -105,6 +105,11 @@ class MonitorState:
         """
         logger.debug("sync monitor %s with %d windows", self.monitor, len(windows))
         self.workspace.sync_windows(windows)
+        for window in self.windows:
+            rule: WmRule = window.attrs.pop("rule", None)
+            if rule:
+                if rule.to_workspace_index is not None and rule.to_monitor_index != 0:
+                    self.move_to_workspace(window, rule.to_workspace_index)
 
     def unhide_workspaces(self):
         """Unhide all workspaces of the monitor"""

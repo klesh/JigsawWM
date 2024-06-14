@@ -69,7 +69,10 @@ def get_exepath(pid: int) -> str:
     """
     if not pid:
         return
-    hprc = open_process_for_limited_query(pid)
+    try:
+        hprc = open_process_for_limited_query(pid)
+    except OSError:
+        return ""
     buff = create_unicode_buffer(512)
     size = DWORD(sizeof(buff))
     if not kernel32.QueryFullProcessImageNameW(hprc, 0, buff, pointer(size)):

@@ -9,7 +9,7 @@ from jigsawwm.w32.monitor import (
 )
 from .manager_core import WindowManagerCore
 from .theme import Theme
-from .config import WmConfig
+from .config import WmConfig, WmRule
 
 logger = logging.getLogger(__name__)
 
@@ -22,12 +22,14 @@ class WindowManager(WindowManagerCore):
         ignore_exe_names: Set[str] = None,
         force_managed_exe_names: Set[str] = None,
         init_exe_sequence: List[List[str]] = None,
+        rules: List[WmRule] = None,
     ):
         config = WmConfig(
             themes=themes,
             ignore_exe_names=set(ignore_exe_names or []),
             force_managed_exe_names = set(force_managed_exe_names or []),
             init_exe_sequence = init_exe_sequence or [],
+            rules=rules,
         )
         super().__init__(config)
 

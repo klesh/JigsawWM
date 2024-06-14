@@ -19,7 +19,7 @@ from jigsawwm.w32.window import (
     EnumCheckResult,
     get_foreground_window,
 )
-from jigsawwm.w32.monitor import get_monitor_from_cursor, get_topo_sorted_monitors
+from jigsawwm.w32.monitor import get_monitor_from_cursor, get_topo_sorted_monitors, get_monitors
 from jigsawwm.w32.winevent import WinEvent
 from jigsawwm.jmk import sysinout, Vk
 
@@ -100,6 +100,7 @@ class WindowManagerCore:
 
     def start(self):
         """Start the WindowManagerCore service"""
+        self.config.prepare()
         self.install_hooks()
         self.sync_windows(init=True)
     
@@ -118,12 +119,12 @@ class WindowManagerCore:
         # group manageable windows by their current monitor
         group_wins_by_mons: Dict[Monitor, Set[Window]] = {}
         for window in manageable_windows:
-            if init: # use the monitor of the window when starting up
-                monitor = get_monitor_from_window(window.handle)
-            else:
-                monitor = virtdesk_state.find_monitor_of_window(window)
-                if not monitor:
-                    monitor = get_monitor_from_cursor()
+            monitor = (
+                virtdesk_state.find_monitor_of_window(window) # window has been managed
+                or self.find_monitor_from_config(window) # window has a rule
+                or (init and get_monitor_from_window(window.handle)) # fallback: window existing before manager start
+                or get_monitor_from_cursor() #  fallback: window appearing after manager start
+            )
             if monitor not in group_wins_by_mons:
                 group_wins_by_mons[monitor] = set()
             # add window to lists
@@ -135,17 +136,32 @@ class WindowManagerCore:
             monitor_state = virtdesk_state.get_monitor_state(monitor)
             monitor_state.sync_windows(windows)
 
+    def find_monitor_from_config(self, window: Window) -> Optional[Monitor]:
+        """Find monitor from the config rules for the window"""
+        logger.debug("find_monitor_from_config %s", window)
+        rule = self.config.find_rule_for_window(window)
+        if rule:
+            logger.debug("rule %s found for %s", rule, window)
+            window.attrs["rule"] = rule
+            monitors = list(get_monitors())
+            if len(monitors) > rule.to_monitor_index:
+                return monitors[rule.to_monitor_index]
+        logger.debug("no rule found for %s", window)
+        return None
+
     def get_manageable_windows(self) -> List[Window]:
         """Retrieve all manageable windows"""
-        return map(Window, enum_windows(
-            lambda hwnd: EnumCheckResult.CAPTURE
-            if self.is_window_manageable(Window(hwnd))
-            else EnumCheckResult.SKIP
-        ))
+        def check_window(hwnd: HWND) -> EnumCheckResult:
+            window = Window(hwnd)
+            if self.is_window_manageable(window):
+                logger.debug("manageable %s", window)
+                return EnumCheckResult.CAPTURE
+            return EnumCheckResult.SKIP
+        return map(Window, enum_windows(check_window))
     
     def is_window_manageable(self, window: Window) -> bool:
         """Check if the window is manageable by the WindowManager"""
-        return is_app_window(window.handle) and self.config.is_window_manageable(window)
+        return window.title and is_app_window(window.handle) and self.config.is_window_manageable(window)
 
     def unhide_workspaces(self):
         """Unhide all workspaces"""
@@ -164,20 +180,20 @@ class WindowManagerCore:
     ):
         # ignore if left mouse button is pressed in case of dragging
         force_sync = False
-        if sysinout.state.get( Vk.LBUTTON ):
+        if sysinout.state.get( Vk.LBUTTON ) and event == WinEvent.EVENT_OBJECT_PARENTCHANGE:
             # delay the sync until button released to avoid flickering
-            logger.debug("wait_mouse_released")
+            logger.debug("wait_mouse_released on event %s", event.name)
             self._wait_mouse_released = True
             return
         elif self._wait_mouse_released:
+            logger.debug("mouse_released on event %s", event.name)
             if not sysinout.state.get( Vk.LBUTTON ):
-                logger.debug("mouse_released")
                 self._wait_mouse_released = False
                 force_sync = True
             else:
                 return
         if force_sync:
-            logger.debug("force sync")
+            logger.debug("force sync on event %s", event.name)
             time.sleep(0.1) # fix case: dragging chrome tab as a new window and it doesn't show up in the right place
             self.sync_windows()
             return
@@ -191,13 +207,18 @@ class WindowManagerCore:
             if not self.is_window_manageable(window):
                 return
         # elif event == WinEvent.EVENT_SYSTEM_MOVESIZEEND:
-        #     return self.restrict()
+        #     return self.restrict(hwnd)
         elif event not in (
             WinEvent.EVENT_SYSTEM_MINIMIZESTART,
             WinEvent.EVENT_SYSTEM_MINIMIZEEND,
+            WinEvent.EVENT_OBJECT_PARENTCHANGE, # fix case: closing clash-verge
+            WinEvent.EVENT_SYSTEM_MOVESIZEEND, # fix case: resizing any app window
         ):
+            # logger.debug("ignore winevent %s", event.name)
             return
 
+        logger.debug("sync_windows on event %s", event.name)
+        time.sleep(0.1) # fix case: nothing happen after closing clash-verge
         self.sync_windows()
 
     def install_hooks(self):

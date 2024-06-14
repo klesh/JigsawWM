@@ -1,6 +1,8 @@
+"""WinEvent eum"""
+import logging
 import enum
 from ctypes import WINFUNCTYPE
-from ctypes.wintypes import *
+from ctypes.wintypes import HANDLE, DWORD, HWND, LONG
 
 HWINEVENTHOOK = HANDLE
 
@@ -8,8 +10,11 @@ WINEVENTHOOKPROC = WINFUNCTYPE(
     HWINEVENTHOOK, HANDLE, DWORD, HWND, LONG, LONG, DWORD, DWORD
 )
 
+logger = logging.getLogger(__name__)
+
 
 class WinEvent(enum.IntEnum):
+    """WinEvent enumeration for Windows event hooking"""
     # The range of WinEvent constant values specified by the Accessibility Interoperability Alliance (AIA) for use across the industry. For more information, see Allocation of WinEvent IDs.
     EVENT_AIA_START = 0xA000
     EVENT_AIA_END = 0xAFFF
@@ -105,4 +110,5 @@ class WinEvent(enum.IntEnum):
 
     @classmethod
     def _missing_(cls, value):
+        logger.warning("Unknown WinEvent value: %s", value)
         return cls.UNKNOWN
