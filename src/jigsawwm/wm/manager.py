@@ -4,10 +4,8 @@ from typing import List, Callable, Optional, Set
 from jigsawwm import ui
 from jigsawwm.w32 import virtdesk
 from jigsawwm.w32.window import Window
-from jigsawwm.w32.monitor import (
-  set_cursor_pos,
-)
-from .manager_core import WindowManagerCore
+from jigsawwm.w32.monitor import set_cursor_pos, get_topo_sorted_monitors
+from .manager_core import WindowManagerCore, MonitorState
 from .theme import Theme
 from .config import WmConfig, WmRule
 
@@ -49,7 +47,7 @@ class WindowManager(WindowManagerCore):
         When the active window is managed, activate window in the same monitor by offset
         When the active window is unmanaged, activate the first in the list or do nothing
         """
-        active_window, monitor_state = self.get_active_managed_winmon()
+        active_window, monitor_state = self.get_active_window()
         if not active_window:
             return
         try:
@@ -62,7 +60,7 @@ class WindowManager(WindowManagerCore):
         ui.show_windows_splash(monitor_state, dst_window)
 
     def _reorder(self, reorderer: Callable[[List[Window], int], None]):
-        active_window, monitor_state = self.get_active_managed_winmon()
+        active_window, monitor_state = self.get_active_window()
         if not active_window:
             return
         if len(monitor_state.windows) < 2:
@@ -114,10 +112,21 @@ class WindowManager(WindowManagerCore):
 
     def switch_theme_by_offset(self, delta: int):
         """Switch theme by offset"""
-        _, monitor_state = self.get_active_managed_winmon()
+        monitor_state = self.get_active_monitor_state()
         theme_index = self.config.get_theme_index(monitor_state.theme.name)
         theme = self.config.themes[(theme_index + delta) % len(self.config.themes)]
         monitor_state.set_theme(theme)
+
+    def get_monitor_state_by_offset(self, delta: int, src_monitor_state: Optional[MonitorState]=None) -> MonitorState:
+        """Retrieves a pair of monitor_states, the current active one and its offset in the list"""
+        if not src_monitor_state:
+            src_monitor_state = self.get_active_monitor_state()
+        monitors = get_topo_sorted_monitors()
+        src_idx = monitors.index(src_monitor_state.monitor)
+        dst_idx = (src_idx + delta) % len(monitors)
+        dst_monitor = monitors[dst_idx]
+        dst_monitor_state = self.virtdesk_state.get_monitor_state(dst_monitor)
+        return dst_monitor_state
 
     def switch_monitor_by_offset(self, delta: int):
         """Switch to another monitor by given offset"""
@@ -136,21 +145,24 @@ class WindowManager(WindowManagerCore):
     def move_to_monitor_by_offset(self, delta: int):
         """Move active window to another monitor by offset"""
         logger.debug("move_to_monitor_by_offset(%s)", delta)
-        active_window, src_monitor_state = self.get_active_managed_winmon()
+        active_window, src_monitor_state = self.get_active_window()
         if not active_window:
             return
         dst_monitor_state = self.get_monitor_state_by_offset(delta, src_monitor_state)
         src_monitor_state.remove_window(active_window)
         dst_monitor_state.add_window(active_window)
+        self.activate(active_window)
 
     def switch_workspace(self, workspace_index: int):
         """Switch to a specific workspace"""
-        _, monitor_state = self.get_active_managed_winmon()
+        monitor_state = self.get_active_monitor_state()
         monitor_state.switch_workspace(workspace_index)
+        if monitor_state.windows:
+            self.activate(monitor_state.windows[0])
 
     def move_to_workspace(self, workspace_index: int):
         """Move active window to a specific workspace"""
-        active_window, src_monitor_state = self.get_active_managed_winmon()
+        active_window, src_monitor_state = self.get_active_window()
         if not active_window:
             return
         src_monitor_state.move_to_workspace(active_window, workspace_index)

@@ -110,5 +110,5 @@ class WinEvent(enum.IntEnum):
 
     @classmethod
     def _missing_(cls, value):
-        logger.warning("Unknown WinEvent value: %s", value)
+        # logger.warning("Unknown WinEvent value: %s", value)
         return cls.UNKNOWN

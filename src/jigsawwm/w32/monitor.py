@@ -244,8 +244,15 @@ def get_monitor_from_cursor() -> Monitor:
     :rtype: Monitor
     """
     pt = get_cursor_pos()
-    return Monitor(monitor_from_point(pt.x, pt.y))
+    return get_monitor_from_pos(pt.x, pt.y)
 
+def get_monitor_from_pos(x: int, y: int) -> Monitor:
+    """Retrieves monitor from given coordinates
+
+    :returns: Monitor from current cursor
+    :rtype: Monitor
+    """
+    return Monitor(monitor_from_point(x, y))
 
 def get_monitor_from_window(hwnd: HWND) -> Monitor:
     """Retrieves monitor from window handle

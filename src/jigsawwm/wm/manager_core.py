@@ -17,9 +17,9 @@ from jigsawwm.w32.window import (
     is_app_window,
     enum_windows,
     EnumCheckResult,
-    get_foreground_window,
+    get_active_window,
 )
-from jigsawwm.w32.monitor import get_monitor_from_cursor, get_topo_sorted_monitors, get_monitors
+from jigsawwm.w32.monitor import get_monitor_from_cursor, get_monitors
 from jigsawwm.w32.winevent import WinEvent
 from jigsawwm.jmk import sysinout, Vk
 
@@ -69,34 +69,21 @@ class WindowManagerCore:
             self.virtdesk_states[desktop_id] = virtdesk_state
         return virtdesk_state
 
-    def get_active_managed_winmon(self) -> Tuple[Window, MonitorState]:
-        """Get active windows"""
-        logger.debug("get_active_managed_winmon")
-        hwnd = get_foreground_window()
-        if hwnd:
-            monitor = get_monitor_from_window(hwnd)
-        else:
-            monitor = get_monitor_from_cursor()
-        monitor_state = self.virtdesk_state.get_monitor_state(monitor)
-        if not monitor_state.windows:
-            return None, monitor_state
-        if not hwnd:
-            return monitor_state.windows[0], monitor_state
-        active_window = Window(hwnd)
-        if active_window not in monitor_state.windows:
-            return monitor_state.windows[0], monitor_state
-        return active_window, monitor_state
+    def get_active_monitor_state(self) -> MonitorState:
+        """Get active monitor state"""
+        monitor = get_monitor_from_cursor()
+        return self.virtdesk_state.get_monitor_state(monitor)
 
-    def get_monitor_state_by_offset(self, delta: int, src_monitor_state: Optional[MonitorState]=None) -> MonitorState:
-        """Retrieves a pair of monitor_states, the current active one and its offset in the list"""
-        if not src_monitor_state:
-            _, src_monitor_state = self.get_active_managed_winmon()
-        monitors = get_topo_sorted_monitors()
-        src_idx = monitors.index(src_monitor_state.monitor)
-        dst_idx = (src_idx + delta) % len(monitors)
-        dst_monitor = monitors[dst_idx]
-        dst_monitor_state = self.virtdesk_state.get_monitor_state(dst_monitor)
-        return dst_monitor_state
+    def get_active_window(self) -> Tuple[Window, MonitorState]:
+        """Get active windows"""
+        logger.debug("get_active_window")
+        monitor_state = self.get_active_monitor_state()
+        if not monitor_state.windows:
+            return
+        window = get_active_window()
+        if window and window not in monitor_state.windows:
+            return
+        return window, monitor_state
 
     def start(self):
         """Start the WindowManagerCore service"""
