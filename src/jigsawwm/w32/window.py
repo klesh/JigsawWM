@@ -7,6 +7,7 @@ from ctypes.wintypes import * # pylint: disable=wildcard-import,unused-wildcard-
 from dataclasses import dataclass
 from io import StringIO
 from typing import Callable, List, Optional
+from os import path
 
 from . import process
 from .sendinput import send_input, INPUT, INPUTTYPE, KEYBDINPUT, KEYEVENTF
@@ -241,7 +242,7 @@ class Window:
         return hash(self._hwnd)
 
     def __repr__(self):
-        return f"<Window exe={self.exe} title={self.title} hwnd={self._hwnd}>"
+        return f"<Window exe={path.basename(self.exe)} title={self.title[:10]} hwnd={self._hwnd}>"
 
     @property
     def handle(self) -> HWND:

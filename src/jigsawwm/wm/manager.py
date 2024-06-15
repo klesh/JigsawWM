@@ -33,6 +33,7 @@ class WindowManager(WindowManagerCore):
 
     def activate(self, window: Window):
         """Activate specified window"""
+        logger.debug("activate(%s)", window)
         window.activate()
         # move cursor to the center of the window
         rect = window.get_rect()

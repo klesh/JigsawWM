@@ -50,6 +50,7 @@ class WindowManagerCore:
     config: WmConfig
     _hook_ids: List[int] = []
     _wait_mouse_released: bool = False
+    _managed_windows: Set[Window] = set()
 
     def __init__(
         self,
@@ -97,15 +98,17 @@ class WindowManagerCore:
 
     def sync_windows(self, init=False) -> bool:
         """Synchronize internal windows state to the system state"""
-        logger.debug("sync_windows")
+        logger.debug("sync_windows init %s", init)
         virtdesk_state = self.virtdesk_state
         # gather all manageable windows
         manageable_windows = self.get_manageable_windows()
         if not manageable_windows:
             return
+        self._managed_windows = set()
         # group manageable windows by their current monitor
         group_wins_by_mons: Dict[Monitor, Set[Window]] = {}
         for window in manageable_windows:
+            self._managed_windows.add(window)
             monitor = (
                 virtdesk_state.find_monitor_of_window(window) # window has been managed
                 or self.find_monitor_from_config(window) # window has a rule
@@ -191,17 +194,18 @@ class WindowManagerCore:
                 return
             time.sleep(0.1) # fix case: firefox takes took long to show up
         elif event == WinEvent.EVENT_OBJECT_HIDE: # same as above
-            if not self.is_window_manageable(window):
+            # when window is hidden or destryed, it would not pass the is_window_manageable check
+            # fix case: toggle chrome fullscreen
+            if window not in self._managed_windows:
                 return
         # elif event == WinEvent.EVENT_SYSTEM_MOVESIZEEND:
         #     return self.restrict(hwnd)
         elif event not in (
             WinEvent.EVENT_SYSTEM_MINIMIZESTART,
             WinEvent.EVENT_SYSTEM_MINIMIZEEND,
-            WinEvent.EVENT_OBJECT_PARENTCHANGE, # fix case: closing clash-verge
             WinEvent.EVENT_SYSTEM_MOVESIZEEND, # fix case: resizing any app window
         ):
-            # logger.debug("ignore winevent %s", event.name)
+            # logger.debug("ignore winevent %s is_app_window %s", event.name, is_app_window(hwnd))
             return
 
         logger.debug("sync_windows on event %s", event.name)
