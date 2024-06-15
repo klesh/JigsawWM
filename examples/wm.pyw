@@ -20,7 +20,7 @@ wm = WindowManager(
         # ),
         Theme(
             name="Dwindle",
-            layout_tiler=tilers.dwindle_layout_tiler,
+            layout_tiler=tilers.ratio_dwindle_layout_tiler,
             strict=True,
             gap=2,
             new_window_as_master=True,

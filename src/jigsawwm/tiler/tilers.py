@@ -10,6 +10,7 @@ The ``tiler`` module is responsible for converting Layout to Physical Coordinate
 
 """
 from typing import Callable, Iterator, Tuple
+from functools import partial
 
 from .layouts import Layout, dwindle, mono, static_bigscreen_8, plug_rect, widescreen_dwindle
 
@@ -97,6 +98,10 @@ def mono_layout_tiler(*args, **kwargs) -> Iterator[Rect]:
     """The dwindle layout tiler"""
     return direct_tiler(mono, *args, **kwargs)
 
+
+def ratio_dwindle_layout_tiler(*args, master_ratio=0.618, **kwargs) -> Iterator[Rect]:
+    """The dwindle layout tiler"""
+    return direct_tiler(partial(dwindle, master_ratio=master_ratio), *args, **kwargs)
 
 def dwindle_layout_tiler(*args, **kwargs) -> Iterator[Rect]:
     """The dwindle layout tiler"""

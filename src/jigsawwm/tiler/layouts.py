@@ -40,7 +40,7 @@ def mono(n: int) -> Iterator[FloatRect]:
         yield 0.0, 0.0, 1.0, 1.0
 
 
-def dwindle(n: int) -> Iterator[FloatRect]:
+def dwindle(n: int, master_ratio: float = 0.5) -> Iterator[FloatRect]:
     """The dwindle Layout
 
     .. code-block:: text
@@ -58,6 +58,7 @@ def dwindle(n: int) -> Iterator[FloatRect]:
     :param n: total number of windows
     :rtype: Iterator[FloatRect]
     """
+    ratio = 1 - master_ratio
     l, t, r, b = 0.0, 0.0, 1.0, 1.0
     last_index = n - 1
     for i in range(n):
@@ -66,11 +67,11 @@ def dwindle(n: int) -> Iterator[FloatRect]:
             yield l, t, r, b
         # or it should leave out half space for the other windows
         elif i % 2 == 0:
-            nl = r - (r - l) / 2
+            nl = r - (r - l) * ratio
             yield l, t, nl, b
             l = nl
         else:
-            nb = b - (b - t) / 2
+            nb = b - (b - t) * ratio
             yield l, t, r, nb
             t = nb
 
