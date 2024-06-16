@@ -91,3 +91,11 @@ QScrollBar::sub-page {
 #shortcut #description::hover {
   background: rgb(81, 81, 81);
 }
+
+#workspace {
+  margin: 0 5px 5px 5px;
+  padding: 5px;
+  font-size: 16pt;
+  height: 18pt;
+  background: #666666;
+}

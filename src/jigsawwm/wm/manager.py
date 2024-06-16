@@ -50,6 +50,8 @@ class WindowManager(WindowManagerCore):
         """
         active_window, monitor_state = self.get_active_window()
         if not active_window:
+            monitor_state = self.get_active_monitor_state()
+            ui.show_windows_splash(monitor_state, None)
             return
         try:
             src_index = monitor_state.windows.index(active_window)
@@ -160,6 +162,7 @@ class WindowManager(WindowManagerCore):
         monitor_state.switch_workspace(workspace_index)
         if monitor_state.windows:
             self.activate(monitor_state.windows[0])
+        ui.show_windows_splash(monitor_state, None)
 
     def move_to_workspace(self, workspace_index: int):
         """Move active window to a specific workspace"""

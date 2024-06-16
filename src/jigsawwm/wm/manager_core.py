@@ -80,10 +80,10 @@ class WindowManagerCore:
         logger.debug("get_active_window")
         monitor_state = self.get_active_monitor_state()
         if not monitor_state.windows:
-            return
+            return None, None
         window = get_active_window()
         if window and window not in monitor_state.windows:
-            return
+            return None, None
         return window, monitor_state
 
     def start(self):

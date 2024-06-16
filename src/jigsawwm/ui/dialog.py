@@ -1,3 +1,5 @@
+"""Dialog class for creating custom dialog with shadow effect"""
+# pylint: disable=invalid-name
 import os
 import typing
 
@@ -17,6 +19,7 @@ from PySide6.QtWidgets import (
 
 
 class Dialog(QDialog):
+    """Dialog class for creating custom dialog with shadow effect"""
     radius: int = 10
 
     def __init__(
@@ -96,6 +99,7 @@ class Dialog(QDialog):
             self.setStyleSheet(f.read())
 
     def screenFromCursor(self) -> typing.Tuple[QScreen, QPoint]:
+        """get the screen from the cursor position"""
         pos = QCursor.pos()
         app = QApplication.instance()
         for screen in app.screens():
@@ -103,12 +107,14 @@ class Dialog(QDialog):
                 return screen
 
     def keyPressEvent(self, a0: QKeyEvent) -> None:
+        """handle key press event"""
         if a0.key() == Qt.Key.Key_Escape:
             self.onEscPresssed()
             return
         return super().keyPressEvent(a0)
 
     def onEscPresssed(self) -> None:
+        """handle escape key pressed event"""
         self.hide()
 
     @staticmethod
@@ -116,6 +122,7 @@ class Dialog(QDialog):
         container: QWidget,
         keep: typing.Optional[typing.Callable[[QWidget], bool]] = None,
     ):
+        """delete all direct children of the QWidget"""
         for w in container.findChildren(
             QWidget, options=Qt.FindChildOption.FindDirectChildrenOnly
         ):
@@ -124,7 +131,7 @@ class Dialog(QDialog):
             w.deleteLater()
 
     def create_row_widget(self, width: int, text: str, icon: QImage = None) -> QWidget:
-        """create a QtWidget for displaying Shortcut"""
+        """create a row QtWidget"""
         frame_widget = QFrame()
         frame_widget.setObjectName("menuitem")
         frame_layout = QHBoxLayout(frame_widget)
