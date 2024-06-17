@@ -1,6 +1,7 @@
+"""Windows API for process management"""
 import os
-from ctypes import *
-from ctypes.wintypes import *
+from ctypes import * # pylint: disable=wildcard-import,unused-wildcard-import
+from ctypes.wintypes import * # pylint: disable=wildcard-import,unused-wildcard-import
 from typing import List
 from enum import IntEnum
 
@@ -10,7 +11,8 @@ psapi = WinDLL("psapi", use_last_error=True)
 shcore  = WinDLL("shcore", use_last_error=True)
 
 TOKEN_QUERY = DWORD(8)
-
+PROCESS_QUERY_LIMITED_INFORMATION = DWORD(0x1000)
+TOKEN_ELEVATION = INT(20)
 
 def open_process_for_limited_query(pid: int) -> HANDLE:
     """Opens an existing local process object with permission to query limited information
@@ -21,7 +23,6 @@ def open_process_for_limited_query(pid: int) -> HANDLE:
     :return:  process handle
     :rtype: HANDLE
     """
-    PROCESS_QUERY_LIMITED_INFORMATION = DWORD(0x1000)
     hprc = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
     if not hprc:
         raise WinError(get_last_error())
@@ -44,20 +45,19 @@ def is_elevated(pid: int) -> bool:
     if not windll.advapi32.OpenProcessToken(hprc, TOKEN_QUERY, byref(htoken)):
         windll.kernel32.CloseHandle(hprc)
         return
-    TOKEN_ELEVATION = INT(20)
-    is_elevated = BOOL()
+    result = BOOL()
     returned_length = DWORD()
     if not advapi32.GetTokenInformation(
         htoken,
         TOKEN_ELEVATION,
-        byref(is_elevated),
+        byref(result),
         4,
         byref(returned_length),
     ):
         raise WinError(get_last_error())
     kernel32.CloseHandle(hprc)
     kernel32.CloseHandle(htoken)
-    return bool(is_elevated.value)
+    return bool(result.value)
 
 
 def get_exepath(pid: int) -> str:
@@ -115,7 +115,7 @@ def is_exe_running(exe: str, nameonly: bool = False) -> bool:
                 ppath = os.path.basename(ppath)
             if exe == ppath:
                 return True
-        except:
+        except: # pylint: disable=bare-except
             pass
     return False
 
@@ -131,9 +131,10 @@ def get_session_id():
     return kernel32.WTSGetActiveConsoleSessionId()
 
 class ProcessDpiAwareness(IntEnum):
-  PROCESS_DPI_UNAWARE = 0,
-  PROCESS_SYSTEM_DPI_AWARE = 1,
-  PROCESS_PER_MONITOR_DPI_AWARE = 2
+    """Process DPI Awareness Level"""
+    PROCESS_DPI_UNAWARE = 0
+    PROCESS_SYSTEM_DPI_AWARE = 1
+    PROCESS_PER_MONITOR_DPI_AWARE = 2
 
 def get_process_dpi_awareness(pid: int) -> ProcessDpiAwareness:
     """Retrieves the DPI awareness of the process"""
@@ -141,7 +142,7 @@ def get_process_dpi_awareness(pid: int) -> ProcessDpiAwareness:
     awareness = c_int()
     if shcore.GetProcessDpiAwareness(hprc, pointer(awareness)):
         raise WinError(get_last_error())
-    return ProcessDpiAwareness(awareness.value) 
+    return ProcessDpiAwareness(awareness.value)
 
 if __name__ == "__main__":
     # import sys
