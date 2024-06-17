@@ -2,6 +2,8 @@
 import logging
 import time
 from typing import Dict, List, Set, Tuple, Optional
+from queue import SimpleQueue
+from threading import Thread
 
 from jigsawwm.w32 import hook
 from jigsawwm.w32.monitor import (
@@ -51,6 +53,8 @@ class WindowManagerCore:
     _hook_ids: List[int] = []
     _wait_mouse_released: bool = False
     _managed_windows: Set[Window] = set()
+    _queue: Optional[SimpleQueue]  = None
+    _consumer: Optional[Thread] = None
 
     def __init__(
         self,
@@ -91,13 +95,79 @@ class WindowManagerCore:
         self.config.prepare()
         self.install_hooks()
         self.sync_windows(init=True)
+        self._queue = SimpleQueue()
+        self._consumer = Thread(target=self._consume_events)
+        self._consumer.start()
     
     def stop(self):
         """Stop the WindowManagerCore service"""
         self.uninstall_hooks()
+        self._queue.put(False)
+        self._consumer.join()
+
+    def _consume_events(self):
+        while True:
+            try:
+                # wait for the next task
+                event = self._queue.get()
+                if not event:
+                    break # terminate
+                # clear the queue
+                events = [event]
+                while not self._queue.empty():
+                    event = self._queue.get_nowait()
+                    if not event:
+                        break # terminate
+                    events.append(event)
+                if self.any_interesting_event(events):
+                    time.sleep(0.1)
+                    self.sync_windows()
+            except : # pylint: disable=bare-except
+                logger.exception("consume_queue error", exc_info=True)
+    
+    def any_interesting_event(self, events: List[Tuple[WinEvent, HWND]]) -> bool:
+        """Check if any event is interesting"""
+        for event, hwnd in events:
+            # ignore if left mouse button is pressed in case of dragging
+            if event == WinEvent.EVENT_OBJECT_PARENTCHANGE and sysinout.state.get( Vk.LBUTTON )  :
+                # delay the sync until button released to avoid flickering
+                logger.debug("wait_mouse_released on event %s", event.name)
+                self._wait_mouse_released = True
+                return False
+            elif self._wait_mouse_released:
+                logger.debug("mouse_released on event %s", event.name)
+                if not sysinout.state.get( Vk.LBUTTON ):
+                    self._wait_mouse_released = False
+                    return True
+                else:
+                    return False
+            # # filter by event
+            window = Window(hwnd)
+            if event == WinEvent.EVENT_OBJECT_SHOW: # for app that minimized to tray, show event is the only way to detect
+                # if not self.is_window_manageable(window):
+                if window not in self._managed_windows:
+                    return False
+            elif event == WinEvent.EVENT_OBJECT_HIDE: # same as above
+                # when window is hidden or destryed, it would not pass the is_window_manageable check
+                # fix case: toggle chrome fullscreen
+                if window not in self._managed_windows:
+                    return False
+            # elif event == WinEvent.EVENT_SYSTEM_MOVESIZEEND:
+            #     return self.restrict(hwnd)
+            elif event not in (
+                WinEvent.EVENT_SYSTEM_MINIMIZESTART,
+                WinEvent.EVENT_SYSTEM_MINIMIZEEND,
+                WinEvent.EVENT_SYSTEM_MOVESIZEEND, # fix case: resizing any app window
+            ):
+                # logger.debug("ignore winevent %s is_app_window %s", event.name, is_app_window(hwnd))
+                return False
+
+            logger.info("sync_windows on event %s", event.name)
+            return True
+        return False
 
     def sync_windows(self, init=False) -> bool:
-        """Synchronize internal windows state to the system state"""
+        """Synchronize internal windows state to the system state synchronously"""
         logger.debug("sync_windows init %s", init)
         virtdesk_state = self.virtdesk_state
         # gather all manageable windows
@@ -168,49 +238,7 @@ class WindowManagerCore:
         _id_evt_thread: DWORD,
         _evt_time: DWORD,
     ):
-        # ignore if left mouse button is pressed in case of dragging
-        force_sync = False
-        if sysinout.state.get( Vk.LBUTTON ) and event == WinEvent.EVENT_OBJECT_PARENTCHANGE:
-            # delay the sync until button released to avoid flickering
-            logger.debug("wait_mouse_released on event %s", event.name)
-            self._wait_mouse_released = True
-            return
-        elif self._wait_mouse_released:
-            logger.debug("mouse_released on event %s", event.name)
-            if not sysinout.state.get( Vk.LBUTTON ):
-                self._wait_mouse_released = False
-                force_sync = True
-            else:
-                return
-        if force_sync:
-            logger.debug("force sync on event %s", event.name)
-            time.sleep(0.1) # fix case: dragging chrome tab as a new window and it doesn't show up in the right place
-            self.sync_windows()
-            return
-        # # filter by event
-        window = Window(hwnd)
-        if event == WinEvent.EVENT_OBJECT_SHOW: # for app that minimized to tray, show event is the only way to detect
-            if not self.is_window_manageable(window):
-                return
-            time.sleep(0.1) # fix case: firefox takes took long to show up
-        elif event == WinEvent.EVENT_OBJECT_HIDE: # same as above
-            # when window is hidden or destryed, it would not pass the is_window_manageable check
-            # fix case: toggle chrome fullscreen
-            if window not in self._managed_windows:
-                return
-        # elif event == WinEvent.EVENT_SYSTEM_MOVESIZEEND:
-        #     return self.restrict(hwnd)
-        elif event not in (
-            WinEvent.EVENT_SYSTEM_MINIMIZESTART,
-            WinEvent.EVENT_SYSTEM_MINIMIZEEND,
-            WinEvent.EVENT_SYSTEM_MOVESIZEEND, # fix case: resizing any app window
-        ):
-            # logger.debug("ignore winevent %s is_app_window %s", event.name, is_app_window(hwnd))
-            return
-
-        logger.debug("sync_windows on event %s", event.name)
-        time.sleep(0.1) # fix case: nothing happen after closing clash-verge
-        self.sync_windows()
+        self._queue.put_nowait((event, hwnd))
 
     def install_hooks(self):
         """Install hooks for window events"""
