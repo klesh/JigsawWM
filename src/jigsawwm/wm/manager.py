@@ -51,6 +51,8 @@ class WindowManager(WindowManagerCore):
         active_window, monitor_state = self.get_active_window()
         if not active_window:
             monitor_state = self.get_active_monitor_state()
+            if monitor_state.windows:
+                self.activate(monitor_state.windows[0])
             ui.show_windows_splash(monitor_state, None)
             return
         try:
@@ -68,9 +70,9 @@ class WindowManager(WindowManagerCore):
             return
         if len(monitor_state.windows) < 2:
             return
-        reorderer(monitor_state.windows, monitor_state.windows.index(active_window))
+        next_active_window = reorderer(monitor_state.windows, monitor_state.windows.index(active_window))
         monitor_state.arrange()
-        self.activate(active_window)
+        self.activate(next_active_window or active_window)
 
     def swap_by_offset(self, offset: int):
         """Swap current active managed window with its sibling by offset"""
@@ -92,6 +94,7 @@ class WindowManager(WindowManagerCore):
             else:
                 dst_idx = 0
             windows[src_idx], windows[dst_idx] = windows[dst_idx], windows[src_idx]
+            return windows[0]
 
         self._reorder(reorderer)
 
@@ -110,6 +113,7 @@ class WindowManager(WindowManagerCore):
                 windows[i] = windows[i - 1]
             # assign new master
             windows[0] = src_window
+            return src_window
 
         self._reorder(reorderer)
 
