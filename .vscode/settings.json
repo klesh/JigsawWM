@@ -15,5 +15,6 @@
     "tests"
   ],
   "python.testing.unittestEnabled": false,
+  "pylint.args": ["--extension-pkg-allow-list=PySide6"],
   "python.testing.pytestEnabled": true
 }
