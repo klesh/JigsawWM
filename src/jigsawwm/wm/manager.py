@@ -158,7 +158,9 @@ class WindowManager(WindowManagerCore):
         dst_monitor_state = self.get_monitor_state_by_offset(delta, src_monitor_state)
         src_monitor_state.remove_window(active_window)
         dst_monitor_state.add_window(active_window)
-        self.activate(active_window)
+        if src_monitor_state.windows:
+            self.activate(src_monitor_state.windows[0])
+        # self.activate(active_window)
 
     def switch_workspace(self, workspace_index: int):
         """Switch to a specific workspace"""
