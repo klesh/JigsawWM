@@ -2,8 +2,10 @@
 import logging
 
 from typing import List, Optional
+from ctypes import * # pylint: disable=wildcard-import,unused-wildcard-import
+from ctypes.wintypes import * # pylint: disable=wildcard-import,unused-wildcard-import
 
-from PySide6.QtCore import QPoint, Qt, Signal, Slot
+from PySide6.QtCore import QByteArray, QPoint, Qt, Signal, Slot
 from PySide6.QtGui import QImage
 from PySide6.QtWidgets import QLabel, QSizePolicy, QWidget
 
@@ -23,6 +25,8 @@ class WindowsSplash(Dialog):
     hide_splash = Signal()
     worspace_widget: QLabel
     windows: List[Window]
+    shellhook_msgid = 0
+    created_windows = set()
 
     def __init__(self):
         super().__init__()
@@ -89,7 +93,41 @@ class WindowsSplash(Dialog):
         self.setGeometry(x, y, w, h)
         self.show()
 
+    def nativeEvent(self, eventType: QByteArray | bytes, message: int) -> object:
+        if eventType == "windows_generic_MSG":
+            msg = MSG.from_address(int(message))
+            if msg.message == self.shellhook_msgid:
+                if msg.wParam == 1:
+                    self.created_windows.add(msg.hWnd)
+                    fire_shell_window_changed("created", msg.hWnd)
+                elif msg.wParam == 2:
+                    if msg.hWnd in self.created_windows:
+                        self.created_windows.remove(msg.hWnd)
+                    else:
+                        return
+                    fire_shell_window_changed("destroyed", msg.hWnd)
+                elif msg.wParam == 4:
+                    fire_shell_window_changed("activated", msg.hWnd)
+        return super().nativeEvent(eventType, message)
+
 
 instance = WindowsSplash()
+
+user32 = WinDLL("user32", use_last_error=True)
+instance.shellhook_msgid = user32.RegisterWindowMessageW("SHELLHOOK")
+user32.RegisterShellHookWindow(instance.winId())
+shell_windows_changed: callable = None
+
+def on_shell_window_changed(callback):
+    """Registers a callback function to be called when any shell window gets created or destroyed."""
+    global shell_windows_changed # pylint: disable=global-statement
+    shell_windows_changed = callback
+
+def fire_shell_window_changed(event, window):
+    """Fires the screenChanged event."""
+    logger.debug("shell window change event: %s window: %s", event, window)
+    if shell_windows_changed:
+        shell_windows_changed(event, window)
+
 show_windows_splash = instance.show_splash.emit
 hide_windows_splash = instance.hide_splash.emit
