@@ -76,6 +76,13 @@ class MonitorState:
         self.workspaces[workspace_index].toggle(True)
         self.active_workspace_index = workspace_index
 
+    def switch_workspace_by_name(self, workspace_name: str):
+        """Switch to the workspace by index"""
+        for i, workspace in enumerate(self.workspaces):
+            if workspace.name == workspace_name:
+                self.switch_workspace(i)
+                return
+
     def move_to_workspace(self, window: Window, workspace_index: int, switch: bool = False):
         """Move the window to the workspace by index"""
         logger.debug("move window %s to workspace %s", window, workspace_index)
@@ -96,6 +103,7 @@ class MonitorState:
             self.arrange()
         else:
             window.hide()
+            self.config.save_windows_state([window], self.monitor.name, self.workspaces[workspace_index].name, False)
 
     def sync_windows(self, windows: Set[Window]):
         """Synchronize managed windows with given actual windows currently visible and arrange them

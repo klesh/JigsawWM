@@ -147,9 +147,17 @@ class WindowManagerCore:
                     return False
             # # filter by event
             window = Window(hwnd)
-            # restore telegram from the traybar only trigger EVENT_OBJECT_UNCLOAKED
             if event == WinEvent.EVENT_OBJECT_SHOW or event == WinEvent.EVENT_OBJECT_UNCLOAKED:
+                # restore telegram from the traybar only trigger EVENT_OBJECT_UNCLOAKED
                 if not self.is_window_manageable(window):
+                    return False
+                # a window belongs to hidden workspace just got activated
+                # put your default browser into workspace and then ctrl-click the link http://google.com 
+                monitor_name, workspace_name, show = self.config.find_window_state(window.handle)
+                if monitor_name and workspace_name and not show:
+                    logger.debug("switch workspace for activated window to %s %s", monitor_name, workspace_name)
+                    monitor_state= self.virtdesk_state.get_monitor_state_by_name(monitor_name)
+                    monitor_state.switch_workspace_by_name(workspace_name)
                     return False
             elif event == WinEvent.EVENT_OBJECT_HIDE: # same as above
                 # when window is hidden or destryed, it would not pass the is_window_manageable check

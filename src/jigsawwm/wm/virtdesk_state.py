@@ -41,6 +41,18 @@ class VirtDeskState:
             self.monitor_states[monitor] = monitor_state
         return monitor_state
 
+    def get_monitor_state_by_name(self, monitor_name: str) -> MonitorState:
+        """Retrieves the monitor state for the specified monitor byname in the virtual desktop
+
+        :param str monitor_name: monitor_name
+        :returns: monitor state
+        :rtype: MonitorState
+        """
+        logger.debug("get_monitor_state_by_name: monitor %s", monitor_name)
+        for monitor, monitor_state in self.monitor_states.items():
+            if monitor.name == monitor_name:
+                return monitor_state
+
     def find_monitor_of_window(self, window: Window) -> Optional[Monitor]:
         """Find the monitor state of the monitor that contains the window
 

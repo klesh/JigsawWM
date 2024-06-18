@@ -36,6 +36,7 @@ class WorkspaceState:
                 window.show()
             else:
                 window.hide()
+        self.config.save_windows_state(self.windows, self.monitor.name, self.name, show)
 
     def set_theme(self, theme: Theme):
         """Set theme for the workspace"""
