@@ -94,6 +94,7 @@ class SystemInput:
 
     def input_event_handler(
         self,
+        _code: int,
         msgid: Union[hook.KBDLLHOOKMSGID, hook.MSLLHOOKMSGID],
         msg: Union[hook.KBDLLHOOKDATA, hook.MSLLHOOKDATA],
     ) -> bool:
