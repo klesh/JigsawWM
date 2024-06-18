@@ -22,7 +22,7 @@ class MonitorState:
     """
 
     monitor: Monitor
-    workspaces: list[WorkspaceState]
+    workspaces: List[WorkspaceState]
     active_workspace_index: int
 
     def __init__(self, config: WmConfig, monitor: Monitor):
