@@ -1,12 +1,18 @@
 """This module contains the configuration dataclass for the window manager"""
 import re
+import pickle
+import logging
+import struct
 from os import path
 from dataclasses import dataclass, field
-from typing import Set, List, Dict, Optional
+from typing import Set, List, Dict, Optional, Tuple
+from multiprocessing.shared_memory import SharedMemory
+from ctypes.wintypes import HWND
 from jigsawwm.w32.monitor import Monitor
-from jigsawwm.w32.window import Window
+from jigsawwm.w32.window import Window, is_window
 from .theme import Theme
 
+logger = logging.getLogger(__name__)
 
 @dataclass
 class WmRule:
@@ -19,14 +25,16 @@ class WmRule:
 @dataclass
 class WmConfig:
     """WmConfig holds the configuration of the window manager"""
-    themes: List[Theme]
-    ignore_exe_names: Set[str]
-    force_managed_exe_names: Set[str]
-    init_exe_sequence: List[List[str]]
+    themes: List[Theme] = None
+    ignore_exe_names: Set[str] = None
+    force_managed_exe_names: Set[str] = None
+    init_exe_sequence: List[List[str]] = None
     workspace_names: List[str] = field(default_factory=lambda: ["1", "2", "3", "4"])
     rules: Optional[List[WmRule]] = None
     _monitor_themes: Dict[str, Theme] = field(default_factory=dict)
     _rules_regexs: List[List[re.Pattern]] = None
+    _shared_memory: SharedMemory = None
+    _windows_state: Dict[HWND, Tuple[str, str, bool]] = None
 
     def prepare(self):
         """Prepare the configuration"""
@@ -37,6 +45,12 @@ class WmConfig:
                     re.compile(rule.exe_regex) if rule.exe_regex else None,
                     re.compile(rule.title_regex) if rule.title_regex else None
                 ])
+        try:
+            self._shared_memory = SharedMemory("jigsawwm.windows.state", create=True, size=128 * 1024)
+        except FileExistsError:
+            self._shared_memory = SharedMemory("jigsawwm.windows.state", size=128 * 1024)
+        self._windows_state = {}
+        self.load_from_shared_memory()
 
     def get_theme_index(self, theme_name: str) -> int:
         """Retrieves the index of given theme name, useful to switching theme"""
@@ -89,3 +103,45 @@ class WmConfig:
             if title_regex and not title_regex.search(window.title):
                 continue
             return self.rules[i]
+
+    def find_window_state(self, hwnd: HWND) -> Tuple[str, str, bool]:
+        """Find the monitor and workspace name for the window across sessions"""
+        return self._windows_state.get(hwnd, (None, None, False))
+
+    def save_windows_state(self, windows: List[Window], monitor_name: str, workspace_name: str, show: bool):
+        """Mark the windows as hidden"""
+        for hwnd in list(self._windows_state.keys()):
+            # clean up windows that do not exit anymore
+            if not is_window(hwnd):
+                self._windows_state.pop(hwnd)
+        # update list
+        for window in windows:
+            self._windows_state[window.handle] = (monitor_name, workspace_name, show)
+        self.save_to_shared_memory()
+
+    def save_to_shared_memory(self):
+        """Save the windows state to shared memory"""
+        buffer = pickle.dumps(self._windows_state)
+        if len(buffer) > self._shared_memory.size:
+            raise ValueError("windows state too large")
+        length = len(buffer)
+        struct.pack_into("I", self._shared_memory.buf, 0, length)
+        self._shared_memory.buf[4:4+length] = buffer
+        logger.info("save_to_shared_memory")
+
+    def load_from_shared_memory(self):
+        """Load the windows state from shared memory"""
+        length, = struct.unpack_from("I", self._shared_memory.buf, 0)
+        if length > 0:
+            self._windows_state = pickle.loads(bytes(self._shared_memory.buf[4:4+length]))
+        logger.info("load_from_shared_memory")
+
+if __name__ == "__main__":
+    config = WmConfig()
+    config.prepare()
+    try:
+        mn, wn, sh = config.find_window_state(1)
+        print("loaded from previous session: monitor_name", mn, "workspace_name", wn, "show", sh)
+    except:
+        config.save_windows_state([Window(1)], "display1", "workspace2", False)
+        print("saved in first session")
