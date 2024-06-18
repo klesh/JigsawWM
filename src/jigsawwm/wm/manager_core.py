@@ -9,6 +9,7 @@ from jigsawwm.w32 import hook
 from jigsawwm.w32.monitor import (
     Monitor,
     get_monitor_from_window,
+    get_monitors,
 )
 from jigsawwm.w32.reg import get_current_desktop_id
 from jigsawwm.w32.window import (
@@ -21,9 +22,10 @@ from jigsawwm.w32.window import (
     EnumCheckResult,
     get_active_window,
 )
-from jigsawwm.w32.monitor import get_monitor_from_cursor, get_monitors
+from jigsawwm.w32.monitor import get_monitor_from_cursor
 from jigsawwm.w32.winevent import WinEvent
 from jigsawwm.jmk import sysinout, Vk
+from jigsawwm import ui
 
 from .virtdesk_state import VirtDeskState, MonitorState
 from .config import WmConfig
@@ -93,14 +95,16 @@ class WindowManagerCore:
     def start(self):
         """Start the WindowManagerCore service"""
         self.config.prepare()
-        self.install_hooks()
-        self.sync_windows(init=True)
         self._queue = SimpleQueue()
         self._consumer = Thread(target=self._consume_events)
         self._consumer.start()
+        self.sync_windows(init=True)
+        self.install_hooks()
+        ui.on_screen_changed(self.sync_windows)
     
     def stop(self):
         """Stop the WindowManagerCore service"""
+        ui.on_screen_changed(None)
         self.uninstall_hooks()
         self._queue.put(False)
         self._consumer.join()
@@ -143,9 +147,9 @@ class WindowManagerCore:
                     return False
             # # filter by event
             window = Window(hwnd)
-            if event == WinEvent.EVENT_OBJECT_SHOW: # for app that minimized to tray, show event is the only way to detect
-                # if not self.is_window_manageable(window):
-                if window not in self._managed_windows:
+            # restore telegram from the traybar only trigger EVENT_OBJECT_UNCLOAKED
+            if event == WinEvent.EVENT_OBJECT_SHOW or event == WinEvent.EVENT_OBJECT_UNCLOAKED:
+                if not self.is_window_manageable(window):
                     return False
             elif event == WinEvent.EVENT_OBJECT_HIDE: # same as above
                 # when window is hidden or destryed, it would not pass the is_window_manageable check
@@ -159,7 +163,17 @@ class WindowManagerCore:
                 WinEvent.EVENT_SYSTEM_MINIMIZEEND,
                 WinEvent.EVENT_SYSTEM_MOVESIZEEND, # fix case: resizing any app window
             ):
-                # logger.debug("ignore winevent %s is_app_window %s", event.name, is_app_window(hwnd))
+                if event not in (
+                    WinEvent.EVENT_OBJECT_LOCATIONCHANGE,
+                    WinEvent.EVENT_OBJECT_NAMECHANGE,
+                    WinEvent.EVENT_OBJECT_CREATE,
+                    WinEvent.EVENT_SYSTEM_MENUSTART,
+                    WinEvent.EVENT_SYSTEM_MENUEND,
+                    WinEvent.EVENT_OBJECT_REORDER,
+                    WinEvent.EVENT_SYSTEM_CAPTURESTART,
+                    WinEvent.EVENT_SYSTEM_CAPTUREEND,
+                ):
+                    logger.debug("ignore winevent %s", event.name)
                 return False
 
             logger.info("sync_windows on event %s", event.name)
@@ -171,22 +185,35 @@ class WindowManagerCore:
         logger.debug("sync_windows init %s", init)
         virtdesk_state = self.virtdesk_state
         # gather all manageable windows
-        manageable_windows = self.get_manageable_windows()
+        manageable_windows = set(self.get_manageable_windows())
+        # sync monitors
+        monitors = set(get_monitors())
+        group_wins_by_mons: Dict[Monitor, Set[Window]] = {
+            monitor: set() for monitor in monitors
+        }
+        removed_monitors = set(virtdesk_state.monitor_states.keys()) - monitors
+        for removed_monitor in removed_monitors:
+            removed_state = virtdesk_state.monitor_states.pop(removed_monitor)
+            for workspace in removed_state.workspaces:
+                # unhide all windows in the workspace and append them to the list
+                # to be re-arranged
+                for window in workspace.windows:
+                    logger.debug("unhide %s", window)
+                    window.show()
+                    manageable_windows.add(window)
         if not manageable_windows:
             return
-        self._managed_windows = set()
         # group manageable windows by their current monitor
-        group_wins_by_mons: Dict[Monitor, Set[Window]] = {}
+        monitors = list(monitors)
+        self._managed_windows = set()
         for window in manageable_windows:
             self._managed_windows.add(window)
             monitor = (
                 virtdesk_state.find_monitor_of_window(window) # window has been managed
-                or self.find_monitor_from_config(window) # window has a rule
+                or self.find_monitor_from_config(window, monitors) # window has a rule
                 or (init and get_monitor_from_window(window.handle)) # fallback: window existing before manager start
                 or get_monitor_from_cursor() #  fallback: window appearing after manager start
             )
-            if monitor not in group_wins_by_mons:
-                group_wins_by_mons[monitor] = set()
             # add window to lists
             group_wins_by_mons[monitor].add(window)
             logger.debug("%s owns %s", monitor, window)
@@ -196,14 +223,13 @@ class WindowManagerCore:
             monitor_state = virtdesk_state.get_monitor_state(monitor)
             monitor_state.sync_windows(windows)
 
-    def find_monitor_from_config(self, window: Window) -> Optional[Monitor]:
+    def find_monitor_from_config(self, window: Window, monitors: List[Monitor]) -> Optional[Monitor]:
         """Find monitor from the config rules for the window"""
         logger.debug("find_monitor_from_config %s", window)
         rule = self.config.find_rule_for_window(window)
         if rule:
             logger.debug("rule %s found for %s", rule, window)
             window.attrs["rule"] = rule
-            monitors = list(get_monitors())
             if len(monitors) > rule.to_monitor_index:
                 return monitors[rule.to_monitor_index]
         logger.debug("no rule found for %s", window)
