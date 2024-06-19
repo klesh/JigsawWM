@@ -10,7 +10,7 @@ from PySide6.QtGui import QImage
 from PySide6.QtWidgets import QLabel, QSizePolicy, QWidget
 
 from jigsawwm.w32.window import Window
-from jigsawwm.wm import MonitorState
+from jigsawwm.wm.monitor_state import MonitorState
 
 from .app import app
 from .dialog import Dialog

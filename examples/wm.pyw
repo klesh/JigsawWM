@@ -6,7 +6,7 @@ from jigsawwm import daemon, ui
 from jigsawwm.tiler import tilers
 from jigsawwm.w32.vk import Vk
 from jigsawwm.w32.window import inspect_active_window
-from jigsawwm.wm import Theme, WindowManager, WmRule
+from jigsawwm.wm.manager import Theme, WindowManager, WmRule
 
 
 wm = WindowManager(
@@ -63,6 +63,7 @@ wm = WindowManager(
     force_managed_exe_names=["Lens.exe"],
     rules = [
         WmRule(exe_regex=r"Obsidian\.exe$", title_regex=None, to_monitor_index=1),
+        WmRule(exe_regex=r"Feishu\.exe$", to_monitor_index=1),
     ]
 )
 

@@ -2,17 +2,18 @@
 import re
 import pickle
 import logging
-import struct
+import os
 from os import path
 from dataclasses import dataclass, field
 from typing import Set, List, Dict, Optional, Tuple
-from multiprocessing.shared_memory import SharedMemory
 from ctypes.wintypes import HWND
 from jigsawwm.w32.monitor import Monitor
 from jigsawwm.w32.window import Window, is_window
 from .theme import Theme
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_STATE_PATH = os.path.join(os.getenv("LOCALAPPDATA"), "jigsawwm", "wm.state")
 
 @dataclass
 class WmRule:
@@ -33,7 +34,6 @@ class WmConfig:
     rules: Optional[List[WmRule]] = None
     _monitor_themes: Dict[str, Theme] = field(default_factory=dict)
     _rules_regexs: List[List[re.Pattern]] = None
-    _shared_memory: SharedMemory = None
     _windows_state: Dict[HWND, Tuple[str, str, bool]] = None
 
     def prepare(self):
@@ -45,12 +45,8 @@ class WmConfig:
                     re.compile(rule.exe_regex) if rule.exe_regex else None,
                     re.compile(rule.title_regex) if rule.title_regex else None
                 ])
-        try:
-            self._shared_memory = SharedMemory("jigsawwm.windows.state", create=True, size=128 * 1024)
-        except FileExistsError:
-            self._shared_memory = SharedMemory("jigsawwm.windows.state", size=128 * 1024)
         self._windows_state = {}
-        self.load_from_shared_memory()
+        self.load()
 
     def get_theme_index(self, theme_name: str) -> int:
         """Retrieves the index of given theme name, useful to switching theme"""
@@ -106,7 +102,10 @@ class WmConfig:
 
     def find_window_state(self, hwnd: HWND) -> Tuple[str, str, bool]:
         """Find the monitor and workspace name for the window across sessions"""
-        return self._windows_state.get(hwnd, (None, None, False))
+        state = self._windows_state.get(hwnd)
+        if not state:
+            return (None, None, False)
+        return state[0], state[1], state[2]
 
     def save_windows_state(self, windows: List[Window], monitor_name: str, workspace_name: str, show: bool):
         """Mark the windows as hidden"""
@@ -115,33 +114,41 @@ class WmConfig:
             if not is_window(hwnd):
                 self._windows_state.pop(hwnd)
         # update list
-        for window in windows:
-            self._windows_state[window.handle] = (monitor_name, workspace_name, show)
-        self.save_to_shared_memory()
+        for index, window in enumerate(windows):
+            self._windows_state[window.handle] = (monitor_name, workspace_name, show, index)
+        self.save()
 
-    def save_to_shared_memory(self):
+    def iter_windows_states(self):
+        """Iterate over the windows state across sessions"""
+        for hwnd in list(self._windows_state.keys()):
+            # clean up windows that do not exit anymore
+            if not is_window(hwnd):
+                self._windows_state.pop(hwnd)
+                continue
+            yield (hwnd,) + self._windows_state[hwnd]
+
+    def save(self):
         """Save the windows state to shared memory"""
-        buffer = pickle.dumps(self._windows_state)
-        if len(buffer) > self._shared_memory.size:
-            raise ValueError("windows state too large")
-        length = len(buffer)
-        struct.pack_into("I", self._shared_memory.buf, 0, length)
-        self._shared_memory.buf[4:4+length] = buffer
-        logger.info("save_to_shared_memory")
+        with open(DEFAULT_STATE_PATH, "wb") as f:
+            pickle.dump(self._windows_state, f)
+        logger.debug("save windows states")
 
-    def load_from_shared_memory(self):
+    def load(self):
         """Load the windows state from shared memory"""
-        length, = struct.unpack_from("I", self._shared_memory.buf, 0)
-        if length > 0:
-            self._windows_state = pickle.loads(bytes(self._shared_memory.buf[4:4+length]))
-        logger.info("load_from_shared_memory")
+        if os.path.exists(DEFAULT_STATE_PATH):
+            with open(DEFAULT_STATE_PATH, "rb") as f:
+                self._windows_state = pickle.load(f)
+                logger.info("load windows states from the last session total %d", len(self._windows_state))
+        else:
+            logger.info("nothing from the last session")
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
     config = WmConfig()
     config.prepare()
-    try:
-        mn, wn, sh = config.find_window_state(1)
-        print("loaded from previous session: monitor_name", mn, "workspace_name", wn, "show", sh)
-    except:
+    states = list(config.iter_windows_states())
+    if states:
+        logger.info("loaded from previous session: %s", states)
+    else: # pylint: disable=bare-except
         config.save_windows_state([Window(1)], "display1", "workspace2", False)
-        print("saved in first session")
+        logger.info("saved in first session")

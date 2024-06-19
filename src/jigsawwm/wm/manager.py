@@ -71,6 +71,7 @@ class WindowManager(WindowManagerCore):
         if len(monitor_state.windows) < 2:
             return
         next_active_window = reorderer(monitor_state.windows, monitor_state.windows.index(active_window))
+        monitor_state.workspace.save_state()
         monitor_state.arrange()
         self.activate(next_active_window or active_window)
 

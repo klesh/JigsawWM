@@ -20,6 +20,7 @@ class WorkspaceState:
     monitor: Monitor
     theme: Theme
     windows: List[Window]
+    showing: bool
 
     def __init__(self, config: WmConfig, name: str, monitor: Monitor):
         self.config = config
@@ -27,16 +28,18 @@ class WorkspaceState:
         self.monitor = monitor
         self.theme = self.config.get_theme_for_workspace(monitor, name)
         self.windows = []
+        self.showing = True
 
     def toggle(self, show: bool):
         """Toggle all windows in the workspace"""
         logger.debug("toggle workspace %s show %s", self.name, show)
+        self.showing = show
         for window in self.windows:
-            if show:
+            if self.showing:
                 window.show()
             else:
                 window.hide()
-        self.config.save_windows_state(self.windows, self.monitor.name, self.name, show)
+        self.save_state()
 
     def set_theme(self, theme: Theme):
         """Set theme for the workspace"""
@@ -52,7 +55,9 @@ class WorkspaceState:
         if self.theme.new_window_as_master:
             windows = [window] + self.windows
         else:
-            windows = self.windows + [window] 
+            windows = self.windows + [window]
+        if self.showing:
+            window.show()
         self.set_windows(windows)
 
     def remove_window(self, window: Window):
@@ -106,6 +111,7 @@ class WorkspaceState:
             return self.restrict()
         self.windows = windows
         self.arrange()
+        self.save_state()
 
     def arrange(self):
         """Arrange windows based on the theme
@@ -161,3 +167,8 @@ class WorkspaceState:
             return
         for window in self.windows:
             window.restrict()
+
+    def save_state(self):
+        """Save the state of the workspace"""
+        logger.debug("save state of workspace %s on %s", self.name, self.monitor.name)
+        self.config.save_windows_state(self.windows, self.monitor.name, self.name, self.showing)

@@ -98,7 +98,7 @@ class WindowManagerCore:
         self._queue = SimpleQueue()
         self._consumer = Thread(target=self._consume_events)
         self._consumer.start()
-        self.sync_windows(init=True)
+        self.init_sync()
         self.install_hooks()
         ui.on_screen_changed(self.sync_windows)
     
@@ -187,6 +187,29 @@ class WindowManagerCore:
             logger.info("sync_windows on event %s", event.name)
             return True
         return False
+
+    def init_sync(self):
+        """The first synchronization of windows state to the system state at app startup"""
+        # load windows state from shared memory of the last session
+        virtdesk_state = self.virtdesk_state
+        workspaces = []
+        for hwnd, monitor_name, workspace_name, show, index  in self.config.iter_windows_states():
+            logger.debug("init_sync %s %s %s %s %s", hwnd, monitor_name, workspace_name, show, index)
+            window = Window(hwnd)
+            monitor_state = virtdesk_state.get_monitor_state_by_name(monitor_name)
+            # monitor is gone, unhide the window and skip
+            if not monitor_state:
+                if not show:
+                    window.show()
+                continue
+            workspace = monitor_state.find_workspace_by_name(workspace_name) or monitor_state.workspaces[0]
+            while len(workspace.windows) <= index:
+                workspace.windows.append(None)
+            workspace.windows[index] = window
+        for workspace in workspaces:
+            workspace.set_windows([w for w in workspace.windows if w and w.exists()])
+
+        self.sync_windows(init=True)
 
     def sync_windows(self, init=False) -> bool:
         """Synchronize internal windows state to the system state synchronously"""

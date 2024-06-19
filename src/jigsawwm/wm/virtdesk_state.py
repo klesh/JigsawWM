@@ -2,7 +2,7 @@
 import logging
 from typing import Dict, Optional
 
-from jigsawwm.w32.monitor import Monitor
+from jigsawwm.w32.monitor import Monitor, get_monitors
 from jigsawwm.w32.window import Window
 
 from .config import WmConfig
@@ -25,7 +25,9 @@ class VirtDeskState:
     def __init__(self, config: WmConfig, desktop_id: bytearray):
         self.config = config
         self.desktop_id = desktop_id
-        self.monitor_states = {}
+        self.monitor_states = {
+            monitor: MonitorState(config, monitor) for monitor in get_monitors()
+        }
 
     def get_monitor_state(self, monitor: Monitor) -> MonitorState:
         """Retrieves the monitor state for the specified monitor in the virtual desktop

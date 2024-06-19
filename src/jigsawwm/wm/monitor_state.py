@@ -33,6 +33,7 @@ class MonitorState:
             for workspace_name in config.workspace_names
         ]
         self.active_workspace_index = 0
+        self.workspaces[0].toggle(True)
 
     @property
     def workspace(self) -> WorkspaceState:
@@ -65,6 +66,10 @@ class MonitorState:
         """Remove a window from the active workspace of the monitor"""
         self.workspace.remove_window(window)
 
+    def find_workspace_by_name(self, name: str):
+        """Find the workspace by name"""
+        return next(filter(lambda w: w.name == name, self.workspaces), None)
+
     def switch_workspace(self, workspace_index: int):
         """Switch to the workspace by index"""
         logger.debug("switch workspace %s", workspace_index)
@@ -83,7 +88,7 @@ class MonitorState:
                 self.switch_workspace(i)
                 return
 
-    def move_to_workspace(self, window: Window, workspace_index: int, switch: bool = False):
+    def move_to_workspace(self, window: Window, workspace_index: int):
         """Move the window to the workspace by index"""
         logger.debug("move window %s to workspace %s", window, workspace_index)
         if workspace_index >= len(self.workspaces):
@@ -98,12 +103,7 @@ class MonitorState:
         # remove the window from its current workspace
         self.workspace.remove_window(window)
         self.workspaces[workspace_index].add_window(window)
-        if switch:
-            self.switch_workspace(workspace_index)
-            self.arrange()
-        else:
-            window.hide()
-            self.config.save_windows_state([window], self.monitor.name, self.workspaces[workspace_index].name, False)
+        window.hide()
 
     def sync_windows(self, windows: Set[Window]):
         """Synchronize managed windows with given actual windows currently visible and arrange them
