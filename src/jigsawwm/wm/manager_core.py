@@ -174,7 +174,7 @@ class WindowManagerCore:
                 if event not in (
                     WinEvent.EVENT_OBJECT_LOCATIONCHANGE,
                     WinEvent.EVENT_OBJECT_NAMECHANGE,
-                    WinEvent.EVENT_OBJECT_CREATE,
+                    # WinEvent.EVENT_OBJECT_CREATE,
                     WinEvent.EVENT_SYSTEM_MENUSTART,
                     WinEvent.EVENT_SYSTEM_MENUEND,
                     WinEvent.EVENT_OBJECT_REORDER,
@@ -278,7 +278,7 @@ class WindowManagerCore:
     
     def is_window_manageable(self, window: Window) -> bool:
         """Check if the window is manageable by the WindowManager"""
-        return window.title and is_app_window(window.handle) and self.config.is_window_manageable(window)
+        return is_app_window(window.handle) and self.config.is_window_manageable(window)
 
     def unhide_workspaces(self):
         """Unhide all workspaces"""
