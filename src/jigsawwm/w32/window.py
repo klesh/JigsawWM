@@ -146,6 +146,7 @@ def is_app_window(hwnd: HWND, style: Optional[WindowExStyle] = None) -> bool:
         and not WindowStyle.MINIMIZE & style
         and not process.is_elevated(get_window_pid(hwnd))
         and process.get_exepath(get_window_pid(hwnd))
+        and not user32.GetParent(hwnd)
     )
 
 
@@ -412,7 +413,7 @@ class Window:
 
     def show(self):
         """Shows the window"""
-        user32.ShowWindow(self._hwnd, ShowWindowCmd.SW_SHOW)
+        user32.ShowWindow(self._hwnd, ShowWindowCmd.SW_SHOWNA)
 
     def hide(self):
         """Hides the window"""
@@ -541,12 +542,13 @@ def inspect_window(hwnd: HWND, file=sys.stdout):
     print("bound        :", bound.left, bound.top, bound.right, bound.bottom, file=file)
     print("is_app_window:", is_app_window(hwnd), file=file)
     print("is_evelated  :", window.is_evelated, file=file)
+    print("parent       :", user32.GetParent(hwnd), file=file)
     print("dpi_awareness:", window.dpi_awareness.name, file=file)
 
 
-def inspect_active_window():
+def inspect_active_window(hwnd=None):
     """Inspect active window and show the information in a message box"""
-    text = sprint_window(get_foreground_window())
+    text = sprint_window(hwnd or get_foreground_window())
     print(text)
     # messagebox.showinfo("JigsawWM", text)
 
@@ -563,6 +565,7 @@ if __name__ == "__main__":
     # print(QPixmap.loadFromData(handle))
     time.sleep(2)
     inspect_active_window()
+    # inspect_active_window(HWND(4196926))
     # for window in get_app_windows():
     #     inspect_window(window.handle)
     # for win in get_windows():
