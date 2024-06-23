@@ -176,7 +176,9 @@ class WindowManager(WindowManagerCore):
         active_window, src_monitor_state = self.get_active_window()
         if not active_window:
             return
+        self._ignore_events = True
         src_monitor_state.move_to_workspace(active_window, workspace_index)
+        self._ignore_events = False
 
     def prev_theme(self):
         """Switch to previous theme in the themes list"""

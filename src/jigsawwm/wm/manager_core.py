@@ -57,6 +57,7 @@ class WindowManagerCore:
     _managed_windows: Set[Window] = set()
     _queue: Optional[SimpleQueue]  = None
     _consumer: Optional[Thread] = None
+    _ignore_events: bool = False;
 
     def __init__(
         self,
@@ -295,6 +296,8 @@ class WindowManagerCore:
         _id_evt_thread: DWORD,
         _evt_time: DWORD,
     ):
+        if self._ignore_events:
+            return
         self._queue.put_nowait((event, hwnd))
 
     def install_hooks(self):
