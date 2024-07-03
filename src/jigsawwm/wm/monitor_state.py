@@ -72,10 +72,10 @@ class MonitorState:
 
     def switch_workspace(self, workspace_index: int):
         """Switch to the workspace by index"""
-        logger.debug("switch workspace %s", workspace_index)
+        logger.debug("switch workspace index %s", workspace_index)
         workspace_index = workspace_index % len(self.workspaces)
         if workspace_index == self.active_workspace_index:
-            logger.warning("already in workspace %s", workspace_index)
+            logger.warning("already in workspace index %s", workspace_index)
             return
         self.workspaces[self.active_workspace_index].toggle(False)
         self.workspaces[workspace_index].toggle(True)
@@ -90,12 +90,12 @@ class MonitorState:
 
     def move_to_workspace(self, window: Window, workspace_index: int):
         """Move the window to the workspace by index"""
-        logger.debug("move window %s to workspace %s", window, workspace_index)
+        logger.debug("move window %s to workspace index %s", window, workspace_index)
         if workspace_index >= len(self.workspaces):
-            logger.warning("workspace %s does not exist", workspace_index)
+            logger.warning("workspace index %s does not exist", workspace_index)
             return
         if workspace_index == self.active_workspace_index:
-            logger.warning("window %s already in workspace %s", window, workspace_index)
+            logger.warning("window %s already in workspace index %s", window, workspace_index)
             return
         if window not in self.workspace.windows:
             logger.warning("window %s not in active workspace", window)

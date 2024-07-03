@@ -30,7 +30,7 @@ class WorkdayRoutine(daemon.Task):
             r"C:\Users\Klesh\AppData\Local\Feishu\Feishu.exe"
         )
         smartstart.start_if_not_running(
-            r"C:\Program Files\Mozilla Thunderbird\thunderbird.exe"
+            r"C:\Program Files\Betterbird\betterbird.exe"
         )
         smartstart.start_if_not_running(
             r"C:\Users\Klesh\AppData\Local\Programs\obsidian\Obsidian.exe"

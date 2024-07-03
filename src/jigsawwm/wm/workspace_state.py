@@ -28,7 +28,7 @@ class WorkspaceState:
         self.monitor = monitor
         self.theme = self.config.get_theme_for_workspace(monitor, name)
         self.windows = []
-        self.showing = True
+        self.showing = False
 
     def toggle(self, show: bool):
         """Toggle all windows in the workspace"""
