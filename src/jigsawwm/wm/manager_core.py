@@ -226,6 +226,15 @@ class WindowManagerCore:
         removed_monitors = set(virtdesk_state.monitor_states.keys()) - monitors
         for removed_monitor in removed_monitors:
             removed_state = virtdesk_state.monitor_states.pop(removed_monitor)
+            # when new monitor plugged in, the existing monitor handle would be changed as well
+            # need to keep the monitor state and workspace state
+            reappeard_monitor = next(filter(lambda m: m.name == removed_monitor.name, monitors), None) # pylint: disable=cell-var-from-loop
+            if reappeard_monitor:
+                removed_state.monitor = reappeard_monitor
+                virtdesk_state.monitor_states[reappeard_monitor] = removed_state
+                for workspace in removed_state.workspaces:
+                    workspace.monitor = reappeard_monitor
+                continue
             for workspace in removed_state.workspaces:
                 # unhide all windows in the workspace and append them to the list
                 # to be re-arranged
