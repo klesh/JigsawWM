@@ -33,6 +33,8 @@ class WindowManager(WindowManagerCore):
 
     def activate(self, window: Window):
         """Activate specified window"""
+        if not window or not window.exists():
+            return
         logger.debug("activate(%s)", window)
         window.activate()
         # move cursor to the center of the window
@@ -165,10 +167,12 @@ class WindowManager(WindowManagerCore):
 
     def switch_workspace(self, workspace_index: int):
         """Switch to a specific workspace"""
+        logger.debug("switch workspace to %d", workspace_index)
         monitor_state = self.get_active_monitor_state()
         monitor_state.switch_workspace(workspace_index)
         if monitor_state.windows:
             self.activate(monitor_state.windows[0])
+        logger.debug("show_windows_splash")
         ui.show_windows_splash(monitor_state, None)
 
     def move_to_workspace(self, workspace_index: int):
