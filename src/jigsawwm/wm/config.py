@@ -94,7 +94,8 @@ class WmConfig:
             return
         for i, regexs in enumerate(self._rules_regexs):
             exe_regex, title_regex = regexs
-            if exe_regex and not exe_regex.search(window.exe):
+            window_exe = window.exe
+            if window_exe and exe_regex and not exe_regex.search(window_exe):
                 continue
             if title_regex and not title_regex.search(window.title):
                 continue
