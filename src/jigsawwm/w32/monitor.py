@@ -143,10 +143,11 @@ class Monitor:
         return hash(self._hmon)
 
     def __repr__(self):
-        return f"<Monitor: {self.name} {self.get_rect()} {self.get_scale_factor()}>"
+        return f"<Monitor: {self.name} {self._hmon} {self.get_rect()} {self.get_scale_factor()}>"
 
     @cached_property
     def name(self) -> str:
+        """Retrieves monitor name"""
         return self.get_info().szDevice.decode("utf-8")
 
     def get_rect(self) -> RECT:

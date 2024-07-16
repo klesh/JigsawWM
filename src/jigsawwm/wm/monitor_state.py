@@ -74,9 +74,9 @@ class MonitorState:
         """Switch to the workspace by index"""
         logger.debug("switch workspace index %s", workspace_index)
         workspace_index = workspace_index % len(self.workspaces)
-        if workspace_index == self.active_workspace_index:
-            logger.warning("already in workspace index %s", workspace_index)
-            return
+        # if workspace_index == self.active_workspace_index:
+        #     logger.warning("already in workspace index %s", workspace_index)
+        #     return
         self.workspaces[self.active_workspace_index].toggle(False)
         self.workspaces[workspace_index].toggle(True)
         self.active_workspace_index = workspace_index
@@ -122,5 +122,6 @@ class MonitorState:
     def unhide_workspaces(self):
         """Unhide all workspaces of the monitor"""
         for workspace in self.workspaces:
+            logger.debug("unhide workspace %s %s", workspace.name, workspace.windows)
             for window in workspace.windows:
                 window.show()

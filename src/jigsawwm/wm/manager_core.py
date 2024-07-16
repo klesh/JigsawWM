@@ -117,77 +117,69 @@ class WindowManagerCore:
                 event = self._queue.get()
                 if not event:
                     break # terminate
-                # clear the queue
-                events = [event]
-                while not self._queue.empty():
-                    event = self._queue.get_nowait()
-                    if not event:
-                        break # terminate
-                    events.append(event)
-                if self.any_interesting_event(events):
+                event, hwnd = event
+                if self.is_event_interested(event, hwnd):
                     time.sleep(0.1)
                     self.sync_windows()
             except : # pylint: disable=bare-except
                 logger.exception("consume_queue error", exc_info=True)
     
-    def any_interesting_event(self, events: List[Tuple[WinEvent, HWND]]) -> bool:
-        """Check if any event is interesting"""
-        for event, hwnd in events:
-            # ignore if left mouse button is pressed in case of dragging
-            if event == WinEvent.EVENT_OBJECT_PARENTCHANGE and sysinout.state.get( Vk.LBUTTON )  :
-                # delay the sync until button released to avoid flickering
-                logger.debug("wait_mouse_released on event %s", event.name)
-                self._wait_mouse_released = True
+    def is_event_interested(self, event: WinEvent, hwnd: HWND) -> bool:
+        """Check if event is interested"""
+        # ignore if left mouse button is pressed in case of dragging
+        if event == WinEvent.EVENT_OBJECT_PARENTCHANGE and sysinout.state.get( Vk.LBUTTON )  :
+            # delay the sync until button released to avoid flickering
+            logger.debug("wait_mouse_released on event %s", event.name)
+            self._wait_mouse_released = True
+            return False
+        elif self._wait_mouse_released:
+            logger.debug("mouse_released on event %s", event.name)
+            if not sysinout.state.get( Vk.LBUTTON ):
+                self._wait_mouse_released = False
+                return True
+            else:
                 return False
-            elif self._wait_mouse_released:
-                logger.debug("mouse_released on event %s", event.name)
-                if not sysinout.state.get( Vk.LBUTTON ):
-                    self._wait_mouse_released = False
-                    return True
-                else:
-                    return False
-            # # filter by event
-            window = Window(hwnd)
-            if event == WinEvent.EVENT_OBJECT_SHOW or event == WinEvent.EVENT_OBJECT_UNCLOAKED:
-                # restore telegram from the traybar only trigger EVENT_OBJECT_UNCLOAKED
-                if not self.is_window_manageable(window):
-                    return False
-                # a window belongs to hidden workspace just got activated
-                # put your default browser into workspace and then ctrl-click the link http://google.com 
-                monitor_name, workspace_name, show = self.config.find_window_state(window.handle)
-                if monitor_name and workspace_name and not show:
-                    logger.debug("switch workspace for activated window to %s %s", monitor_name, workspace_name)
-                    monitor_state= self.virtdesk_state.get_monitor_state_by_name(monitor_name)
-                    monitor_state.switch_workspace_by_name(workspace_name)
-                    return False
-            elif event == WinEvent.EVENT_OBJECT_HIDE: # same as above
-                # when window is hidden or destryed, it would not pass the is_window_manageable check
-                # fix case: toggle chrome fullscreen
-                if window not in self._managed_windows:
-                    return False
-            # elif event == WinEvent.EVENT_SYSTEM_MOVESIZEEND:
-            #     return self.restrict(hwnd)
-            elif event not in (
-                WinEvent.EVENT_SYSTEM_MINIMIZESTART,
-                WinEvent.EVENT_SYSTEM_MINIMIZEEND,
-                WinEvent.EVENT_SYSTEM_MOVESIZEEND, # fix case: resizing any app window
+        # # filter by event
+        window = Window(hwnd)
+        if event == WinEvent.EVENT_OBJECT_SHOW or event == WinEvent.EVENT_OBJECT_UNCLOAKED:
+            # restore telegram from the traybar only trigger EVENT_OBJECT_UNCLOAKED
+            if not self.is_window_manageable(window):
+                return False
+            # a window belongs to hidden workspace just got activated
+            # put your default browser into workspace and then ctrl-click the link http://google.com 
+            monitor_name, workspace_name, show = self.config.find_window_state(window.handle)
+            if monitor_name and workspace_name and not show:
+                logger.debug("switch workspace for activated window to %s %s", monitor_name, workspace_name)
+                monitor_state= self.virtdesk_state.get_monitor_state_by_name(monitor_name)
+                monitor_state.switch_workspace_by_name(workspace_name)
+                return False
+        elif event == WinEvent.EVENT_OBJECT_HIDE: # same as above
+            # when window is hidden or destryed, it would not pass the is_window_manageable check
+            # fix case: toggle chrome fullscreen
+            if window not in self._managed_windows:
+                return False
+        # elif event == WinEvent.EVENT_SYSTEM_MOVESIZEEND:
+        #     return self.restrict(hwnd)
+        elif event not in (
+            WinEvent.EVENT_SYSTEM_MINIMIZESTART,
+            WinEvent.EVENT_SYSTEM_MINIMIZEEND,
+            WinEvent.EVENT_SYSTEM_MOVESIZEEND, # fix case: resizing any app window
+        ):
+            if event not in (
+                WinEvent.EVENT_OBJECT_LOCATIONCHANGE,
+                WinEvent.EVENT_OBJECT_NAMECHANGE,
+                # WinEvent.EVENT_OBJECT_CREATE,
+                WinEvent.EVENT_SYSTEM_MENUSTART,
+                WinEvent.EVENT_SYSTEM_MENUEND,
+                WinEvent.EVENT_OBJECT_REORDER,
+                WinEvent.EVENT_SYSTEM_CAPTURESTART,
+                WinEvent.EVENT_SYSTEM_CAPTUREEND,
             ):
-                if event not in (
-                    WinEvent.EVENT_OBJECT_LOCATIONCHANGE,
-                    WinEvent.EVENT_OBJECT_NAMECHANGE,
-                    # WinEvent.EVENT_OBJECT_CREATE,
-                    WinEvent.EVENT_SYSTEM_MENUSTART,
-                    WinEvent.EVENT_SYSTEM_MENUEND,
-                    WinEvent.EVENT_OBJECT_REORDER,
-                    WinEvent.EVENT_SYSTEM_CAPTURESTART,
-                    WinEvent.EVENT_SYSTEM_CAPTUREEND,
-                ):
-                    logger.debug("ignore winevent %s", event.name)
-                return False
+                logger.debug("ignore winevent %s", event.name)
+            return False
 
-            logger.info("sync_windows on event %s", event.name)
-            return True
-        return False
+        logger.info("sync_windows on event %s", event.name)
+        return True
 
     def init_sync(self):
         """The first synchronization of windows state to the system state at app startup"""
@@ -207,9 +199,11 @@ class WindowManagerCore:
             while len(workspace.windows) <= index:
                 workspace.windows.append(None)
             workspace.windows[index] = window
+            # logger.debug("init_sync added window %s to %s %s", hwnd, monitor_name, workspace_name)
         for workspace in workspaces:
             workspace.set_windows([w for w in workspace.windows if w and w.exists()])
-
+        for monitor_state in virtdesk_state.monitor_states.values():
+            monitor_state.switch_workspace(0)
         self.sync_windows(init=True)
 
     def sync_windows(self, init=False) -> bool:
@@ -294,6 +288,7 @@ class WindowManagerCore:
         """Unhide all workspaces"""
         for virtdesk_state in self.virtdesk_states.values():
             for monitor_state in virtdesk_state.monitor_states.values():
+                logger.info("unhiding monitor %s", monitor_state.monitor)
                 monitor_state.unhide_workspaces()
 
     def _winevent_callback(
