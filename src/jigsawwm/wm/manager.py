@@ -1,6 +1,8 @@
 """Window Manager Operations"""
 import logging
+import time
 from typing import List, Callable, Optional, Set
+from threading import Thread
 from jigsawwm import ui
 from jigsawwm.w32 import virtdesk
 from jigsawwm.w32.window import Window
@@ -29,6 +31,7 @@ class WindowManager(WindowManagerCore):
             init_exe_sequence = init_exe_sequence or [],
             rules=rules,
         )
+        self._hide_ui_thread = None
         super().__init__(config)
 
     def activate(self, window: Window):
@@ -165,15 +168,24 @@ class WindowManager(WindowManagerCore):
             self.activate(src_monitor_state.windows[0])
         # self.activate(active_window)
 
-    def switch_workspace(self, workspace_index: int):
+    def switch_workspace(self, workspace_index: int, monitor_name: str = None, hide_splash_in: Optional[float] = None):
         """Switch to a specific workspace"""
         logger.debug("switch workspace to %d", workspace_index)
-        monitor_state = self.get_active_monitor_state()
+        if monitor_name:
+            monitor_state = self.virtdesk_state.get_monitor_state_by_name(monitor_name)
+        else:
+            monitor_state = self.get_active_monitor_state()
         monitor_state.switch_workspace(workspace_index)
         if monitor_state.windows:
             self.activate(monitor_state.windows[0])
         logger.debug("show_windows_splash")
         ui.show_windows_splash(monitor_state, None)
+        if hide_splash_in:
+            def wait_then_hide():
+                time.sleep(hide_splash_in)
+                ui.hide_windows_splash()
+            self._hide_ui_thread = Thread(target=wait_then_hide)
+            self._hide_ui_thread.start()
 
     def move_to_workspace(self, workspace_index: int):
         """Move active window to a specific workspace"""

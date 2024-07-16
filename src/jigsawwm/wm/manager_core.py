@@ -191,7 +191,7 @@ class WindowManagerCore:
 
     def init_sync(self):
         """The first synchronization of windows state to the system state at app startup"""
-        # load windows state from shared memory of the last session
+        # load windows state from the last session
         virtdesk_state = self.virtdesk_state
         workspaces = []
         for hwnd, monitor_name, workspace_name, show, index  in self.config.iter_windows_states():

@@ -1,3 +1,4 @@
+"""Daemon is the core of JigsawWM, it provides a way to run background services and tasks"""
 import abc
 import logging
 import os
@@ -5,7 +6,7 @@ import signal
 import multiprocessing.pool
 from subprocess import PIPE, Popen
 from threading import Lock, Thread, Event
-from typing import Callable, List, Sequence, TextIO
+from typing import Callable, List, Sequence, TextIO, Union, Iterator
 
 from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import QMenu, QSystemTrayIcon
@@ -19,8 +20,6 @@ logger = logging.getLogger(__name__)
 
 
 class Job(abc.ABC):
-    autorun = True
-
     """Job is the fundamental building block of the Daemon, represent a Unit
     of Automation.
 
@@ -32,20 +31,24 @@ class Job(abc.ABC):
         ProcessService(syncthing)
     """
 
-    @abc.abstractproperty
-    def name(self):
-        pass
+    autorun = True
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
+    def name(self):
+        """Name of the job"""
+
+    @property
+    @abc.abstractmethod
     def text(self):
-        pass
+        """Text to be displayed in the traymenu"""
 
     @abc.abstractmethod
     def launch(self):
-        pass
+        """Launch the job"""
 
     def stop(self):
-        pass
+        """Stop the job"""
 
 
 class Service(Job):
@@ -53,13 +56,14 @@ class Service(Job):
     users register arbitrary service to the Daemon and turn them on or off as they pleased
     """
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def is_running(self) -> bool:
-        pass
+        """Check if the service is running"""
 
     @abc.abstractmethod
     def start(self):
-        pass
+        """Start the service"""
 
     @abc.abstractmethod
     def stop(self):
@@ -69,9 +73,14 @@ class Service(Job):
         self.start()
 
     def toggle(self):
-        self.stop() if self.is_running else self.start()
+        """Toggle the service"""
+        if self.is_running:
+            self.stop()
+        else:
+            self.start()
 
     def restart(self):
+        """Restart the service"""
         self.stop()
         self.start()
 
@@ -82,6 +91,7 @@ class Service(Job):
 
 
 class ThreadedService(Service):
+    """ThreadedService is a kind of specialized Service that run a function in the background"""
     interval_sec = 60
 
     def __init__(self):
@@ -100,12 +110,13 @@ class ThreadedService(Service):
         self._thread.start()
 
     def run(self):
+        """Run the service"""
         while not self._stop_flag.wait(self.interval_sec):
             self.loop()
 
     @abc.abstractmethod
     def loop(self):
-        pass
+        """The main loop of the service"""
 
     def stop(self):
         if not self.is_running:
@@ -128,8 +139,10 @@ class ProcessService(Service):
     def __init__(self):
         self._lock = Lock()
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def args(self) -> List[str]:
+        """CLI arguments to start the program"""
         pass
 
     @property
@@ -148,7 +161,11 @@ class ProcessService(Service):
                 raise ValueError(f"Service {self.name} is already running")
             log_file = PIPE
             if self.log_path:
-                log_file = open(self.log_path, "a+" if self.log_append_only else "w+")
+                log_file = open(
+                    self.log_path,
+                     "a+" if self.log_append_only else "w+",
+                     encoding="utf-8"
+                )
                 self._log_file = log_file
             self._process = Popen(
                 self.args, stdout=log_file, stdin=log_file, shell=True
@@ -159,7 +176,7 @@ class ProcessService(Service):
         with self._lock:
             if self._process is None:
                 return
-            Popen("TASKKILL /F /PID {pid} /T".format(pid=self._process.pid))
+            Popen(f"TASKKILL /F /PID {self._process.pid} /T")
             self._process = None
             if self._log_file:
                 self._log_file.close()
@@ -171,22 +188,32 @@ class Task(Job):
     pool = multiprocessing.pool.ThreadPool()
 
     def condition(self) -> bool:
+        """Check if the task should be launched"""
         return True
 
     @abc.abstractmethod
     def run(self) -> bool:
-        pass
+        """Run the task"""
 
     def launch(self):
         if self.condition():
             self.launch_anyway()
 
     def launch_anyway(self):
+        """Launch the task without checking the condition"""
         self.pool.apply_async(self.run)
 
     @property
     def text(self):
         return self.name
+
+
+class ServiceMenu:
+    """ServiceMenu is a kind of Service that has submenus"""
+
+    @abc.abstractmethod
+    def service_menu_items(self) -> Iterator[Union[QMenu, QAction]]:
+        """Return the submenu items"""
 
 class Daemon:
     """JigsawWM Daemon serivce, you must inherite this class and override the `setup` function
@@ -205,6 +232,7 @@ class Daemon:
 
     def create_trayicon(self):
         """Start trayicon"""
+        # to prevent menu item being garbage collected
         self.menuitems = []
 
         self.trayicon = QSystemTrayIcon(self.icon)
@@ -231,12 +259,29 @@ class Daemon:
         # services
         for job in self.jobs:
             if isinstance(job, Service):
-                act = QAction(job.text)
+                act = QAction()
                 act.setCheckable(True)
                 act.setChecked(job.is_running)
                 act.triggered.connect(job.toggle)
-                self.traymenu.addAction(act)
                 self.menuitems.append(act)
+                if isinstance(job, ServiceMenu):
+                    submenu = QMenu()
+                    submenu.setTitle(job.text)
+                    act.setText("Enable")
+                    submenu.addAction(act)
+                    self.traymenu.addMenu(submenu)
+                    self.menuitems.append(submenu)
+                    if job.is_running:
+                        submenu.addSeparator()
+                        for service_menu in job.service_menu_items():
+                            if isinstance(service_menu, QAction):
+                                submenu.addAction(service_menu)
+                            else:
+                                submenu.addMenu(service_menu)
+                            self.menuitems.append(service_menu)
+                else:
+                    act.setText(job.text)
+                    self.traymenu.addAction(act)
         self.traymenu.addSeparator()
         # quit
         quit_act = QAction("&Quit")
