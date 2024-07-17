@@ -243,7 +243,10 @@ class Window:
         return hash(self._hwnd)
 
     def __repr__(self):
-        return f"<Window exe={path.basename(self.exe)} title={self.title[:10]} hwnd={self._hwnd}>"
+        exe = self.exe
+        if exe:
+            exe = path.basename(exe)
+        return f"<Window exe={exe} title={self.title[:10]} hwnd={self._hwnd}>"
 
     @property
     def handle(self) -> HWND:
