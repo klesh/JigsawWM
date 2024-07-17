@@ -8,11 +8,12 @@ from jigsawwm.w32.window import Window
 from .config import WmConfig, WmRule
 from .theme import Theme
 from .workspace_state import WorkspaceState
+from .pickable_state import PickableState
 
 logger = logging.getLogger(__name__)
 
 
-class MonitorState:
+class MonitorState(PickableState):
     """MonitorState holds variables needed by a Monitor
 
 
@@ -21,6 +22,7 @@ class MonitorState:
     :param str theme: the active theme for the monitor in the virtual desktop
     """
 
+    config: WmConfig
     monitor: Monitor
     workspaces: List[WorkspaceState]
     active_workspace_index: int
@@ -34,6 +36,28 @@ class MonitorState:
         ]
         self.active_workspace_index = 0
         self.workspaces[0].toggle(True)
+
+    def update_config(self, config: WmConfig):
+        """Update the workspaces based on configuration"""
+        self.config = config
+        # if the number of workspaces has increased
+        for workspace_index, workspace_name in enumerate(self.config.workspace_names):
+            if workspace_index >= len(self.workspaces):
+                self.workspaces.append(WorkspaceState(self.config, workspace_name, self.monitor))
+            else:
+                self.workspaces[workspace_index].name = workspace_name
+        # or it has decrease
+        l = len(self.config.workspace_names)
+        i = l
+        while i < len(self.workspaces):
+            tobe_removed = self.workspaces[i]
+            target_ws = self.workspaces[i % l]
+            target_ws.set_windows(target_ws.windows + tobe_removed.windows)
+            i += 1
+        self.workspaces = self.workspaces[:l]
+        for workspace in self.workspaces:
+            workspace.update_config(config)
+
 
     @property
     def workspace(self) -> WorkspaceState:

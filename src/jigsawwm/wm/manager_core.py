@@ -1,6 +1,8 @@
 """WindowManagerCore is the core of the WindowManager, it manages the windows"""
 import logging
 import time
+import os
+import pickle
 from typing import Dict, List, Set, Tuple, Optional
 from queue import SimpleQueue
 from threading import Thread
@@ -32,6 +34,7 @@ from .config import WmConfig
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_STATE_PATH = os.path.join(os.getenv("LOCALAPPDATA"), "jigsawwm", "wm.state")
 
 class WindowManagerCore:
     """WindowManager detect the monitors/windows state and arrange them dynamically
@@ -57,7 +60,7 @@ class WindowManagerCore:
     _managed_windows: Set[Window] = set()
     _queue: Optional[SimpleQueue]  = None
     _consumer: Optional[Thread] = None
-    _ignore_events: bool = False;
+    _ignore_events: bool = False
 
     def __init__(
         self,
@@ -65,6 +68,7 @@ class WindowManagerCore:
     ):
         self.config = config
         self.virtdesk_states = {}
+        self.load_state()
 
     @property
     def virtdesk_state(self) -> VirtDeskState:
@@ -102,7 +106,7 @@ class WindowManagerCore:
         self.init_sync()
         self.install_hooks()
         ui.on_screen_changed(self.sync_windows)
-    
+
     def stop(self):
         """Stop the WindowManagerCore service"""
         ui.on_screen_changed(None)
@@ -123,7 +127,7 @@ class WindowManagerCore:
                     self.sync_windows()
             except : # pylint: disable=bare-except
                 logger.exception("consume_queue error", exc_info=True)
-    
+
     def is_event_interested(self, event: WinEvent, hwnd: HWND) -> bool:
         """Check if event is interested"""
         # ignore if left mouse button is pressed in case of dragging
@@ -141,17 +145,17 @@ class WindowManagerCore:
                 return False
         # # filter by event
         window = Window(hwnd)
-        if event == WinEvent.EVENT_OBJECT_SHOW or event == WinEvent.EVENT_OBJECT_UNCLOAKED:
+        if event == WinEvent.EVENT_OBJECT_SHOW or event == WinEvent.EVENT_OBJECT_UNCLOAKED or event == WinEvent.EVENT_SYSTEM_FOREGROUND:
+            # a window belongs to hidden workspace just got activated
+            # put your default browser into workspace and then ctrl-click a link, e.g. http://google.com 
+            state = self.virtdesk_state.find_window_in_hidden_workspaces(window.handle)
+            if state:
+                monitor_state, workspace_index  = state
+                logger.debug("switch workspace to index %d on monitor %s for activated window", workspace_index, monitor_state.monitor.name)
+                monitor_state.switch_workspace(workspace_index)
+                return False
             # restore telegram from the traybar only trigger EVENT_OBJECT_UNCLOAKED
             if not self.is_window_manageable(window):
-                return False
-            # a window belongs to hidden workspace just got activated
-            # put your default browser into workspace and then ctrl-click the link http://google.com 
-            monitor_name, workspace_name, show = self.config.find_window_state(window.handle)
-            if monitor_name and workspace_name and not show:
-                logger.debug("switch workspace for activated window to %s %s", monitor_name, workspace_name)
-                monitor_state= self.virtdesk_state.get_monitor_state_by_name(monitor_name)
-                monitor_state.switch_workspace_by_name(workspace_name)
                 return False
         elif event == WinEvent.EVENT_OBJECT_HIDE: # same as above
             # when window is hidden or destryed, it would not pass the is_window_manageable check
@@ -184,26 +188,7 @@ class WindowManagerCore:
     def init_sync(self):
         """The first synchronization of windows state to the system state at app startup"""
         # load windows state from the last session
-        virtdesk_state = self.virtdesk_state
-        workspaces = []
-        for hwnd, monitor_name, workspace_name, show, index  in self.config.iter_windows_states():
-            logger.debug("init_sync %s %s %s %s %s", hwnd, monitor_name, workspace_name, show, index)
-            window = Window(hwnd)
-            monitor_state = virtdesk_state.get_monitor_state_by_name(monitor_name)
-            # monitor is gone, unhide the window and skip
-            if not monitor_state:
-                if not show:
-                    window.show()
-                continue
-            workspace = monitor_state.find_workspace_by_name(workspace_name) or monitor_state.workspaces[0]
-            while len(workspace.windows) <= index:
-                workspace.windows.append(None)
-            workspace.windows[index] = window
-            # logger.debug("init_sync added window %s to %s %s", hwnd, monitor_name, workspace_name)
-        for workspace in workspaces:
-            workspace.set_windows([w for w in workspace.windows if w and w.exists()])
-        for monitor_state in virtdesk_state.monitor_states.values():
-            monitor_state.switch_workspace(0)
+        self.load_state()
         self.sync_windows(init=True)
 
     def sync_windows(self, init=False) -> bool:
@@ -242,6 +227,10 @@ class WindowManagerCore:
         monitors = list(monitors)
         self._managed_windows = set()
         for window in manageable_windows:
+            # sometimes the window reappeared after being hidden
+            if virtdesk_state.find_window_in_hidden_workspaces(window.handle):
+                window.hide()
+                continue
             self._managed_windows.add(window)
             monitor = (
                 virtdesk_state.find_monitor_of_window(window) # window has been managed
@@ -290,6 +279,27 @@ class WindowManagerCore:
             for monitor_state in virtdesk_state.monitor_states.values():
                 logger.info("unhiding monitor %s", monitor_state.monitor)
                 monitor_state.unhide_workspaces()
+
+    def save_state(self):
+        """Save the windows state"""
+        logger.info("saving state")
+        with open(DEFAULT_STATE_PATH, "wb") as f:
+            pickle.dump(self.virtdesk_states, f)
+
+    def load_state(self):
+        """Load the windows state"""
+        logger.info("loading state")
+        if os.path.exists(DEFAULT_STATE_PATH):
+            with open(DEFAULT_STATE_PATH, "rb") as f:
+                try:
+                    self.virtdesk_states = pickle.load(f)
+                    logger.info("load windows states from the last session")
+                except: # pylint: disable=bare-except
+                    logger.exception("load windows states error", exc_info=True)
+            for virtdesk_state in self.virtdesk_states.values():
+                virtdesk_state.update_config(self.config)
+        else:
+            logger.info("nothing from the last session")
 
     def _winevent_callback(
         self,

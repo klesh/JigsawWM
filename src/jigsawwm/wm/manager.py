@@ -76,9 +76,10 @@ class WindowManager(WindowManagerCore):
         if len(monitor_state.windows) < 2:
             return
         next_active_window = reorderer(monitor_state.windows, monitor_state.windows.index(active_window))
-        monitor_state.workspace.save_state()
+        # monitor_state.workspace.save_state()
         monitor_state.arrange()
         self.activate(next_active_window or active_window)
+        self.save_state()
 
     def swap_by_offset(self, offset: int):
         """Swap current active managed window with its sibling by offset"""
@@ -129,6 +130,7 @@ class WindowManager(WindowManagerCore):
         theme_index = self.config.get_theme_index(monitor_state.theme.name)
         theme = self.config.themes[(theme_index + delta) % len(self.config.themes)]
         monitor_state.set_theme(theme)
+        self.save_state()
 
     def get_monitor_state_by_offset(self, delta: int, src_monitor_state: Optional[MonitorState]=None) -> MonitorState:
         """Retrieves a pair of monitor_states, the current active one and its offset in the list"""
@@ -166,7 +168,7 @@ class WindowManager(WindowManagerCore):
         dst_monitor_state.add_window(active_window)
         if src_monitor_state.windows:
             self.activate(src_monitor_state.windows[0])
-        # self.activate(active_window)
+        self.save_state()
 
     def switch_workspace(self, workspace_index: int, monitor_name: str = None, hide_splash_in: Optional[float] = None):
         """Switch to a specific workspace"""
@@ -186,6 +188,7 @@ class WindowManager(WindowManagerCore):
                 ui.hide_windows_splash()
             self._hide_ui_thread = Thread(target=wait_then_hide)
             self._hide_ui_thread.start()
+        self.save_state()
 
     def move_to_workspace(self, workspace_index: int):
         """Move active window to a specific workspace"""
@@ -195,6 +198,7 @@ class WindowManager(WindowManagerCore):
         self._ignore_events = True
         src_monitor_state.move_to_workspace(active_window, workspace_index)
         self._ignore_events = False
+        self.save_state()
 
     def prev_theme(self):
         """Switch to previous theme in the themes list"""
@@ -240,6 +244,7 @@ class WindowManager(WindowManagerCore):
         """Move active window to another virtual desktop"""
         virtdesk.move_to_desktop(desktop_number, window)
         self.sync_windows()
+        self.save_state()
 
     def switch_desktop(self, desktop_number: int):
         """Switch to another virtual desktop"""

@@ -9,11 +9,12 @@ from jigsawwm.w32.monitor import Monitor
 
 from .config import WmConfig
 from .theme import Theme
+from .pickable_state import PickableState
 
 logger = logging.getLogger(__name__)
 
 
-class WorkspaceState:
+class WorkspaceState(PickableState):
     """WorkspaceState maintins the state of a workspace"""
     config: WmConfig
     name: str
@@ -21,14 +22,28 @@ class WorkspaceState:
     theme: Theme
     windows: List[Window]
     showing: bool
+    theme_name: str # for restoring
 
     def __init__(self, config: WmConfig, name: str, monitor: Monitor):
         self.config = config
         self.name = name
         self.monitor = monitor
-        self.theme = self.config.get_theme_for_workspace(monitor, name)
+        self.theme = self.config.get_theme_for_monitor(monitor)
+        self.theme_name = self.theme.name
         self.windows = []
         self.showing = False
+
+    def __getstate__(self):
+        state = super().__getstate__()
+        del state['theme']
+        return state
+
+    def update_config(self, config: WmConfig):
+        """Update the workspace based on configuration"""
+        self.config = config
+        self.theme = self.config.get_theme_by_name(self.theme_name)
+        self.windows = [w for w in self.windows if w and w.exists()]
+        self.toggle(self.showing)
 
     def toggle(self, show: bool):
         """Toggle all windows in the workspace"""
@@ -39,7 +54,6 @@ class WorkspaceState:
                 window.show()
             else:
                 window.hide()
-        self.save_state()
 
     def set_theme(self, theme: Theme):
         """Set theme for the workspace"""
@@ -111,7 +125,6 @@ class WorkspaceState:
             return self.restrict()
         self.windows = windows
         self.arrange()
-        self.save_state()
 
     def arrange(self):
         """Arrange windows based on the theme
@@ -167,8 +180,3 @@ class WorkspaceState:
             return
         for window in self.windows:
             window.restrict()
-
-    def save_state(self):
-        """Save the state of the workspace"""
-        logger.debug("save state of workspace %s on %s", self.name, self.monitor.name)
-        self.config.save_windows_state(self.windows, self.monitor.name, self.name, self.showing)

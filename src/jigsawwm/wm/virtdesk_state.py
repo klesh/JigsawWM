@@ -1,17 +1,19 @@
 """Virtual Desktop State module"""
 import logging
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
+from ctypes.wintypes import HWND
 
 from jigsawwm.w32.monitor import Monitor, get_monitors
 from jigsawwm.w32.window import Window
 
 from .config import WmConfig
 from .monitor_state import MonitorState
+from .pickable_state import PickableState
 
 logger = logging.getLogger(__name__)
 
 
-class VirtDeskState:
+class VirtDeskState(PickableState):
     """VirtDeskState holds variables needed by a Virtual Desktop
 
     :param WindowManager manager: associated WindowManager
@@ -28,6 +30,12 @@ class VirtDeskState:
         self.monitor_states = {
             monitor: MonitorState(config, monitor) for monitor in get_monitors()
         }
+
+    def update_config(self, config: WmConfig):
+        """Update the monitor states based on configuration"""
+        self.config = config
+        for monitor_state in self.monitor_states.values():
+            monitor_state.update_config(config)
 
     def get_monitor_state(self, monitor: Monitor) -> MonitorState:
         """Retrieves the monitor state for the specified monitor in the virtual desktop
@@ -66,4 +74,20 @@ class VirtDeskState:
         for monitor, monitor_state in self.monitor_states.items():
             if window in monitor_state.windows:
                 return monitor
+        return None
+
+    def find_window_in_hidden_workspaces(self, hwnd: HWND) -> Optional[Tuple[MonitorState, int]] :
+        """Find the MonitorState and workspace index of givin window in the hidden workspaces
+
+        :param Window window: window
+        :returns: monitor state and workspace index
+        :rtype: Optional[str]
+        """
+        for monitor_state in self.monitor_states.values():
+            for workspace_index, workspace_state in enumerate(monitor_state.workspaces):
+                for window in workspace_state.windows:
+                    if window.handle == hwnd:
+                        if workspace_state.showing:
+                            return None
+                        return monitor_state, workspace_index
         return None
