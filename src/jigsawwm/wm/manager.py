@@ -5,7 +5,7 @@ from typing import List, Callable, Optional, Set
 from threading import Thread
 from jigsawwm import ui
 from jigsawwm.w32 import virtdesk
-from jigsawwm.w32.window import Window
+from jigsawwm.w32.window import Window, get_window_from_pos
 from jigsawwm.w32.monitor import set_cursor_pos, get_topo_sorted_monitors
 from .manager_core import WindowManagerCore, MonitorState
 from .theme import Theme
@@ -148,15 +148,17 @@ class WindowManager(WindowManagerCore):
         """Switch to another monitor by given offset"""
         logger.debug("switch_monitor_by_offset: %s", delta)
         dst_monitor_state = self.get_monitor_state_by_offset(delta)
-        if dst_monitor_state.windows:
-            self.activate(dst_monitor_state.windows[0])
-        else:
-            rect = dst_monitor_state.monitor.get_info().rcWork
-            x, y = (
-                rect.left + (rect.right - rect.left) / 2,
-                rect.top + (rect.bottom - rect.top) / 2,
-            )
+        rect = dst_monitor_state.monitor.get_info().rcWork
+        x, y = (
+            rect.left + (rect.right - rect.left) / 2,
+            rect.top + (rect.bottom - rect.top) / 2,
+        )
+        # in case the other monitor is having non-managed window in full screen mode
+        window = get_window_from_pos(x, y)
+        if window:
             set_cursor_pos(x, y)
+        elif dst_monitor_state.windows:
+            self.activate(dst_monitor_state.windows[0])
 
     def move_to_monitor_by_offset(self, delta: int):
         """Move active window to another monitor by offset"""
