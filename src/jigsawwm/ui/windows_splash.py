@@ -51,8 +51,8 @@ class WindowsSplash(Dialog):
         self.worspace_widget.setText(f"Workspace: {monitor_state.workspace.name}")
         h = 0
         w = self.width()
-        self.deleteDirectChildren(self.container)
         if self.windows != monitor_state.windows:
+            self.deleteDirectChildren(self.container)
             self.windows = monitor_state.windows.copy()
             for window in self.windows:
                 icon = QImage.fromHICON(window.icon_handle)
@@ -69,7 +69,8 @@ class WindowsSplash(Dialog):
                 h += 36
                 if w < widget.width():
                     w = widget.width()
-        if h == 0:
+        if len(self.windows) == 0:
+            self.deleteDirectChildren(self.container)
             self.spacer = QLabel("Nothing here")
             h = 36
             self.spacer.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -89,7 +90,7 @@ class WindowsSplash(Dialog):
         r = monitor_state.monitor.get_rect()
         rect = app.screenAt(QPoint(r.left, r.top)).geometry()
         x = rect.x() + (rect.width() - w) // 2
-        y = rect.y() + (rect.height() - h) // 2
+        y = rect.y() + (rect.height()) // 3
         self.setGeometry(x, y, w, h)
         self.show()
 
