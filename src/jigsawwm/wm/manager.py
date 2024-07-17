@@ -155,10 +155,10 @@ class WindowManager(WindowManagerCore):
         )
         # in case the other monitor is having non-managed window in full screen mode
         window = get_window_from_pos(x, y)
+        if not window and dst_monitor_state.windows:
+            window = dst_monitor_state.windows[0]
         if window:
-            set_cursor_pos(x, y)
-        elif dst_monitor_state.windows:
-            self.activate(dst_monitor_state.windows[0])
+            self.activate(window)
 
     def move_to_monitor_by_offset(self, delta: int):
         """Move active window to another monitor by offset"""
