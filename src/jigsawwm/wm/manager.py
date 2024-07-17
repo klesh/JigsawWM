@@ -126,6 +126,7 @@ class WindowManager(WindowManagerCore):
 
     def switch_theme_by_offset(self, delta: int):
         """Switch theme by offset"""
+        logger.info("switching theme by offset: %s", delta)
         monitor_state = self.get_active_monitor_state()
         theme_index = self.config.get_theme_index(monitor_state.theme.name)
         theme = self.config.themes[(theme_index + delta) % len(self.config.themes)]

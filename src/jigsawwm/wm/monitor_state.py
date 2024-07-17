@@ -74,9 +74,9 @@ class MonitorState(PickableState):
         """Get the active theme of the monitor"""
         return self.workspace.theme
 
-    def set_theme(self):
+    def set_theme(self, theme: Theme):
         """Set the theme of the active workspace of the monitor"""
-        self.workspace.set_theme()
+        self.workspace.set_theme(theme)
 
     def arrange(self):
         """Arrange the windows in the active workspace of the monitor"""

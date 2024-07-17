@@ -59,7 +59,7 @@ class WorkspaceState(PickableState):
         """Set theme for the workspace"""
         logger.debug("set theme %s for workspace %s", theme.name, self.name)
         self.theme = theme
-        self.config.set_theme_for_workspace(self.monitor, self.name, theme)
+        self.theme_name = theme.name
         self.arrange()
 
     def add_window(self, window: Window):
