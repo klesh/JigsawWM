@@ -122,7 +122,11 @@ class WindowManagerCore:
                 if not event:
                     break # terminate
                 event, hwnd = event
-                if self.is_event_interested(event, hwnd):
+                if event == event.EVENT_SCREEN_CHANGED:
+                    logger.info("screen changed")
+                    time.sleep(0.5)
+                    self.sync_windows()
+                elif self.is_event_interested(event, hwnd):
                     time.sleep(0.1)
                     self.sync_windows()
             except : # pylint: disable=bare-except
@@ -316,8 +320,7 @@ class WindowManagerCore:
 
     def _screen_changed_callback(self):
         # wait a little bit for monitors to be ready
-        time.sleep(0.5)
-        self.sync_windows()
+        self._queue.put_nowait((WinEvent.EVENT_SCREEN_CHANGED, None))
 
     def install_hooks(self):
         """Install hooks for window events"""
