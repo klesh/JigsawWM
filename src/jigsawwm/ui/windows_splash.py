@@ -72,7 +72,6 @@ class WindowsSplash(Dialog):
         if len(self.windows) == 0:
             self.deleteDirectChildren(self.container)
             self.spacer = QLabel("Nothing here")
-            h = 36
             self.spacer.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.spacer.setSizePolicy(
                 QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
