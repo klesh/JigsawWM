@@ -28,3 +28,5 @@ if debugging:
 
         consoleHandler.addFilter(f)
         fileHandler.addFilter(f)
+else:
+    rootLogger.setLevel(logging.INFO)

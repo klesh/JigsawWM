@@ -105,7 +105,7 @@ class WindowManagerCore:
         self._consumer.start()
         self.init_sync()
         self.install_hooks()
-        ui.on_screen_changed(self.sync_windows)
+        ui.on_screen_changed(self._screen_changed_callback)
 
     def stop(self):
         """Stop the WindowManagerCore service"""
@@ -313,6 +313,11 @@ class WindowManagerCore:
         if self._ignore_events:
             return
         self._queue.put_nowait((event, hwnd))
+
+    def _screen_changed_callback(self):
+        # wait a little bit for monitors to be ready
+        time.sleep(0.5)
+        self.sync_windows()
 
     def install_hooks(self):
         """Install hooks for window events"""

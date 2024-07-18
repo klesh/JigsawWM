@@ -271,6 +271,7 @@ def inspect_monitors():
     print(f"cursor pos       :  x {p.x} y {p.y}")
     for monitor in get_topo_sorted_monitors():
         print()
+        print(monitor)
         print("scale factor     :", monitor.get_scale_factor())
         monitor_info = monitor.get_info()
         print("device           :", monitor_info.szDevice)
