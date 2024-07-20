@@ -48,7 +48,7 @@ class WindowsSplash(Dialog):
     def show_windows_splash(self, monitor_state: MonitorState, active_window: Optional[Window]=None):
         """Show the splash screen"""
         logger.debug("WindowsSplash show")
-        self.worspace_widget.setText(f"Workspace: {monitor_state.workspace.name}")
+        self.worspace_widget.setText(f"Workspace: {monitor_state.workspace.name} (theme: {monitor_state.workspace.theme_name})")
         h = 0
         w = self.width()
         if self.windows != monitor_state.windows:

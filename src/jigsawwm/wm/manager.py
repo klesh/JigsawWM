@@ -131,6 +131,7 @@ class WindowManager(WindowManagerCore):
         theme_index = self.config.get_theme_index(monitor_state.theme.name)
         theme = self.config.themes[(theme_index + delta) % len(self.config.themes)]
         monitor_state.set_theme(theme)
+        ui.show_windows_splash(monitor_state, None)
         self.save_state()
 
     def get_monitor_state_by_offset(self, delta: int, src_monitor_state: Optional[MonitorState]=None) -> MonitorState:

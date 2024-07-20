@@ -148,7 +148,7 @@ def wait_for_network_ready():
 
     while True:
         try:
-            res = urllib.request.urlopen("https://baidu.com", timeout=1)
+            res = urllib.request.urlopen("https://baidu.com", timeout=3)
             if res:
                 break
         except Exception as e:

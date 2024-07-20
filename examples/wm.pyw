@@ -74,7 +74,7 @@ hotkeys = [
     ([Vk.WIN, Vk.SHIFT, Vk.J], wm.swap_next),
     ([Vk.WIN, Vk.SHIFT, Vk.K], wm.swap_prev),
     ("Win+/", wm.set_master),
-    ([Vk.WIN, Vk.CONTROL, Vk.SPACE], wm.next_theme),
+    ([Vk.WIN, Vk.CONTROL, Vk.SPACE], wm.next_theme, ui.hide_windows_splash),
     ([Vk.WIN, Vk.U], wm.prev_monitor),
     ([Vk.WIN, Vk.I], wm.next_monitor),
     ([Vk.WIN, Vk.SHIFT, Vk.U], wm.move_to_prev_monitor),
