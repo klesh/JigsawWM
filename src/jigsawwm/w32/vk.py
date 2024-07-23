@@ -1,5 +1,6 @@
 import enum
 import typing
+from ctypes import wintypes,WinDLL
 
 
 class Vk(enum.IntEnum):
@@ -347,3 +348,14 @@ def expand_combination(
                 )
     else:
         yield combkeys
+
+
+GetKeyState = WinDLL("user32").GetKeyState
+GetKeyState.restype = wintypes.SHORT
+
+def get_key_state(vk: Vk) -> bool:
+    return bool(GetKeyState(vk) & 0x8000)
+
+
+if __name__ == "__main__":
+    print(get_key_state(Vk.SHIFT))

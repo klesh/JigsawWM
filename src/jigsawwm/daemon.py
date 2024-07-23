@@ -12,6 +12,7 @@ from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import QMenu, QSystemTrayIcon
 
 from jigsawwm import ui
+from jigsawwm.w32.vk import Vk, get_key_state
 
 # support for Ctrl+C in console
 signal.signal(signal.SIGINT, signal.SIG_DFL)
@@ -240,9 +241,20 @@ class Daemon:
         self.traymenu = QMenu()
         self.trayicon.setContextMenu(self.traymenu)
         # self.trayicon.activated.connect(self.update_traymenu)
+        self.skip_tasks = get_key_state(Vk.LSHIFT)
+        logger.info("skip tasks: %s", self.skip_tasks)
+        for job in self.jobs:
+            if job.autorun:
+                if isinstance(job, Task) and self.skip_tasks:
+                    logger.info(f"skip autorun tasks {job.name}")
+                else:
+                    logger.info("autorun %s", job.name)
+                    job.launch()
         self.trayicon.activated.connect(self.update_traymenu)
         self.update_traymenu()
         self.trayicon.show()
+        if self.skip_tasks:
+            self.trayicon.showMessage("JigsawWM", "skip autorun tasks", QSystemTrayIcon.Information)
 
     def update_traymenu(self):
         """Update traymenu"""
@@ -301,9 +313,6 @@ class Daemon:
         """Register a job to the daemon service"""
         logger.info("registering %s", job.name)
         job: Job = job()
-        if job.autorun:
-            logger.info("autorun %s", job.name)
-            job.launch()
         self.jobs.append(job)
 
     def message_loop(self):
