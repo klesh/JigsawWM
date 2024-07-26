@@ -66,7 +66,7 @@ class WmConfig:
             )[0]
         return self._monitor_themes[monitor.name]
 
-    def is_window_manageable(self, window: Window) -> bool:
+    def is_window_tilable(self, window: Window) -> bool:
         """Check if window is to be managed"""
         exebasename = path.basename(window.exe)
         if self.force_managed_exe_names:

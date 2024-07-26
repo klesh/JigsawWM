@@ -86,14 +86,22 @@ class WindowManagerCore:
         monitor = get_monitor_from_cursor()
         return self.virtdesk_state.get_monitor_state(monitor)
 
+    def get_active_tilable_window(self) -> Tuple[Window, MonitorState]:
+        """Get active windows"""
+        logger.debug("get_active_tilable_window")
+        window, monitor_state = self.get_active_window()
+        if not window or window not in monitor_state.tilable_windows:
+            return None, None
+        return window, monitor_state
+
     def get_active_window(self) -> Tuple[Window, MonitorState]:
         """Get active windows"""
         logger.debug("get_active_window")
-        monitor_state = self.get_active_monitor_state()
-        if not monitor_state.windows:
-            return None, None
         window = get_active_window()
-        if window and window not in monitor_state.windows:
+        if not window:
+            return None, None,
+        monitor_state = self.virtdesk_state.get_monitor_state(get_monitor_from_window(window.handle))
+        if window not in monitor_state.windows:
             return None, None
         return window, monitor_state
 
@@ -275,7 +283,7 @@ class WindowManagerCore:
     
     def is_window_manageable(self, window: Window) -> bool:
         """Check if the window is manageable by the WindowManager"""
-        return is_app_window(window.handle) and self.config.is_window_manageable(window)
+        return is_app_window(window.handle)
 
     def unhide_workspaces(self):
         """Unhide all workspaces"""

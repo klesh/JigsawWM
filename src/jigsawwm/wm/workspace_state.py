@@ -20,7 +20,8 @@ class WorkspaceState(PickableState):
     name: str
     monitor: Monitor
     theme: Theme
-    windows: List[Window]
+    tilable_windows: List[Window]
+    windows: Set[Window]
     showing: bool
     theme_name: str # for restoring
 
@@ -30,7 +31,8 @@ class WorkspaceState(PickableState):
         self.monitor = monitor
         self.theme = self.config.get_theme_for_monitor(monitor)
         self.theme_name = self.theme.name
-        self.windows = []
+        self.tilable_windows = []
+        self.windows = set()
         self.showing = False
 
     def __getstate__(self):
@@ -42,18 +44,16 @@ class WorkspaceState(PickableState):
         """Update the workspace based on configuration"""
         self.config = config
         self.theme = self.config.get_theme_by_name(self.theme_name)
-        self.windows = [w for w in self.windows if w and w.exists()]
         self.toggle(self.showing)
 
     def toggle(self, show: bool):
         """Toggle all windows in the workspace"""
         logger.debug("toggle workspace %s show %s", self.name, show)
         self.showing = show
+        if show: # maybe some the windows were killed during the hide
+            self.sync_windows(self.windows)
         for window in self.windows:
-            if self.showing:
-                window.show()
-            else:
-                window.hide()
+            window.toggle(show)
 
     def set_theme(self, theme: Theme):
         """Set theme for the workspace"""
@@ -65,65 +65,57 @@ class WorkspaceState(PickableState):
     def add_window(self, window: Window):
         """Add a window to the workspace"""
         logger.debug("add window %s to workspace %s", window, self.name)
-        windows = self.windows
-        if self.theme.new_window_as_master:
-            windows = [window] + self.windows
-        else:
-            windows = self.windows + [window]
-        if self.showing:
-            window.show()
-        self.set_windows(windows)
+        self.sync_windows(self.windows.union({window}))
 
     def remove_window(self, window: Window):
         """Remove a window from the workspace"""
         logger.debug("remove window %s from workspace %s", window, self.name)
-        windows = [w for w in self.windows if w != window]
-        self.set_windows(windows)
+        self.sync_windows(self.windows.difference({window}))
 
     def has_window(self, window: Window):
         """Check if the workspace has the window"""
-        for w in self.windows:
-            if w == window:
-                return True
-        return False
+        return window in self.windows
 
-    def sync_windows(self, windows: Set[Window]):
+    def sync_windows(self, incoming_windows: Set[Window]):
         """Sync the internal windows list to the incoming windows list"""
         logger.debug("sync windows for workspace %s", self.name)
+        # make sure windows are still valid
+        incoming_windows = { w for w in incoming_windows if w.exists() }
+        # update the internal windows list
+        self.windows = incoming_windows
+        # process the tilable windows
+        incoming_tilable_windows = {
+            w for w in incoming_windows
+            if w.is_tilable and self.config.is_window_tilable(w)
+        }
         # remove windows that are not in the incoming list
-        new_list = []
-        for w in self.windows:
+        new_tilable_windows = []
+        for w in self.tilable_windows:
             # window does not exist anymore, ingore it
-            if w not in windows:
+            if w not in incoming_tilable_windows:
                 continue
             # put the window back if it is in the incoming list
-            new_list.append(w)
-            windows.remove(w)
+            new_tilable_windows.append(w)
+            incoming_tilable_windows.remove(w)
         # now, only new windows are in the set
-        new_windows = []
+        new_tilable_portion = []
         # extract predefined-order windows and put them into the new_windows list
         if self.config.init_exe_sequence:
             for [exe, title] in self.config.init_exe_sequence:
-                for w in windows:
+                for w in incoming_tilable_windows:
                     if exe.lower() == path.basename(w.exe).lower() and title in w.title.lower():
-                        new_windows.append(w)
-                        windows.remove(w)
+                        new_tilable_portion.append(w)
+                        incoming_tilable_windows.remove(w)
         # add the rest new windows to the new_windows list
-        new_windows += list(windows)
+        new_tilable_portion += list(incoming_tilable_windows)
         # append or prepend new_windows based on the theme setting
         if self.theme.new_window_as_master:
-            new_list = new_windows + new_list
+            new_tilable_windows = new_tilable_portion + new_tilable_windows
         else:
-            new_list += new_windows
-        self.set_windows(new_list)
-
-    def set_windows(self, windows: List[Window]):
-        """Set windows for the workspace"""
-        logger.debug("set windows %s for workspace %s", windows, self.name)
-        windows = [w for w in windows if w.exists()]
-        if windows == self.windows:
+            new_tilable_windows += new_tilable_portion
+        if new_tilable_windows == self.tilable_windows:
             return self.restrict()
-        self.windows = windows
+        self.tilable_windows = new_tilable_windows
         self.arrange()
 
     def arrange(self):
@@ -131,11 +123,11 @@ class WorkspaceState(PickableState):
 
         :param str theme: optional, fallback to theme of the instance
         """
-        logger.debug("arrange workspace %s of %s with %d windows", self.name, self.monitor, len(self.windows))
+        logger.debug("arrange workspace %s of %s with %d windows", self.name, self.monitor, len(self.tilable_windows))
         theme = self.theme
         wr = self.monitor.get_info().rcWork
         work_area = (wr.left, wr.top, wr.right, wr.bottom)
-        windows = self.windows
+        windows = self.tilable_windows
         i = 0
         gap = theme.gap
         for left, top, right, bottom in theme.layout_tiler(work_area, len(windows)):
@@ -178,5 +170,5 @@ class WorkspaceState(PickableState):
         logger.debug("restrict workspace %s", self.name)
         if not self.theme.strict:
             return
-        for window in self.windows:
+        for window in self.tilable_windows:
             window.restrict()

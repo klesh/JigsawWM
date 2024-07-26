@@ -6,7 +6,7 @@ from ctypes import * # pylint: disable=wildcard-import,unused-wildcard-import
 from ctypes.wintypes import * # pylint: disable=wildcard-import,unused-wildcard-import
 from dataclasses import dataclass
 from io import StringIO
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Iterable
 from os import path
 
 from . import process
@@ -136,34 +136,18 @@ def is_toplevel_window(hwnd: HWND) -> bool:
 def is_app_window(hwnd: HWND, style: Optional[WindowExStyle] = None) -> bool:
     """Check if window is a app window (user mode / visible / resizable)"""
     style = style or get_window_style(hwnd)
+    pid = get_window_pid(hwnd)
     return bool(
-        not is_window_cloaked(hwnd)
-        and is_toplevel_window(hwnd)
-        and WindowStyle.SIZEBOX in style
+        WindowStyle.VISIBLE in style
+        and not WindowStyle.MINIMIZE & style
         and WindowStyle.MAXIMIZEBOX & style
         and WindowStyle.MINIMIZEBOX & style
-        and WindowStyle.VISIBLE in style
-        and not WindowStyle.MINIMIZE & style
-        and not process.is_elevated(get_window_pid(hwnd))
-        and process.get_exepath(get_window_pid(hwnd))
+        and is_toplevel_window(hwnd)
         and not user32.GetParent(hwnd)
+        and not is_window_cloaked(hwnd)
+        and not process.is_elevated(pid)
+        and process.get_exepath(pid)
     )
-
-
-def get_first_app_window() -> HWND:
-    """Retrieves any window from current desktop"""
-    hwnd = get_foreground_window()
-    if is_app_window(hwnd):
-        return hwnd
-
-    hwnds = enum_windows(
-        lambda hwnd: EnumCheckResult.CAPTURE_AND_STOP
-        if is_app_window(hwnd)
-        else EnumCheckResult.SKIP
-    )
-
-    if hwnds:
-        return hwnds[0]
 
 
 def get_window_extended_frame_bounds(hwnd: HWND) -> RECT:
@@ -247,6 +231,15 @@ class Window:
         if exe:
             exe = path.basename(exe)
         return f"<Window exe={exe} title={self.title[:10]} hwnd={self._hwnd}>"
+
+
+    @property
+    def is_tilable(self) -> bool:
+        """Check if window is tilable"""
+        style = self.get_style()
+        return (
+            WindowStyle.SIZEBOX in style
+        )
 
     @property
     def handle(self) -> HWND:
@@ -422,6 +415,10 @@ class Window:
         """Hides the window"""
         user32.ShowWindow(self._hwnd, ShowWindowCmd.SW_HIDE)
 
+    def toggle(self, show: bool):
+        """Toggle window visibility"""
+        user32.ShowWindow(self._hwnd,  ShowWindowCmd.SW_SHOWNA if show else ShowWindowCmd.SW_HIDE)
+
 
 def get_app_windows() -> List[Window]:
     """Get all app windows of the current desktop"""
@@ -506,6 +503,16 @@ def toggle_maximize_active_window():
     if window:
         window.toggle_maximize()
 
+def top_most_window(windows: Iterable[Window]) -> Optional[Window]:
+    """Get the top most window from the list of windows"""
+    hwnd = user32.GetTopWindow(user32.GetDesktopWindow())
+    while hwnd:
+        if Window(hwnd) in windows:
+            for w in windows:
+                if w.handle == hwnd:
+                    return w
+        hwnd = user32.GetWindow(hwnd, 2)
+    return None
 
 def sprint_window(hwnd: HWND) -> str:
     """Inspect window and return the information as string"""
@@ -567,7 +574,10 @@ if __name__ == "__main__":
     # QIcon.fromData(handle).pixmap(32, 32).save("icon.png")
     # print(QPixmap.loadFromData(handle))
     time.sleep(2)
-    inspect_active_window()
+    # inspect_active_window()
+    app_windows =list(get_app_windows())
+    top_window = top_most_window(app_windows)
+    inspect_window(top_window.handle)
     # inspect_active_window(HWND(4196926))
     # for window in get_app_windows():
     #     inspect_window(window.handle)

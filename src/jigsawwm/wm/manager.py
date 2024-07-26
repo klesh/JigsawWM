@@ -1,11 +1,11 @@
 """Window Manager Operations"""
 import logging
 import time
-from typing import List, Callable, Optional, Set
+from typing import List, Callable, Optional, Set, Iterable
 from threading import Thread
 from jigsawwm import ui
 from jigsawwm.w32 import virtdesk
-from jigsawwm.w32.window import Window, get_window_from_pos
+from jigsawwm.w32.window import Window, top_most_window
 from jigsawwm.w32.monitor import set_cursor_pos, get_topo_sorted_monitors
 from .manager_core import WindowManagerCore, MonitorState
 from .theme import Theme
@@ -32,6 +32,7 @@ class WindowManager(WindowManagerCore):
             rules=rules,
         )
         self._hide_ui_thread = None
+        self._ignore_events = False
         super().__init__(config)
 
     def activate(self, window: Window):
@@ -53,29 +54,29 @@ class WindowManager(WindowManagerCore):
         When the active window is managed, activate window in the same monitor by offset
         When the active window is unmanaged, activate the first in the list or do nothing
         """
-        active_window, monitor_state = self.get_active_window()
+        active_window, monitor_state = self.get_active_tilable_window()
         if not active_window:
             monitor_state = self.get_active_monitor_state()
-            if monitor_state.windows:
-                self.activate(monitor_state.windows[0])
+            if monitor_state.workspace.tilable_windows:
+                self.activate(monitor_state.workspace.tilable_windows[0])
             ui.show_windows_splash(monitor_state, None)
             return
         try:
-            src_index = monitor_state.windows.index(active_window)
+            src_index = monitor_state.tilable_windows.index(active_window)
         except ValueError:
             src_index = 0
-        dst_index = (src_index + offset) % len(monitor_state.windows)
-        dst_window = monitor_state.windows[dst_index]
+        dst_index = (src_index + offset) % len(monitor_state.tilable_windows)
+        dst_window = monitor_state.tilable_windows[dst_index]
         self.activate(dst_window)
         ui.show_windows_splash(monitor_state, dst_window)
 
     def _reorder(self, reorderer: Callable[[List[Window], int], None]):
-        active_window, monitor_state = self.get_active_window()
+        active_window, monitor_state = self.get_active_tilable_window()
         if not active_window:
             return
-        if len(monitor_state.windows) < 2:
+        if len(monitor_state.tilable_windows) < 2:
             return
-        next_active_window = reorderer(monitor_state.windows, monitor_state.windows.index(active_window))
+        next_active_window = reorderer(monitor_state.tilable_windows, monitor_state.tilable_windows.index(active_window))
         # monitor_state.workspace.save_state()
         monitor_state.arrange()
         self.activate(next_active_window or active_window)
@@ -145,21 +146,26 @@ class WindowManager(WindowManagerCore):
         dst_monitor_state = self.virtdesk_state.get_monitor_state(dst_monitor)
         return dst_monitor_state
 
+    def activate_top_most_window(self, windows: Iterable[Window]) -> bool:
+        """Activate the top most window in the list"""
+        window = top_most_window(windows)
+        if window:
+            self.activate(window)
+            return True
+        return False
+
     def switch_monitor_by_offset(self, delta: int):
         """Switch to another monitor by given offset"""
         logger.debug("switch_monitor_by_offset: %s", delta)
         dst_monitor_state = self.get_monitor_state_by_offset(delta)
+        if self.activate_top_most_window(dst_monitor_state.windows):
+            return
         rect = dst_monitor_state.monitor.get_info().rcWork
         x, y = (
             rect.left + (rect.right - rect.left) / 2,
             rect.top + (rect.bottom - rect.top) / 2,
         )
-        # in case the other monitor is having non-managed window in full screen mode
-        window = get_window_from_pos(x, y)
-        if not window and dst_monitor_state.windows:
-            window = dst_monitor_state.windows[0]
-        if window:
-            self.activate(window)
+        set_cursor_pos(x, y)
 
     def move_to_monitor_by_offset(self, delta: int):
         """Move active window to another monitor by offset"""
@@ -170,8 +176,7 @@ class WindowManager(WindowManagerCore):
         dst_monitor_state = self.get_monitor_state_by_offset(delta, src_monitor_state)
         src_monitor_state.remove_window(active_window)
         dst_monitor_state.add_window(active_window)
-        if src_monitor_state.windows:
-            self.activate(src_monitor_state.windows[0])
+        self.activate_top_most_window(src_monitor_state.windows)
         self.save_state()
 
     def switch_workspace(self, workspace_index: int, monitor_name: str = None, hide_splash_in: Optional[float] = None):
@@ -182,8 +187,7 @@ class WindowManager(WindowManagerCore):
         else:
             monitor_state = self.get_active_monitor_state()
         monitor_state.switch_workspace(workspace_index)
-        if monitor_state.windows:
-            self.activate(monitor_state.windows[0])
+        self.activate_top_most_window(monitor_state.windows)
         logger.debug("show_windows_splash")
         ui.show_windows_splash(monitor_state, None)
         if hide_splash_in:

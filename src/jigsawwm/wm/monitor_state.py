@@ -52,7 +52,7 @@ class MonitorState(PickableState):
         while i < len(self.workspaces):
             tobe_removed = self.workspaces[i]
             target_ws = self.workspaces[i % l]
-            target_ws.set_windows(target_ws.windows + tobe_removed.windows)
+            target_ws.windows = target_ws.windows.union(tobe_removed.windows)
             i += 1
         self.workspaces = self.workspaces[:l]
         for workspace in self.workspaces:
@@ -65,9 +65,14 @@ class MonitorState(PickableState):
         return self.workspaces[self.active_workspace_index]
 
     @property
-    def windows(self) -> List[Window]:
+    def windows(self) -> Set[Window]:
         """Get the windows of the active workspace of the monitor"""
         return self.workspace.windows
+
+    @property
+    def tilable_windows(self) -> List[Window]:
+        """Get the windows of the active workspace of the monitor"""
+        return self.workspace.tilable_windows
 
     @property
     def theme(self) -> Theme:
