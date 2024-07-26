@@ -139,7 +139,6 @@ def is_app_window(hwnd: HWND, style: Optional[WindowExStyle] = None) -> bool:
     pid = get_window_pid(hwnd)
     return bool(
         WindowStyle.VISIBLE in style
-        and not WindowStyle.MINIMIZE & style
         and WindowStyle.MAXIMIZEBOX & style
         and WindowStyle.MINIMIZEBOX & style
         and is_toplevel_window(hwnd)
@@ -239,6 +238,7 @@ class Window:
         style = self.get_style()
         return (
             WindowStyle.SIZEBOX in style
+            and not WindowStyle.MINIMIZE & style
         )
 
     @property
