@@ -51,9 +51,9 @@ class WindowsSplash(Dialog):
         self.worspace_widget.setText(f"Workspace: {monitor_state.workspace.name} (theme: {monitor_state.workspace.theme_name})")
         h = 0
         w = self.width()
-        if self.windows != monitor_state.windows:
+        if self.windows != monitor_state.tilable_windows:
             self.deleteDirectChildren(self.container)
-            self.windows = monitor_state.windows.copy()
+            self.windows = monitor_state.tilable_windows.copy()
             for window in self.windows:
                 icon = QImage.fromHICON(window.icon_handle)
                 widget: QWidget = self.create_row_widget(
