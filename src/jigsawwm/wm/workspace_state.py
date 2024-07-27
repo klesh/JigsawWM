@@ -44,7 +44,9 @@ class WorkspaceState(PickableState):
         """Update the workspace based on configuration"""
         self.config = config
         self.theme = self.config.get_theme_by_name(self.theme_name)
-        self.toggle(self.showing)
+        for window in self.windows:
+            if window.exists() and not self.showing:
+                window.hide()
 
     def toggle(self, show: bool):
         """Toggle all windows in the workspace"""
