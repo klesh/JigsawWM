@@ -1,9 +1,9 @@
 """WorkspaceState maintins the state of a workspace"""
 import logging
-from typing import List, Set
+from typing import List, Set, Optional
 from os import path
 
-from jigsawwm.w32.window import RECT, Window
+from jigsawwm.w32.window import RECT, Window, get_active_window
 from jigsawwm.w32.process import ProcessDpiAwareness
 from jigsawwm.w32.monitor import Monitor
 
@@ -24,6 +24,7 @@ class WorkspaceState(PickableState):
     windows: Set[Window]
     showing: bool
     theme_name: str # for restoring
+    last_active_window: Optional[Window] = None
 
     def __init__(self, config: WmConfig, name: str, monitor: Monitor):
         self.config = config
@@ -34,6 +35,7 @@ class WorkspaceState(PickableState):
         self.tilable_windows = []
         self.windows = set()
         self.showing = False
+        self.last_active_window = None
 
     def __getstate__(self):
         state = super().__getstate__()
@@ -54,6 +56,12 @@ class WorkspaceState(PickableState):
         self.showing = show
         if show: # maybe some the windows were killed during the hide
             self.sync_windows(self.windows)
+            if self.last_active_window:
+                self.last_active_window.activate()
+        else:
+            fw = get_active_window()
+            if fw in self.windows:
+                self.last_active_window = fw
         for window in self.windows:
             window.toggle(show)
 

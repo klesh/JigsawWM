@@ -404,6 +404,11 @@ class Window:
 
     def activate(self) -> bool:
         """Brings the thread that created current window into the foreground and activates the window"""
+        # move cursor to the center of the window
+        rect = self.get_rect()
+        x = rect.left + (rect.right - rect.left) / 2
+        y = rect.top + (rect.bottom - rect.top) / 2
+        user32.SetCursorPos(int(x), int(y))
         return set_active_window(self)
 
     def show(self):

@@ -41,12 +41,6 @@ class WindowManager(WindowManagerCore):
             return
         logger.debug("activate(%s)", window)
         window.activate()
-        # move cursor to the center of the window
-        rect = window.get_rect()
-        set_cursor_pos(
-            rect.left + (rect.right - rect.left) / 2,
-            rect.top + (rect.bottom - rect.top) / 2,
-        )
 
     def activate_by_offset(self, offset: int):
         """Activate managed window by offset
@@ -186,10 +180,9 @@ class WindowManager(WindowManagerCore):
             monitor_state = self.virtdesk_state.get_monitor_state_by_name(monitor_name)
         else:
             monitor_state = self.get_active_monitor_state()
-        window = top_most_window(monitor_state.workspaces[workspace_index].windows)
+        self._ignore_events = True
         monitor_state.switch_workspace(workspace_index)
-        if window:
-            self.activate(window)
+        self._ignore_events = False
         logger.debug("show_windows_splash")
         ui.show_windows_splash(monitor_state, None)
         if hide_splash_in:
