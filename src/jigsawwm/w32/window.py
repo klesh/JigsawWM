@@ -139,8 +139,7 @@ def is_app_window(hwnd: HWND, style: Optional[WindowExStyle] = None) -> bool:
     pid = get_window_pid(hwnd)
     return bool(
         WindowStyle.VISIBLE in style
-        and WindowStyle.MAXIMIZEBOX & style
-        and WindowStyle.MINIMIZEBOX & style
+        and (WindowStyle.MAXIMIZEBOX & style or WindowStyle.MINIMIZEBOX & style)
         and is_toplevel_window(hwnd)
         and not user32.GetParent(hwnd)
         and not is_window_cloaked(hwnd)
@@ -552,6 +551,8 @@ def inspect_window(hwnd: HWND, file=sys.stdout):
     print("bound        :", bound.left, bound.top, bound.right, bound.bottom, file=file)
     print("is_app_window:", is_app_window(hwnd), file=file)
     print("is_evelated  :", window.is_evelated, file=file)
+    print("is_iconic    :", user32.IsIconic(hwnd), file=file)
+    print("visible      :", user32.IsWindowVisible(hwnd), file=file)
     print("parent       :", user32.GetParent(hwnd), file=file)
     print("dpi_awareness:", window.dpi_awareness.name, file=file)
 
@@ -573,13 +574,13 @@ if __name__ == "__main__":
 
     # QIcon.fromData(handle).pixmap(32, 32).save("icon.png")
     # print(QPixmap.loadFromData(handle))
-    time.sleep(2)
+    # time.sleep(2)
     # inspect_active_window()
-    app_windows =list(get_app_windows())
-    top_window = top_most_window(app_windows)
-    inspect_window(top_window.handle)
+    # app_windows =list(get_app_windows())
+    # top_window = top_most_window(app_windows)
+    # inspect_window(top_window.handle)
     # inspect_active_window(HWND(4196926))
-    # for window in get_app_windows():
-    #     inspect_window(window.handle)
+    for window in get_app_windows():
+        inspect_window(window.handle)
     # for win in get_windows():
     #     inspect_window(win)
