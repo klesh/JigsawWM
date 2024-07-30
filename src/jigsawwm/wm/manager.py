@@ -6,7 +6,7 @@ from threading import Thread
 from jigsawwm import ui
 from jigsawwm.w32 import virtdesk
 from jigsawwm.w32.window import Window, top_most_window
-from jigsawwm.w32.monitor import set_cursor_pos, get_topo_sorted_monitors
+from jigsawwm.w32.monitor import get_topo_sorted_monitors
 from .manager_core import WindowManagerCore, MonitorState
 from .theme import Theme
 from .config import WmConfig, WmRule
@@ -151,15 +151,10 @@ class WindowManager(WindowManagerCore):
     def switch_monitor_by_offset(self, delta: int):
         """Switch to another monitor by given offset"""
         logger.debug("switch_monitor_by_offset: %s", delta)
-        dst_monitor_state = self.get_monitor_state_by_offset(delta)
-        if self.activate_top_most_window(dst_monitor_state.windows):
-            return
-        rect = dst_monitor_state.monitor.get_info().rcWork
-        x, y = (
-            rect.left + (rect.right - rect.left) / 2,
-            rect.top + (rect.bottom - rect.top) / 2,
-        )
-        set_cursor_pos(x, y)
+        src_monitor_state = self.get_active_monitor_state()
+        dst_monitor_state = self.get_monitor_state_by_offset(delta, src_monitor_state=src_monitor_state)
+        src_monitor_state.workspace.on_unfocus()
+        dst_monitor_state.workspace.on_focus()
 
     def move_to_monitor_by_offset(self, delta: int):
         """Move active window to another monitor by offset"""

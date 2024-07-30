@@ -5,7 +5,7 @@ from os import path
 
 from jigsawwm.w32.window import RECT, Window, get_active_window
 from jigsawwm.w32.process import ProcessDpiAwareness
-from jigsawwm.w32.monitor import Monitor
+from jigsawwm.w32.monitor import Monitor, set_cursor_pos
 
 from .config import WmConfig
 from .theme import Theme
@@ -50,20 +50,35 @@ class WorkspaceState(PickableState):
             if window.exists() and not self.showing:
                 window.hide()
 
+    def on_unfocus(self):
+        """Unfocus the workspace"""
+        fw = get_active_window()
+        if fw in self.windows:
+            self.last_active_window = fw
+
+    def on_focus(self):
+        """Focus on the last active window or the center of the screen"""
+        if self.last_active_window and self.last_active_window.exists():
+            self.last_active_window.activate()
+        elif not self.windows:
+            rect = self.monitor.get_info().rcWork
+            x, y = (
+                rect.left + (rect.right - rect.left) / 2,
+                rect.top + (rect.bottom - rect.top) / 2,
+            )
+            set_cursor_pos(x, y)
+
     def toggle(self, show: bool):
         """Toggle all windows in the workspace"""
         logger.debug("toggle workspace %s show %s", self.name, show)
         self.showing = show
         if not show:
-            fw = get_active_window()
-            if fw in self.windows:
-                self.last_active_window = fw
+            self.on_unfocus()
         for window in self.windows:
             window.toggle(show)
         if show:
             self.sync_windows(self.windows)
-            if self.last_active_window and self.last_active_window.exists():
-                self.last_active_window.activate()
+            self.on_focus()
 
     def set_theme(self, theme: Theme):
         """Set theme for the workspace"""
