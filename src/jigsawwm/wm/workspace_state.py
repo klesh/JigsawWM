@@ -54,16 +54,16 @@ class WorkspaceState(PickableState):
         """Toggle all windows in the workspace"""
         logger.debug("toggle workspace %s show %s", self.name, show)
         self.showing = show
-        if show: # maybe some the windows were killed during the hide
-            self.sync_windows(self.windows)
-            if self.last_active_window:
-                self.last_active_window.activate()
-        else:
+        if not show:
             fw = get_active_window()
             if fw in self.windows:
                 self.last_active_window = fw
         for window in self.windows:
             window.toggle(show)
+        if show:
+            self.sync_windows(self.windows)
+            if self.last_active_window and self.last_active_window.exists():
+                self.last_active_window.activate()
 
     def set_theme(self, theme: Theme):
         """Set theme for the workspace"""
