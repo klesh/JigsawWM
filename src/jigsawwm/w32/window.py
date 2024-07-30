@@ -443,7 +443,8 @@ def get_active_window() -> Optional[Window]:
 
 
 def set_active_window(window: Window) -> bool:
-    """Brings the thread that created the specified window into the foreground and activates the window
+    """Brings the thread that created the specified window into the foreground
+       and activates the window
 
     Ref: https://github.com/AutoHotkey/AutoHotkey/blob/e379b60e44d35494d4a19d1e5001f2dd38773391/source/window.cpp#L25
     """
@@ -580,7 +581,7 @@ if __name__ == "__main__":
     # top_window = top_most_window(app_windows)
     # inspect_window(top_window.handle)
     # inspect_active_window(HWND(4196926))
-    for window in get_app_windows():
-        inspect_window(window.handle)
+    for wd in get_app_windows():
+        inspect_window(wd.handle)
     # for win in get_windows():
     #     inspect_window(win)
