@@ -186,8 +186,10 @@ class WindowManager(WindowManagerCore):
             monitor_state = self.virtdesk_state.get_monitor_state_by_name(monitor_name)
         else:
             monitor_state = self.get_active_monitor_state()
+        window = top_most_window(monitor_state.workspaces[workspace_index].windows)
         monitor_state.switch_workspace(workspace_index)
-        self.activate_top_most_window(monitor_state.windows)
+        if window:
+            self.activate(window)
         logger.debug("show_windows_splash")
         ui.show_windows_splash(monitor_state, None)
         if hide_splash_in:
