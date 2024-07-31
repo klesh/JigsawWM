@@ -175,6 +175,8 @@ class WindowManager(WindowManagerCore):
             monitor_state = self.virtdesk_state.get_monitor_state_by_name(monitor_name)
         else:
             monitor_state = self.get_active_monitor_state()
+        if monitor_state.active_workspace_index == workspace_index:
+            return
         self._ignore_events = True
         monitor_state.switch_workspace(workspace_index)
         self._ignore_events = False
