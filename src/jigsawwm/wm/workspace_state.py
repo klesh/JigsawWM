@@ -58,9 +58,16 @@ class WorkspaceState(PickableState):
 
     def on_focus(self):
         """Focus on the last active window or the center of the screen"""
-        if self.last_active_window and self.last_active_window.exists():
+        if (
+            self.last_active_window
+            and self.last_active_window.exists()
+            and self.last_active_window in self.windows
+            and self.last_active_window.is_visible
+        ):
             self.last_active_window.activate()
-        elif not self.windows:
+        elif self.tilable_windows:
+            self.tilable_windows[0].activate()
+        else:
             rect = self.monitor.get_info().rcWork
             x, y = (
                 rect.left + (rect.right - rect.left) / 2,
