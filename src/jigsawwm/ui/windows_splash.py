@@ -32,7 +32,7 @@ class WindowsSplash(Dialog):
         super().__init__()
         self.windows = []
         self.show_splash.connect(self.show_windows_splash)
-        self.hide_splash.connect(self.hide)
+        self.hide_splash.connect(self.hide_windows_splash)
 
         self.worspace_widget = QLabel(self.root)
         self.worspace_widget.setObjectName("workspace")
@@ -92,6 +92,12 @@ class WindowsSplash(Dialog):
         y = rect.y() + (rect.height()) // 3
         self.setGeometry(x, y, w, h)
         self.show()
+
+    @Slot()
+    def hide_windows_splash(self):
+        """Hide the splash screen"""
+        logger.debug("WindowsSplash hide")
+        self.hide()
 
     def nativeEvent(self, eventType: QByteArray | bytes, message: int) -> object:
         if eventType == "windows_generic_MSG":
