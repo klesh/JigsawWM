@@ -45,7 +45,7 @@ wm = WindowManager(
     ],
     ignore_exe_names=[
         "7zFM.exe",
-        "explorer.exe",
+        # "explorer.exe",
         # "Feishu.exe",
         "fdm.exe",
         # "WeChat.exe",

@@ -64,10 +64,13 @@ class WorkspaceState(PickableState):
             and self.last_active_window in self.windows
             and self.last_active_window.is_visible
         ):
+            logger.debug("activate last active window %s", self.last_active_window)
             self.last_active_window.activate()
         elif self.tilable_windows:
+            logger.debug("activate first tilable window %s", self.tilable_windows[0])
             self.tilable_windows[0].activate()
         else:
+            logger.debug("activate center of the screen")
             rect = self.monitor.get_info().rcWork
             x, y = (
                 rect.left + (rect.right - rect.left) / 2,

@@ -237,6 +237,7 @@ class Window:
         style = self.get_style()
         return (
             WindowStyle.SIZEBOX in style
+            and WindowStyle.MAXIMIZEBOX & style and WindowStyle.MINIMIZEBOX & style
             and not WindowStyle.MINIMIZE & style
         )
 
@@ -286,6 +287,11 @@ class Window:
         return get_window_pid(self._hwnd)
 
     @property
+    def is_iconic(self) -> bool:
+        """Check if window is iconic"""
+        return user32.IsIconic(self._hwnd)
+
+    @property
     def is_visible(self) -> bool:
         """Determines the visibility state of the specified window.
 
@@ -294,7 +300,7 @@ class Window:
             Otherwise, the return value is `False`.
         :rtype: bool
         """
-        return is_window_visible(self._hwnd)
+        return is_window_visible(self._hwnd) and not self.is_cloaked and not self.is_iconic
 
     @property
     def is_maximized(self) -> bool:
@@ -392,19 +398,26 @@ class Window:
         """
         if self.is_maximized:
             self.restore()
+        if rect == self.get_rect():
+            # some window might bring itself to top when set_window_rect get called
+            # i.e. clicking video file on File Explorer makes floating mpv player gets
+            # covered by the File Explorer window
+            logger.debug("skip set_rect for %s because they are the same", self.title)
+            return
+        logger.debug("set_rect from %s to %s for %s", self.get_rect(), rect, self.title)
         set_window_rect(self._hwnd, rect)
         self._restricted_rect = rect
-        logger.debug("set_rect %s for %s", rect, self.title)
 
     def restrict(self):
         """Restrict the window to the restricted rect"""
         if self._restricted_rect:
-            set_window_rect(self._hwnd, self._restricted_rect)
+            self.set_rect(self._restricted_rect)
             logger.debug("restricted %s for %s", self._restricted_rect, self.title)
 
     def activate(self) -> bool:
         """Brings the thread that created current window into the foreground and activates the window"""
         # move cursor to the center of the window
+        print("---- activate window ", self)
         rect = self.get_rect()
         x = rect.left + (rect.right - rect.left) / 2
         y = rect.top + (rect.bottom - rect.top) / 2
