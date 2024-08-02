@@ -398,13 +398,14 @@ class Window:
         """
         if self.is_maximized:
             self.restore()
-        if rect == self.get_rect():
+        current_rect = self.get_rect()
+        if rect == current_rect:
             # some window might bring itself to top when set_window_rect get called
             # i.e. clicking video file on File Explorer makes floating mpv player gets
             # covered by the File Explorer window
             logger.debug("skip set_rect for %s because they are the same", self.title)
             return
-        logger.debug("set_rect from %s to %s for %s", self.get_rect(), rect, self.title)
+        logger.debug("set_rect from %s to %s for %s", current_rect, rect, self.title)
         set_window_rect(self._hwnd, rect)
         self._restricted_rect = rect
 
@@ -417,7 +418,6 @@ class Window:
     def activate(self) -> bool:
         """Brings the thread that created current window into the foreground and activates the window"""
         # move cursor to the center of the window
-        print("---- activate window ", self)
         rect = self.get_rect()
         x = rect.left + (rect.right - rect.left) / 2
         y = rect.top + (rect.bottom - rect.top) / 2
