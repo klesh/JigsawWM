@@ -301,6 +301,7 @@ class WindowManagerCore:
     def load_state(self):
         """Load the windows state"""
         logger.info("loading state")
+        self._ignore_events = True
         if os.path.exists(DEFAULT_STATE_PATH):
             with open(DEFAULT_STATE_PATH, "rb") as f:
                 try:
@@ -312,6 +313,7 @@ class WindowManagerCore:
                 virtdesk_state.update_config(self.config)
         else:
             logger.info("nothing from the last session")
+        self._ignore_events = False
 
     def _winevent_callback(
         self,
