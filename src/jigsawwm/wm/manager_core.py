@@ -151,7 +151,7 @@ class WindowManagerCore:
                 return False
         # # filter by event
         window = Window(hwnd)
-        if event == WinEvent.EVENT_OBJECT_UNCLOAKED or event == WinEvent.EVENT_SYSTEM_FOREGROUND:
+        if event == WinEvent.EVENT_OBJECT_SHOW or event == WinEvent.EVENT_OBJECT_UNCLOAKED or event == WinEvent.EVENT_SYSTEM_FOREGROUND:
             # a window belongs to hidden workspace just got activated
             # put your default browser into workspace and then ctrl-click a link, e.g. http://google.com 
             state = self.virtdesk_state.find_window_in_hidden_workspaces(window.handle)
