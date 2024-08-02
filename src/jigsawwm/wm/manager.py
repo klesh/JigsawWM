@@ -153,8 +153,10 @@ class WindowManager(WindowManagerCore):
         logger.debug("switch_monitor_by_offset: %s", delta)
         src_monitor_state = self.get_active_monitor_state()
         dst_monitor_state = self.get_monitor_state_by_offset(delta, src_monitor_state=src_monitor_state)
+        self._ignore_events = True
         src_monitor_state.workspace.on_unfocus()
         dst_monitor_state.workspace.on_focus()
+        self._ignore_events = False
 
     def move_to_monitor_by_offset(self, delta: int):
         """Move active window to another monitor by offset"""
@@ -178,10 +180,10 @@ class WindowManager(WindowManagerCore):
         if monitor_state.active_workspace_index == workspace_index:
             return
         self._ignore_events = True
+        ui.show_windows_splash(monitor_state, None)
         monitor_state.switch_workspace(workspace_index)
         self._ignore_events = False
         logger.debug("show_windows_splash")
-        ui.show_windows_splash(monitor_state, None)
         if hide_splash_in:
             def wait_then_hide():
                 time.sleep(hide_splash_in)

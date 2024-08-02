@@ -1,6 +1,5 @@
 """WindowManagerCore is the core of the WindowManager, it manages the windows"""
 import logging
-import time
 import os
 import pickle
 from typing import Dict, List, Set, Tuple, Optional
@@ -130,12 +129,7 @@ class WindowManagerCore:
                 if not event:
                     break # terminate
                 event, hwnd = event
-                if event == event.EVENT_SCREEN_CHANGED:
-                    logger.info("screen changed")
-                    time.sleep(0.5)
-                    self.sync_windows()
-                elif self.is_event_interested(event, hwnd):
-                    time.sleep(0.1)
+                if event == event.EVENT_SCREEN_CHANGED or self.is_event_interested(event, hwnd):
                     self.sync_windows()
             except : # pylint: disable=bare-except
                 logger.exception("consume_queue error", exc_info=True)
@@ -157,13 +151,13 @@ class WindowManagerCore:
                 return False
         # # filter by event
         window = Window(hwnd)
-        if event == WinEvent.EVENT_OBJECT_SHOW or event == WinEvent.EVENT_OBJECT_UNCLOAKED or event == WinEvent.EVENT_SYSTEM_FOREGROUND:
+        if event == WinEvent.EVENT_OBJECT_UNCLOAKED or event == WinEvent.EVENT_SYSTEM_FOREGROUND:
             # a window belongs to hidden workspace just got activated
             # put your default browser into workspace and then ctrl-click a link, e.g. http://google.com 
             state = self.virtdesk_state.find_window_in_hidden_workspaces(window.handle)
             if state:
                 monitor_state, workspace_index  = state
-                logger.debug("switch workspace to index %d on monitor %s for activated window", workspace_index, monitor_state.monitor.name)
+                logger.debug("switch workspace to index %d on monitor %s for event %s of activated window %s", workspace_index, monitor_state.monitor.name, event.name, window)
                 monitor_state.switch_workspace(workspace_index)
                 return False
             # restore telegram from the traybar only trigger EVENT_OBJECT_UNCLOAKED

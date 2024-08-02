@@ -1,39 +1,19 @@
+"""JmkCore is the core of the JMK feature, it handles the key events and dispatches
+them to the registered handlers."""
 import logging
+import abc
 import time
-from concurrent.futures import ThreadPoolExecutor
+import typing
 from dataclasses import dataclass, field
 
-from jigsawwm.w32.vk import *
+from jigsawwm.w32.vk import * # pylint: disable=unused-wildcard-import,wildcard-import
+from jigsawwm import workers
 
 logger = logging.getLogger(__name__)
-# for executing callback function
-handle_exc = None
-executor = ThreadPoolExecutor(max_workers=100)
-
-
-def execute(func, *args, **kwargs):
-    """Execute a function in a thread pool and print the exception if any
-
-    :param func: the function to execute
-    :param args: the arguments to pass to the function
-    :param kwargs: the keyword arguments to pass to the function
-    """
-
-    def wrapped():
-        logger.debug("[JmkCore] executing %s", func)
-        try:
-            func()
-        except Exception as e:
-            if handle_exc:
-                handle_exc(e)
-            logger.exception(e)
-
-    return executor.submit(wrapped, *args, **kwargs)
-
-
 @dataclass
 class JmkEvent:
-    """A jmk event that contains the key/button, pressed state, system state(does it came from the OS) and extra data"""
+    """A jmk event that contains the key/button, pressed state,
+    system state(does it came from the OS) and extra data"""
 
     vk: Vk
     pressed: bool
@@ -42,13 +22,13 @@ class JmkEvent:
     extra: int = 0
     time: float = field(default_factory=time.time)
 
-    __repr__ = (
-        lambda self: f"JmkEvent({self.vk.name}, {'down' if self.pressed else 'up'}, {'sys' if self.system else 'sim'}, {self.flags}, {self.extra})"
-    )
+    def __repr__(self) -> str:
+        evt = 'down' if self.pressed else 'up'
+        src = 'sys' if self.system else 'sim'
+        return f"JmkEvent({self.vk.name}, {evt}, {src}, {self.flags}, {self.extra})"
 
 
 JmkHandler = typing.Callable[[JmkEvent], bool]
-
 
 class JmkLayerKey(JmkHandler):
     """A key handler that can be used in a layer"""
@@ -57,18 +37,22 @@ class JmkLayerKey(JmkHandler):
     layer: int = None
     vk: Vk = None
 
-    __repr__ = (
-        lambda self: f"{self.__class__.__name__}(layer={self.layer}, vk={self.vk.name})"
-    )
+    def __repr__(self):
+        return f"{self.__class__.__name__}(layer={self.layer}, vk={self.vk.name})"
 
     def other_key(self, evt: JmkEvent):
-        pass
+        """Intercept other key events"""
+
+    @abc.abstractmethod
+    def __call__(self, evt: JmkEvent) -> bool:
+        """Handle the key event"""
 
 
 class JmkKey(JmkLayerKey):
     """The basic key handler in a layer
 
-    :param kf: can be a Vk(map key to another key), a string, a list of Vk(map key to a combination) or a callable (a function to execute)
+    :param kf: can be a Vk(map key to another key), a string, a list of
+               Vk(map key to a combination) or a callable (a function to execute)
     :param swallow: whether to swallow the event, normally True
     """
 
@@ -96,7 +80,7 @@ class JmkKey(JmkLayerKey):
                 for key in reversed(self.keys_or_func):
                     self.state.next_handler(JmkEvent(key, evt.pressed))
         elif not evt.pressed:
-            execute(self.keys_or_func)
+            workers.submit(self.keys_or_func)
         return self.swallow
 
 
@@ -109,9 +93,10 @@ class JmkTapHold(JmkLayerKey):
     :param on_hold_up: a function to execute when hold up
     :param on_tap: a function to execute when tapped
     :param term: the term to determine whether it is a hold
-    :param quick_tap_term: tap a key and then hold it down within this term will enter quick tap mode,
-                        when activated, the tap key will be sent as long as the key is hold. It is useful for
-                        dual function keys like using key A as the Alt key and you want to input a bunch of A
+    :param quick_tap_term: tap a key and then hold it down within this term will enter quick
+                        tap mode, when activated, the tap key will be sent as long as the
+                        key is hold. It is useful for dual function keys like using key A as
+                        the Alt key and you want to input a bunch of A
     """
 
     tap: typing.Optional[Vk] = None
@@ -151,10 +136,12 @@ class JmkTapHold(JmkLayerKey):
         self.held = False
 
     def check_hold(self):
+        """Check if the key is hold"""
         if time.time() - self.pressed > self.term:
             self.hold_down()
 
     def hold_down(self):
+        """Handle the hold_down event"""
         if self.held:
             # hold_down might be triggered multiple places
             return
@@ -162,7 +149,7 @@ class JmkTapHold(JmkLayerKey):
         logger.debug("%s hold down", self)
         if self.on_hold_down:
             logger.debug("%s on_hold_down", self)
-            execute(self.on_hold_down)
+            workers.submit(self.on_hold_down)
         if self.hold:
             if isinstance(self.hold, Vk):
                 evt = JmkEvent(self.hold, True)
@@ -173,13 +160,14 @@ class JmkTapHold(JmkLayerKey):
         self.flush_resend()
 
     def hold_up(self):
+        """Handle the hold_up event"""
         self.pressed = 0
         self.held = False
         self.other_pressed_keys.clear()
         logger.debug("%s hold up", self)
         if self.on_hold_up:
             logger.debug("%s on_hold_up", self)
-            execute(self.on_hold_up)
+            workers.submit(self.on_hold_up)
         if self.hold:
             if isinstance(self.hold, Vk):
                 evt = JmkEvent(self.hold, False)
@@ -189,6 +177,7 @@ class JmkTapHold(JmkLayerKey):
                 self.state.deactivate_layer(self.hold)
 
     def tap_down_up(self):
+        """Handle the tap_down_up event"""
         self.pressed = 0
         self.held = False
         logger.debug("%s tapped", self)
@@ -201,11 +190,12 @@ class JmkTapHold(JmkLayerKey):
             self.state.next_handler(evt_up)
         if self.on_tap:
             logger.debug("%s on_tap", self)
-            execute(self.on_tap)
+            workers.submit(self.on_tap)
         self.last_tapped_at = time.time()
         self.flush_resend()
 
     def other_key(self, evt: JmkEvent) -> bool:
+        """Intercept other key events"""
         # intercept timing: after key down, before hold/tap determined
         if not self.pressed or self.held:
             return False
@@ -229,10 +219,11 @@ class JmkTapHold(JmkLayerKey):
         return True
 
     def flush_resend(self):
+        """Flush the resend queue"""
         if self.resend:
             for evt in self.resend:
                 logger.debug("%s resend %s >>>", self, evt)
-                self.state(evt)
+                self.state(evt) # pylint: disable=not-callable
         self.resend.clear()
 
     def __call__(self, evt: JmkEvent) -> bool:
@@ -271,7 +262,8 @@ JmkLayer = typing.Dict[Vk, JmkHandler]
 
 
 class JmkCore(JmkHandler):
-    """JmkCore is the core of JmkHandler, it handles the key events and dispatches them to the registered handlers.
+    """JmkCore is the core of JmkHandler, it handles the key events and dispatches them
+    to the registered handlers.
 
     :param next_handler: the next handler to dispatch the event to
     :param layers: the layers
@@ -300,6 +292,7 @@ class JmkCore(JmkHandler):
         self.routes = {}
 
     def register(self, vk: Vk, handler: JmkLayerKey, layer: int = 0):
+        """Register a key handler to a layer"""
         if not isinstance(vk, Vk):
             raise TypeError("layer key must be a Vk")
         if not isinstance(handler, JmkLayerKey):
@@ -314,22 +307,24 @@ class JmkCore(JmkHandler):
         self.layers[layer][vk] = handler
 
     def check_index(self, index: int):
+        """Check if the index is valid"""
         if index < 1 or index >= len(self.layers):
             err = IndexError(f"layer index {index} out of range")
             logger.error(err)
             raise err
 
     def activate_layer(self, index: int):
-        # self.check_index(index)
-        logger.debug(f"activating layer {index}")
+        """Activate a layer"""
+        logger.debug("activating layer %d", index)
         self.active_layers.add(index)
 
     def deactivate_layer(self, index: int):
-        # self.check_index(index)
-        logger.debug(f"deactivating layer {index}")
+        """Deactivate a layer"""
+        logger.debug("deactivating layer %d", index)
         self.active_layers.remove(index)
 
     def find_route(self, vk: Vk) -> typing.Optional[JmkLayerKey]:
+        """Find a route for a key"""
         i = len(self.layers) - 1
         while i >= 0:
             if i in self.active_layers and vk in self.layers[i]:

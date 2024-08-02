@@ -7,6 +7,7 @@ from typing import List, Set, Union
 from jigsawwm.w32 import hook
 from jigsawwm.w32.sendinput import is_synthesized, send_input, vk_to_input
 from jigsawwm.w32.window import Window, get_active_window
+from jigsawwm import workers
 
 from .core import *
 
@@ -194,10 +195,11 @@ class SystemOutput(JmkHandler):
 
 
 def consume_queue():
+    """Consume the queue and send input to system"""
     while True:
         evt = q.get()
         state[evt.vk] = evt.pressed
         send_input(vk_to_input(evt.vk, evt.pressed, flags=evt.flags))
 
 
-executor.submit(consume_queue)
+workers.submit(consume_queue)

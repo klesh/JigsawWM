@@ -3,7 +3,6 @@ import abc
 import logging
 import os
 import signal
-import multiprocessing.pool
 from subprocess import PIPE, Popen
 from threading import Lock, Thread, Event
 from typing import Callable, List, Sequence, TextIO, Union, Iterator
@@ -11,7 +10,7 @@ from typing import Callable, List, Sequence, TextIO, Union, Iterator
 from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import QMenu, QSystemTrayIcon
 
-from jigsawwm import ui
+from jigsawwm import ui, workers
 from jigsawwm.w32.vk import Vk, get_key_state
 
 # support for Ctrl+C in console
@@ -186,7 +185,6 @@ class ProcessService(Service):
 
 class Task(Job):
     """Task is a shortlived automation in constrast to Service"""
-    pool = multiprocessing.pool.ThreadPool()
 
     def condition(self) -> bool:
         """Check if the task should be launched"""
@@ -202,7 +200,7 @@ class Task(Job):
 
     def launch_anyway(self):
         """Launch the task without checking the condition"""
-        self.pool.apply_async(self.run)
+        workers.submit(self.run)
 
     @property
     def text(self):

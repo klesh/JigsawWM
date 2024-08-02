@@ -1,11 +1,13 @@
+"""Hotkey handler for JigsawWM."""
 import logging
 from dataclasses import dataclass
 from typing import Callable, List, Optional, Tuple, Union
+from functools import partial
 
 from jigsawwm.w32.sendinput import send_combination
 from jigsawwm.w32.vk import Vk, parse_combination
 
-from .core import *
+from .core import * # pylint: disable=wildcard-import, unused-wildcard-import
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +16,7 @@ JmkHotkeyComb = Union[List[Vk], str]
 
 @dataclass
 class JmkHotkey:
+    """A hotkey that consists of a list of keys and a callback."""
     keys: typing.List[Vk]
     # when hotkey is triggered, this callback will be executed
     callback: typing.Callable
@@ -22,17 +25,19 @@ class JmkHotkey:
     triggerred: bool = False
 
     def trigger(self):
+        """Trigger the hotkey."""
         logger.info("hotkey triggered: %s", self.keys)
         self.triggerred = True
-        execute(self.callback)
+        workers.submit(self.callback)
 
     def release(self):
+        """Release the hotkey."""
         if not self.triggerred:
             return
         logger.info("hotkey released: %s", self.keys)
         self.triggerred = False
         if self.release_callback:
-            execute(self.release_callback)
+            workers.submit(self.release_callback)
 
 
 class JmkHotkeys(JmkHandler):
@@ -58,6 +63,7 @@ class JmkHotkeys(JmkHandler):
 
     @staticmethod
     def expand_comb(comb: JmkHotkeyComb) -> List[List[Vk]]:
+        """Expand a combination to a list of combinations."""
         if isinstance(comb, str):
             comb = parse_combination(comb)
         for key in comb[:-1]:
@@ -70,18 +76,21 @@ class JmkHotkeys(JmkHandler):
     def register(
         self, comb: JmkHotkeyComb, cb: Union[Callable, str], release_cb: Callable = None
     ):
+        """Register a hotkey."""
         if isinstance(cb, str):
             new_comb = parse_combination(cb)
-            cb = lambda: send_combination(*new_comb)
+            cb = partial(send_combination, *new_comb)
         for keys in self.expand_comb(comb):
             hotkey = JmkHotkey(keys, cb, release_cb)
             self.combs[frozenset(keys)] = hotkey
 
     def unregister(self, comb: JmkHotkeyComb):
+        """Unregister a hotkey."""
         for keys in self.expand_comb(comb):
             self.combs.pop(frozenset(keys))
 
     def find_hotkey(self, evt: JmkEvent) -> typing.Optional[JmkHotkey]:
+        """Find a hotkey that matches the current pressed keys."""
         pressed_keys = self.pressed_modifiers.copy()
         pressed_keys.add(evt.vk)
         hotkey = self.combs.get(frozenset(pressed_keys))
