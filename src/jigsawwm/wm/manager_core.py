@@ -160,13 +160,14 @@ class WindowManagerCore:
                 logger.debug("switch workspace to index %d on monitor %s for event %s of activated window %s", workspace_index, monitor_state.monitor.name, event.name, window)
                 monitor_state.switch_workspace(workspace_index)
                 return False
-            # restore telegram from the traybar only trigger EVENT_OBJECT_UNCLOAKED
-            if not self.is_window_manageable(window):
+            # when switching monitor, another window gets actiated
+            if not self.is_window_manageable(window) or event == WinEvent.EVENT_SYSTEM_FOREGROUND:
                 return False
         elif event == WinEvent.EVENT_OBJECT_HIDE: # same as above
-            # when window is hidden or destryed, it would not pass the is_window_manageable check
+            # when window is hidden or destroyed, it would not pass the is_window_manageable check
             # fix case: toggle chrome fullscreen
-            if window not in self._managed_windows:
+            # window.is_visible is for vscode, it somehow generte hide event when unfocused
+            if window not in self._managed_windows or window.is_visible:
                 return False
         # elif event == WinEvent.EVENT_SYSTEM_MOVESIZEEND:
         #     return self.restrict(hwnd)
@@ -188,7 +189,7 @@ class WindowManagerCore:
                 logger.debug("ignore winevent %s", event.name)
             return False
 
-        logger.info("sync_windows on event %s", event.name)
+        logger.info("sync_windows on event %s from window %s", event.name, window)
         return True
 
     def init_sync(self):
