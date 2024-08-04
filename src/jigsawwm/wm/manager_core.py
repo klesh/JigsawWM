@@ -194,8 +194,8 @@ class WindowManagerCore:
     def init_sync(self):
         """The first synchronization of windows state to the system state at app startup"""
         # load windows state from the last session
-        self.load_state()
-        self.sync_windows(init=True)
+        if not self.load_state():
+            self.sync_windows(init=True)
 
     def sync_windows(self, init=False) -> bool:
         """Synchronize internal windows state to the system state synchronously"""
@@ -295,6 +295,7 @@ class WindowManagerCore:
     def load_state(self):
         """Load the windows state"""
         logger.info("loading state")
+        loaded = False
         self._ignore_events = True
         if os.path.exists(DEFAULT_STATE_PATH):
             with open(DEFAULT_STATE_PATH, "rb") as f:
@@ -305,9 +306,12 @@ class WindowManagerCore:
                     logger.exception("load windows states error", exc_info=True)
             for virtdesk_state in self.virtdesk_states.values():
                 virtdesk_state.update_config(self.config)
+            self.sync_windows()
+            loaded = True
         else:
             logger.info("nothing from the last session")
         self._ignore_events = False
+        return loaded
 
     def _winevent_callback(
         self,

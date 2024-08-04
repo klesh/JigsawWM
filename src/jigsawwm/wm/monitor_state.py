@@ -57,8 +57,6 @@ class MonitorState(PickableState):
         self.workspaces = self.workspaces[:l]
         for workspace in self.workspaces:
             workspace.update_config(config)
-        self.switch_workspace(0)
-
 
     @property
     def workspace(self) -> WorkspaceState:
