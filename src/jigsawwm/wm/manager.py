@@ -180,8 +180,8 @@ class WindowManager(WindowManagerCore):
         if monitor_state.active_workspace_index == workspace_index:
             return
         self._ignore_events = True
-        ui.show_windows_splash(monitor_state, None)
         monitor_state.switch_workspace(workspace_index)
+        ui.show_windows_splash(monitor_state, None)
         self._ignore_events = False
         logger.debug("show_windows_splash")
         if hide_splash_in:
