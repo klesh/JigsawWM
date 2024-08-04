@@ -23,8 +23,9 @@ if debugging:
     rootLogger.setLevel(logging.DEBUG)
     if debugging != "*":
 
+        loggers = set(debugging.split(","))
         def f(record: logging.LogRecord) -> bool:
-            return record.name.startswith(debugging)
+            return any(record.name.startswith(logger) for logger in loggers)
 
         consoleHandler.addFilter(f)
         fileHandler.addFilter(f)
