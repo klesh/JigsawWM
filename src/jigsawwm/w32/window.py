@@ -399,14 +399,19 @@ class Window:
         """
         if self.is_maximized:
             self.restore()
-        current_rect = self.get_rect()
-        if self._restricted_actual_rect == current_rect:
+        r1 = self.get_rect()
+        r2 = self._restricted_actual_rect
+        if r1 and r2 and (
+            r1.top == r2.top
+            and r1.bottom  == r2.bottom
+            and r1.left == r2.left
+            and r1.right == r2.right
+        ):
             # some window might bring itself to top when set_window_rect get called
             # i.e. clicking video file on File Explorer makes floating mpv player gets
             # covered by the File Explorer window
             logger.debug("skip set_rect for %s because they are the same", self.title)
             return
-        logger.debug("set_rect from %s to %s for %s", current_rect, rect, self.title)
         set_window_rect(self._hwnd, rect)
         self._restricted_rect = rect
         self._restricted_actual_rect = self.get_rect()
