@@ -212,6 +212,7 @@ class Window:
 
     _hwnd: HWND
     _restricted_rect = None
+    _restricted_actual_rect = None
     attrs: dict = None
 
     def __init__(self, hwnd: HWND):
@@ -399,7 +400,7 @@ class Window:
         if self.is_maximized:
             self.restore()
         current_rect = self.get_rect()
-        if rect == current_rect:
+        if self._restricted_actual_rect == current_rect:
             # some window might bring itself to top when set_window_rect get called
             # i.e. clicking video file on File Explorer makes floating mpv player gets
             # covered by the File Explorer window
@@ -408,6 +409,7 @@ class Window:
         logger.debug("set_rect from %s to %s for %s", current_rect, rect, self.title)
         set_window_rect(self._hwnd, rect)
         self._restricted_rect = rect
+        self._restricted_actual_rect = self.get_rect()
 
     def restrict(self):
         """Restrict the window to the restricted rect"""

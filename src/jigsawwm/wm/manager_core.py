@@ -161,7 +161,7 @@ class WindowManagerCore:
                 monitor_state.switch_workspace(workspace_index)
                 return False
             # when switching monitor, another window gets actiated
-            if not self.is_window_manageable(window) or event == WinEvent.EVENT_SYSTEM_FOREGROUND:
+            if window in self._managed_windows or not self.is_window_manageable(window) or event == WinEvent.EVENT_SYSTEM_FOREGROUND:
                 return False
         elif event == WinEvent.EVENT_OBJECT_HIDE: # same as above
             # when window is hidden or destroyed, it would not pass the is_window_manageable check
