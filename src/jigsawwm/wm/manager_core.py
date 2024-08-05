@@ -232,19 +232,23 @@ class WindowManagerCore:
             return
         # group manageable windows by their current monitor
         monitors = list(monitors)
-        self._managed_windows = set()
         for window in manageable_windows:
             # sometimes the window reappeared after being hidden
             if virtdesk_state.find_window_in_hidden_workspaces(window.handle):
                 window.hide()
                 continue
+            monitor = None
+            if window not in self._managed_windows: # first seen
+                monitor = self.find_monitor_from_config(window, monitors)
+            if not monitor: # not rule found for the window or it has been seen before
+                monitor = get_monitor_from_window(window.handle)
             self._managed_windows.add(window)
-            monitor = (
-                virtdesk_state.find_monitor_of_window(window) # window has been managed
-                or self.find_monitor_from_config(window, monitors) # window has a rule
-                or (init and get_monitor_from_window(window.handle)) # fallback: window existing before manager start
-                or get_monitor_from_cursor() #  fallback: window appearing after manager start
-            )
+            # monitor = (
+                # virtdesk_state.find_monitor_of_window(window) # window has been managed
+                # or self.find_monitor_from_config(window, monitors) # window has a rule
+                # or (init and get_monitor_from_window(window.handle)) # fallback: window existing before manager start
+                # or get_monitor_from_cursor() #  fallback: window appearing after manager start
+            # )
             # add window to lists
             group_wins_by_mons[monitor].add(window)
             logger.debug("%s owns %s", monitor, window)
