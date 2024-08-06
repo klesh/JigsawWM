@@ -200,7 +200,7 @@ class WorkspaceState(PickableState):
                 round(bottom + r.bottom - b.bottom),
             )
             window.set_rect(RECT(*compensated_rect))
-        workers.submit_with_delay(self.restrict, 0.1)
+        workers.submit_with_delay(self.restrict, 0.2)
 
     def restrict(self):
         """Restrict all managed windows to their specified rect"""
