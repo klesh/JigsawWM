@@ -1,99 +1,39 @@
 """Hotkey handler for JigsawWM."""
 import logging
-from dataclasses import dataclass
-from typing import Callable, List, Optional, Tuple, Union
-from functools import partial
+from typing import Callable, List, Optional, Tuple
 
-from jigsawwm.w32.sendinput import send_combination
-from jigsawwm.w32.vk import Vk, parse_combination
+from jigsawwm.w32.vk import Vk
 
-from .core import * # pylint: disable=wildcard-import, unused-wildcard-import
+from .shared import * # pylint: disable=wildcard-import, unused-wildcard-import
 
 logger = logging.getLogger(__name__)
 
-JmkHotkeyComb = Union[List[Vk], str]
 
-
-@dataclass
-class JmkHotkey:
-    """A hotkey that consists of a list of keys and a callback."""
-    keys: typing.List[Vk]
-    # when hotkey is triggered, this callback will be executed
-    callback: typing.Callable
-    # when all modifiers are released, this callback will be executed
-    release_callback: typing.Callable = None
-    triggerred: bool = False
-
-    def trigger(self):
-        """Trigger the hotkey."""
-        logger.info("hotkey triggered: %s", self.keys)
-        self.triggerred = True
-        workers.submit(self.callback)
-
-    def release(self):
-        """Release the hotkey."""
-        if not self.triggerred:
-            return
-        logger.info("hotkey released: %s", self.keys)
-        self.triggerred = False
-        if self.release_callback:
-            workers.submit(self.release_callback)
-
-
-class JmkHotkeys(JmkHandler):
+class JmkHotkeys(JmkTriggers):
     """A handler that handles hotkeys."""
-
-    next_handler: JmkHandler
-    combs: typing.Dict[typing.FrozenSet[Vk], JmkHotkey]
     pressed_modifiers: typing.Set[Vk]
-    resend: JmkEvent
+    resend: Optional[JmkEvent] = None
 
     def __init__(
         self,
         next_handler,
-        hotkeys: List[Tuple[JmkHotkeyComb, Callable, Optional[Callable]]] = None,
+        hotkeys: List[Tuple[JmkCombination, Callable, Optional[Callable]]] = None,
     ):
-        self.next_handler = next_handler
-        self.combs = {}
+        super().__init__(next_handler, hotkeys)
         self.pressed_modifiers = set()
-        self.resend = None
-        if hotkeys:
-            for args in hotkeys:
-                self.register(*args)
 
-    @staticmethod
-    def expand_comb(comb: JmkHotkeyComb) -> List[List[Vk]]:
-        """Expand a combination to a list of combinations."""
-        if isinstance(comb, str):
-            comb = parse_combination(comb)
+    def check_comb(self, comb: typing.List[Vk]):
         for key in comb[:-1]:
             if key not in Modifers:
                 raise TypeError("hotkey keys must be a list of Modifers and a Vk")
             if comb[-1] in Modifers:
                 raise TypeError("hotkey keys must be a list of Modifers and a Vk")
-        return expand_combination(comb)
 
-    def register(
-        self, comb: JmkHotkeyComb, cb: Union[Callable, str], release_cb: Callable = None
-    ):
-        """Register a hotkey."""
-        if isinstance(cb, str):
-            new_comb = parse_combination(cb)
-            cb = partial(send_combination, *new_comb)
-        for keys in self.expand_comb(comb):
-            hotkey = JmkHotkey(keys, cb, release_cb)
-            self.combs[frozenset(keys)] = hotkey
-
-    def unregister(self, comb: JmkHotkeyComb):
-        """Unregister a hotkey."""
-        for keys in self.expand_comb(comb):
-            self.combs.pop(frozenset(keys))
-
-    def find_hotkey(self, evt: JmkEvent) -> typing.Optional[JmkHotkey]:
+    def find_hotkey(self, evt: JmkEvent) -> typing.Optional[JmkTrigger]:
         """Find a hotkey that matches the current pressed keys."""
         pressed_keys = self.pressed_modifiers.copy()
         pressed_keys.add(evt.vk)
-        hotkey = self.combs.get(frozenset(pressed_keys))
+        hotkey = self.triggers.get(frozenset(pressed_keys))
         # wheel up/down don't have pressed event
         if evt.vk == Vk.WHEEL_UP or evt.vk == Vk.WHEEL_DOWN:
             pressed_keys.add(evt.vk)
@@ -116,7 +56,7 @@ class JmkHotkeys(JmkHandler):
             if evt.vk in self.pressed_modifiers:
                 self.pressed_modifiers.remove(evt.vk)
                 if not self.pressed_modifiers:
-                    for hotkey in self.combs.values():
+                    for hotkey in self.triggers.values():
                         hotkey.release()
             else:
                 hotkey = self.find_hotkey(evt)
@@ -137,4 +77,4 @@ class JmkHotkeys(JmkHandler):
                     self.next_handler(self.resend)
                     self.resend = None
 
-        return self.next_handler(evt)
+        return super().__call__(evt)

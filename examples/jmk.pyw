@@ -154,6 +154,10 @@ hotkeys = [
     ([Vk.WIN, Vk.M], toggle_maximize_active_window),
 ]
 
+combos = [
+    ([Vk.LBUTTON, Vk.RBUTTON], Vk.MBUTTON),
+]
+
 bypass_exe = {
 }
 
@@ -162,7 +166,7 @@ bypass_exe = {
 #  setup jmk
 #######################
 
-sysin, jmk, hks, sysout = create_jmk(layers, hotkeys)
+sysin, jmk, hks, sysout = create_jmk(layers, hotkeys, combos)
 
 
 class JmkService(daemon.Service):

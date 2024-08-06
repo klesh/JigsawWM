@@ -119,38 +119,38 @@ class SystemInput:
             else:
                 return False
         elif isinstance(msgid, hook.MSLLHOOKMSGID):
-            return False # chrome 126.0.6478.63 select not accepting synthetic mouse events correctly
-            # if msgid == hook.MSLLHOOKMSGID.WM_LBUTTONDOWN:
-            #     vkey = Vk.LBUTTON
-            #     pressed = True
-            # elif msgid == hook.MSLLHOOKMSGID.WM_LBUTTONUP:
-            #     vkey = Vk.LBUTTON
-            #     pressed = False
-            # elif msgid == hook.MSLLHOOKMSGID.WM_RBUTTONDOWN:
-            #     vkey = Vk.RBUTTON
-            #     pressed = True
-            # elif msgid == hook.MSLLHOOKMSGID.WM_RBUTTONUP:
-            #     vkey = Vk.RBUTTON
-            #     pressed = False
-            # elif msgid == hook.MSLLHOOKMSGID.WM_MBUTTONDOWN:
-            #     vkey = Vk.MBUTTON
-            #     pressed = True
-            # elif msgid == hook.MSLLHOOKMSGID.WM_MBUTTONUP:
-            #     vkey = Vk.MBUTTON
-            #     pressed = False
-            # elif msgid == hook.MSLLHOOKMSGID.WM_XBUTTONDOWN:
-            #     vkey = Vk.XBUTTON1 if msg.hiword() == 1 else Vk.XBUTTON2
-            #     pressed = True
-            # elif msgid == hook.MSLLHOOKMSGID.WM_XBUTTONUP:
-            #     vkey = Vk.XBUTTON1 if msg.hiword() == 1 else Vk.XBUTTON2
-            #     pressed = False
-            # elif msgid == hook.MSLLHOOKMSGID.WM_MOUSEWHEEL:
-            #     delta = msg.get_wheel_delta()
-            #     if delta > 0:
-            #         vkey = Vk.WHEEL_UP
-            #     else:
-            #         vkey = Vk.WHEEL_DOWN
-            #     pressed = False
+            # return False # chrome 126.0.6478.63 select not accepting synthetic mouse events correctly
+            if msgid == hook.MSLLHOOKMSGID.WM_LBUTTONDOWN:
+                vkey = Vk.LBUTTON
+                pressed = True
+            elif msgid == hook.MSLLHOOKMSGID.WM_LBUTTONUP:
+                vkey = Vk.LBUTTON
+                pressed = False
+            elif msgid == hook.MSLLHOOKMSGID.WM_RBUTTONDOWN:
+                vkey = Vk.RBUTTON
+                pressed = True
+            elif msgid == hook.MSLLHOOKMSGID.WM_RBUTTONUP:
+                vkey = Vk.RBUTTON
+                pressed = False
+            elif msgid == hook.MSLLHOOKMSGID.WM_MBUTTONDOWN:
+                vkey = Vk.MBUTTON
+                pressed = True
+            elif msgid == hook.MSLLHOOKMSGID.WM_MBUTTONUP:
+                vkey = Vk.MBUTTON
+                pressed = False
+            elif msgid == hook.MSLLHOOKMSGID.WM_XBUTTONDOWN:
+                vkey = Vk.XBUTTON1 if msg.hiword() == 1 else Vk.XBUTTON2
+                pressed = True
+            elif msgid == hook.MSLLHOOKMSGID.WM_XBUTTONUP:
+                vkey = Vk.XBUTTON1 if msg.hiword() == 1 else Vk.XBUTTON2
+                pressed = False
+            elif msgid == hook.MSLLHOOKMSGID.WM_MOUSEWHEEL:
+                delta = msg.get_wheel_delta()
+                if delta > 0:
+                    vkey = Vk.WHEEL_UP
+                else:
+                    vkey = Vk.WHEEL_DOWN
+                pressed = False
         # skip events that out of our interest
         if vkey is None or pressed is None:
             return
