@@ -231,7 +231,7 @@ class WindowManagerCore:
         if not manageable_windows:
             return
         # group manageable windows by their current monitor
-        monitors = list(monitors)
+        monitors =  list(sorted(monitors, key=lambda m: m.name))
         for window in manageable_windows:
             # sometimes the window reappeared after being hidden
             if virtdesk_state.find_window_in_hidden_workspaces(window.handle):
@@ -263,7 +263,7 @@ class WindowManagerCore:
         logger.debug("find_monitor_from_config %s", window)
         rule = self.config.find_rule_for_window(window)
         if rule:
-            logger.debug("rule %s found for %s", rule, window)
+            logger.info("rule %s found for %s", rule, window)
             window.attrs["rule"] = rule
             if len(monitors) > rule.to_monitor_index:
                 return monitors[rule.to_monitor_index]
