@@ -44,7 +44,6 @@ class VirtDeskState(PickableState):
         :returns: monitor state
         :rtype: MonitorState
         """
-        logger.debug("get_monitor_state: monitor %s", monitor)
         monitor_state = self.monitor_states.get(monitor)
         if monitor_state is None:
             monitor_state = MonitorState(self.config, monitor)
@@ -58,7 +57,6 @@ class VirtDeskState(PickableState):
         :returns: monitor state
         :rtype: MonitorState
         """
-        logger.debug("get_monitor_state_by_name: monitor %s", monitor_name)
         for monitor, monitor_state in self.monitor_states.items():
             if monitor.name == monitor_name:
                 return monitor_state
@@ -70,7 +68,6 @@ class VirtDeskState(PickableState):
         :returns: monitor state
         :rtype: Optional[MonitorState]
         """
-        logger.debug("find_monitor_of_window: window %s", window)
         for monitor, monitor_state in self.monitor_states.items():
             if window in monitor_state.windows:
                 return monitor
