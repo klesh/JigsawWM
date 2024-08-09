@@ -143,7 +143,8 @@ class Monitor:
         return hash(self._hmon)
 
     def __repr__(self):
-        return f"<Monitor: {self.name} {self._hmon} {self.get_rect()} {self.get_scale_factor()}>"
+        rect = self.get_rect()
+        return f"<Monitor: {self.name} {rect.left} {rect.top} {rect.right-rect.left} {rect.bottom-rect.top} {self.get_scale_factor()/100}>"
 
     @cached_property
     def name(self) -> str:
