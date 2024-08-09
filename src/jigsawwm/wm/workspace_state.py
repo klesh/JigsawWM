@@ -84,7 +84,7 @@ class WorkspaceState(PickableState):
 
     def toggle(self, show: bool):
         """Toggle all windows in the workspace"""
-        logger.debug("%s toggle workspace %s show %s", self, self.name, show)
+        logger.debug("%s toggle show %s", self, show)
         self.showing = show
         if not show:
             self.on_unfocus()
@@ -96,7 +96,7 @@ class WorkspaceState(PickableState):
 
     def set_theme(self, theme: Theme):
         """Set theme for the workspace"""
-        logger.debug("%s set theme %s for workspace %s", self, theme.name, self.name)
+        logger.debug("%s set theme %s", self, theme.name)
         self.theme = theme
         self.theme_name = theme.name
         self.arrange()
@@ -117,7 +117,7 @@ class WorkspaceState(PickableState):
 
     def sync_windows(self, incoming_windows: Set[Window]):
         """Sync the internal windows list to the incoming windows list"""
-        logger.debug("sync windows for workspace %s", self.name)
+        logger.debug("%s sync windows", self)
         # make sure windows are still valid
         incoming_windows = { w for w in incoming_windows if w.exists() }
         # update the internal windows list

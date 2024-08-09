@@ -187,7 +187,7 @@ class WindowManagerCore:
                 WinEvent.EVENT_SYSTEM_CAPTURESTART,
                 WinEvent.EVENT_SYSTEM_CAPTUREEND,
             ):
-                logger.debug("ignore winevent %s for window %s", event.name, window)
+                logger.debug("ignore winevent %s for window %s", event.name, window.handle)
             return False
 
         # logger.info("sync_windows on event %s from window %s", event.name, window)
