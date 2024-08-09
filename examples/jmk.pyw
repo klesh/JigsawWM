@@ -25,7 +25,7 @@ ctrl_pgdn = lambda: send_combination(Vk.LCONTROL, Vk.NEXT)
 layers = [
     {  # layer 0
         # map capslock to ctrl when held and `  when tapped
-        Vk.CAPITAL: JmkTapHold(tap=parse_key("`"), hold=Vk.LCONTROL),
+        Vk.CAPITAL: JmkTapHold(tap=Vk.ESCAPE, hold=Vk.LCONTROL),
         # Vk.OEM_3: JmkTapHold(tap=Vk.ESCAPE, hold=Vk.LWIN),
         # Vk.BACK: JmkTapHold(tap=Vk.BACK, hold=Vk.RWIN),
         # Vk.ESCAPE: JmkTapHold(tap=Vk.ESCAPE, hold=Vk.LWIN),
@@ -71,6 +71,9 @@ layers = [
         Vk.OEM_COMMA: JmkKey(Vk.VOLUME_DOWN),
         Vk.OEM_PERIOD: JmkKey(Vk.VOLUME_UP),
         Vka.SLASH: JmkKey(Vk.MEDIA_PLAY_PAUSE),
+        Vk.LBUTTON: JmkKey(Vk.MBUTTON),
+        parse_key('['): JmkKey(Vk.WHEEL_UP),
+        parse_key(']'): JmkKey(Vk.WHEEL_DOWN),
     },
     {  # layer 2
         # tap to send today's date, hold to send now
