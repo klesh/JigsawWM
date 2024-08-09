@@ -133,3 +133,6 @@ class DwmWindowAttribute(enum.IntEnum):
     DWMWA_VISIBLE_FRAME_BORDER_THICKNESS = 37
     DWMWA_SYSTEMBACKDROP_TYPE = 38
     DWMWA_LAST = 39
+
+def repr_rect(rect):
+    return f"Rect(left={rect.left}, top={rect.top}, right={rect.right}, bottom={rect.bottom})"

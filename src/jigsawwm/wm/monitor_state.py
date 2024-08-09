@@ -38,7 +38,7 @@ class MonitorState(PickableState):
         self.workspaces[0].toggle(True)
 
     def __repr__(self) -> str:
-        return f"<MonitorState {self.monitor}>"
+        return f"<MonitorState {self.monitor.name}>"
 
     def update_config(self, config: WmConfig):
         """Update the workspaces based on configuration"""

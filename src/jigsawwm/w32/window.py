@@ -13,7 +13,8 @@ from . import process
 from .sendinput import send_input, INPUT, INPUTTYPE, KEYBDINPUT, KEYEVENTF
 from .vk import Vk
 from .window_structs import (
-  WindowStyle, WindowExStyle, EnumCheckResult, ShowWindowCmd, DwmWindowAttribute
+  WindowStyle, WindowExStyle, EnumCheckResult, ShowWindowCmd, DwmWindowAttribute,
+  repr_rect
 )
 
 user32 = WinDLL("user32", use_last_error=True)
@@ -399,7 +400,7 @@ class Window:
         """
         if self.is_maximized:
             self.restore()
-        r1 = self.get_rect()
+        r1 = rect
         r2 = self._restricted_actual_rect
         if r1 and r2 and (
             r1.top == r2.top
@@ -415,12 +416,13 @@ class Window:
         set_window_rect(self._hwnd, rect)
         self._restricted_rect = rect
         self._restricted_actual_rect = self.get_rect()
+        logger.debug("set rect to %s for %s", repr_rect(rect), self.title)
 
     def restrict(self):
         """Restrict the window to the restricted rect"""
         if self._restricted_rect:
             self.set_rect(self._restricted_rect)
-            logger.debug("restricted %s for %s", self._restricted_rect, self.title)
+            logger.debug("restrict to %s for %s", repr_rect(self._restricted_rect), self.title)
 
     def activate(self) -> bool:
         """Brings the thread that created current window into the foreground and activates the window"""
