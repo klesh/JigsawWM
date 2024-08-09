@@ -37,6 +37,9 @@ class MonitorState(PickableState):
         self.active_workspace_index = 0
         self.workspaces[0].toggle(True)
 
+    def __repr__(self) -> str:
+        return f"<MonitorState {self.monitor}>"
+
     def update_config(self, config: WmConfig):
         """Update the workspaces based on configuration"""
         self.config = config
@@ -100,7 +103,7 @@ class MonitorState(PickableState):
 
     def switch_workspace(self, workspace_index: int):
         """Switch to the workspace by index"""
-        logger.debug("switch workspace index %s", workspace_index)
+        logger.debug("%s switch workspace by index to #%d", self.monitor, workspace_index)
         workspace_index = workspace_index % len(self.workspaces)
         # if workspace_index == self.active_workspace_index:
         #     logger.warning("already in workspace index %s", workspace_index)
@@ -111,6 +114,7 @@ class MonitorState(PickableState):
 
     def switch_workspace_by_name(self, workspace_name: str):
         """Switch to the workspace by index"""
+        logger.debug("%s switch workspace by name to %s", self, workspace_name)
         for i, workspace in enumerate(self.workspaces):
             if workspace.name == workspace_name:
                 self.switch_workspace(i)
@@ -118,7 +122,7 @@ class MonitorState(PickableState):
 
     def move_to_workspace(self, window: Window, workspace_index: int):
         """Move the window to the workspace by index"""
-        logger.debug("move window %s to workspace index %s", window, workspace_index)
+        logger.debug("%s move window %s to #%d", self, window, workspace_index)
         if workspace_index >= len(self.workspaces):
             logger.warning("workspace index %s does not exist", workspace_index)
             return
@@ -139,7 +143,7 @@ class MonitorState(PickableState):
 
         :param Set[Window] windows: latest visible windows
         """
-        logger.debug("sync monitor %s with %d windows", self.monitor, len(windows))
+        logger.debug("%s sync windows", self)
         self.workspace.sync_windows(windows)
         for window in self.windows:
             rule: WmRule = window.attrs.pop("rule", None)
@@ -149,7 +153,7 @@ class MonitorState(PickableState):
 
     def unhide_workspaces(self):
         """Unhide all workspaces of the monitor"""
+        logger.debug("%s unhide workspaces", self)
         for workspace in self.workspaces:
-            logger.debug("unhide workspace %s %s", workspace.name, workspace.windows)
             for window in workspace.windows:
                 window.show()

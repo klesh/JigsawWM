@@ -229,7 +229,7 @@ class Window:
         exe = self.exe
         if exe:
             exe = path.basename(exe)
-        return f"<Window exe={exe} title={self.title[:10]} hwnd={self._hwnd}>"
+        return f"<Window exe={exe} title={self.title[:10]} hwnd={self._hwnd}{' tilable' if self.is_tilable else ''}>"
 
 
     @property

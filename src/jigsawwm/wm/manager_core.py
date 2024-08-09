@@ -67,7 +67,6 @@ class WindowManagerCore:
     ):
         self.config = config
         self.virtdesk_states = {}
-        self.load_state()
 
     @property
     def virtdesk_state(self) -> VirtDeskState:
@@ -130,6 +129,7 @@ class WindowManagerCore:
                     break # terminate
                 event, hwnd = event
                 if event == event.EVENT_SCREEN_CHANGED or self.is_event_interested(event, hwnd):
+                    logger.info("consume_queue on event %s", event.name)
                     self.sync_windows()
             except : # pylint: disable=bare-except
                 logger.exception("consume_queue error", exc_info=True)
@@ -175,6 +175,7 @@ class WindowManagerCore:
             WinEvent.EVENT_SYSTEM_MINIMIZESTART,
             WinEvent.EVENT_SYSTEM_MINIMIZEEND,
             WinEvent.EVENT_SYSTEM_MOVESIZEEND, # fix case: resizing any app window
+            # WinEvent.EVENT_OBJECT_PARENTCHANGE,
         ):
             if event not in (
                 WinEvent.EVENT_OBJECT_LOCATIONCHANGE,
@@ -186,21 +187,20 @@ class WindowManagerCore:
                 WinEvent.EVENT_SYSTEM_CAPTURESTART,
                 WinEvent.EVENT_SYSTEM_CAPTUREEND,
             ):
-                logger.debug("ignore winevent %s", event.name)
+                logger.debug("ignore winevent %s for window %s", event.name, window)
             return False
 
-        logger.info("sync_windows on event %s from window %s", event.name, window)
+        # logger.info("sync_windows on event %s from window %s", event.name, window)
         return True
 
     def init_sync(self):
         """The first synchronization of windows state to the system state at app startup"""
         # load windows state from the last session
         if not self.load_state():
-            self.sync_windows(init=True)
+            self.sync_windows()
 
-    def sync_windows(self, init=False) -> bool:
+    def sync_windows(self) -> bool:
         """Synchronize internal windows state to the system state synchronously"""
-        logger.debug("sync_windows init %s", init)
         virtdesk_state = self.virtdesk_state
         # gather all manageable windows
         manageable_windows = set(self.get_manageable_windows())
@@ -251,7 +251,7 @@ class WindowManagerCore:
             # )
             # add window to lists
             group_wins_by_mons[monitor].add(window)
-            logger.debug("%s owns %s", monitor, window)
+            logger.debug("group windows: %s owns %s", monitor, window)
         # synchronize windows on each monitor
         # pass down to monitor_state for further synchronization
         for monitor, windows in group_wins_by_mons.items():
@@ -260,7 +260,7 @@ class WindowManagerCore:
 
     def find_monitor_from_config(self, window: Window, monitors: List[Monitor]) -> Optional[Monitor]:
         """Find monitor from the config rules for the window"""
-        logger.debug("find_monitor_from_config %s", window)
+        # logger.debug("find_monitor_from_config %s", window)
         rule = self.config.find_rule_for_window(window)
         if rule:
             logger.info("rule %s found for %s", rule, window)
@@ -275,7 +275,6 @@ class WindowManagerCore:
         def check_window(hwnd: HWND) -> EnumCheckResult:
             window = Window(hwnd)
             if self.is_window_manageable(window):
-                logger.debug("manageable %s", window)
                 return EnumCheckResult.CAPTURE
             return EnumCheckResult.SKIP
         return map(Window, enum_windows(check_window))

@@ -38,6 +38,9 @@ class WorkspaceState(PickableState):
         self.showing = False
         self.last_active_window = None
 
+    def __repr__(self) -> str:
+        return f"<WorkspaceState {self.name} {self.monitor.name}>"
+
     def __getstate__(self):
         state = super().__getstate__()
         del state['theme']
@@ -65,13 +68,13 @@ class WorkspaceState(PickableState):
             and self.last_active_window in self.windows
             and self.last_active_window.is_visible
         ):
-            logger.debug("activate last active window %s", self.last_active_window)
+            logger.debug("%s activate last active window %s", self, self.last_active_window)
             self.last_active_window.activate()
         elif self.tilable_windows:
-            logger.debug("activate first tilable window %s", self.tilable_windows[0])
+            logger.debug("%s activate first tilable window %s", self, self.tilable_windows[0])
             self.tilable_windows[0].activate()
         else:
-            logger.debug("activate center of the screen")
+            logger.debug("%s activate center of the screen", self)
             rect = self.monitor.get_info().rcWork
             x, y = (
                 rect.left + (rect.right - rect.left) / 2,
@@ -81,7 +84,7 @@ class WorkspaceState(PickableState):
 
     def toggle(self, show: bool):
         """Toggle all windows in the workspace"""
-        logger.debug("toggle workspace %s show %s", self.name, show)
+        logger.debug("%s toggle workspace %s show %s", self, self.name, show)
         self.showing = show
         if not show:
             self.on_unfocus()
@@ -93,19 +96,19 @@ class WorkspaceState(PickableState):
 
     def set_theme(self, theme: Theme):
         """Set theme for the workspace"""
-        logger.debug("set theme %s for workspace %s", theme.name, self.name)
+        logger.debug("%s set theme %s for workspace %s", self, theme.name, self.name)
         self.theme = theme
         self.theme_name = theme.name
         self.arrange()
 
     def add_window(self, window: Window):
         """Add a window to the workspace"""
-        logger.debug("add window %s to workspace %s", window, self.name)
+        logger.debug("%s add window %s", self, window)
         self.sync_windows(self.windows.union({window}))
 
     def remove_window(self, window: Window):
         """Remove a window from the workspace"""
-        logger.debug("remove window %s from workspace %s", window, self.name)
+        logger.debug("%s remove window %s", self, window)
         self.sync_windows(self.windows.difference({window}))
 
     def has_window(self, window: Window):
@@ -159,7 +162,7 @@ class WorkspaceState(PickableState):
 
         :param str theme: optional, fallback to theme of the instance
         """
-        logger.debug("arrange workspace %s of %s with %d windows", self.name, self.monitor, len(self.tilable_windows))
+        logger.debug("%s arrange total %d windows", self, len(self.tilable_windows))
         theme = self.theme
         wr = self.monitor.get_info().rcWork
         work_area = (wr.left, wr.top, wr.right, wr.bottom)
@@ -204,7 +207,7 @@ class WorkspaceState(PickableState):
 
     def restrict(self):
         """Restrict all managed windows to their specified rect"""
-        logger.debug("restrict workspace %s", self.name)
+        logger.debug("%s restrict total %d windows", self, len(self.tilable_windows))
         if not self.theme.strict:
             return
         for window in self.tilable_windows:
