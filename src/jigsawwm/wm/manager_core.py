@@ -19,7 +19,7 @@ from jigsawwm.w32.window import (
     LONG,
     Window,
     is_app_window,
-    get_active_window,
+    get_foreground_window,
     iter_windows,
 )
 from jigsawwm.w32.monitor import get_monitor_from_cursor
@@ -94,7 +94,10 @@ class WindowManagerCore:
     def get_active_window(self) -> Tuple[Window, MonitorState]:
         """Get active windows"""
         logger.debug("get_active_window")
-        window = get_active_window()
+        hwnd = get_foreground_window()
+        if not hwnd:
+            return None, None,
+        window = self._managed_windows.get(hwnd)
         if not window:
             return None, None,
         monitor_state = self.virtdesk_state.get_monitor_state(get_monitor_from_window(window.handle))

@@ -258,7 +258,11 @@ class WindowManager(WindowManagerCore):
         active_window, _ = self.get_active_window()
         if not active_window:
             return
-        logger.info("toggle_tilable: %s", active_window)
         active_window.is_tilable = not active_window.is_tilable
+        logger.info("toggle window %s tilable state to %s", active_window, active_window.is_tilable)
+        # shrink the window a little bit to avoid covering tialbe windows
+        if not active_window.is_tilable:
+            active_window.unrestrict()
+            active_window.shrink()
         self.sync_windows()
         self.save_state()

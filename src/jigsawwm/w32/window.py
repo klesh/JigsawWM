@@ -442,6 +442,21 @@ class Window:
             self.set_rect(self._restricted_rect)
             logger.debug("restrict to %s for %s", repr_rect(self._restricted_rect), self.title)
 
+    def unrestrict(self):
+        """Unrestrict the window"""
+        self._restricted_rect = None
+        self._restricted_actual_rect = None
+
+    def shrink(self, margin: int=20):
+        """Shrink the window by margin"""
+        logger.info("shrink %s by %d", self.title, margin)
+        rect = self.get_rect()
+        rect.left += margin
+        rect.top += margin
+        rect.right -= margin
+        rect.bottom -= margin
+        set_window_rect(self._hwnd, rect)
+
     def activate(self) -> bool:
         """Brings the thread that created current window into the foreground and activates the window"""
         # move cursor to the center of the window
