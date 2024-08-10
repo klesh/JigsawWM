@@ -125,7 +125,7 @@ class WorkspaceState(PickableState):
         # process the tilable windows
         incoming_tilable_windows = {
             w for w in incoming_windows
-            if w.is_tilable and self.config.is_window_tilable(w)
+            if w.is_tilable and w.is_visible and self.config.is_window_tilable(w)
         }
         # remove windows that are not in the incoming list
         new_tilable_windows = []
@@ -186,13 +186,14 @@ class WorkspaceState(PickableState):
             right -= gap
             bottom -= gap
             rect = RECT(left, top, right, bottom)
-            window.set_rect(rect)
             i += 1
             if window.dpi_awareness != ProcessDpiAwareness.PROCESS_PER_MONITOR_DPI_AWARE:
                 # seems like the `get_extended_frame_bounds` would return physical size
                 # for DPI unware window, skip them for now
                 # TODO: convert physical size to logical size for DPI unware window
+                window.set_restrict_rect(rect)
                 continue
+            window.set_rect(rect)
             # compensation
             r = window.get_rect()
             b = window.get_extended_frame_bounds()
@@ -202,7 +203,7 @@ class WorkspaceState(PickableState):
                 round(right + r.right - b.right),
                 round(bottom + r.bottom - b.bottom),
             )
-            window.set_rect(RECT(*compensated_rect))
+            window.set_restrict_rect(RECT(*compensated_rect))
         workers.submit_with_delay(self.restrict, 0.2)
 
     def restrict(self):

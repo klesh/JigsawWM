@@ -258,7 +258,7 @@ class Window:
         return (
             WindowStyle.SIZEBOX in style
             and WindowStyle.MAXIMIZEBOX & style and WindowStyle.MINIMIZEBOX & style
-            and not WindowStyle.MINIMIZE & style
+            # and not WindowStyle.MINIMIZE & style
         )
 
     @property
@@ -326,6 +326,11 @@ class Window:
     def is_maximized(self) -> bool:
         """Check if window is maximized"""
         return self.get_style() & WindowStyle.MAXIMIZE
+
+    @property
+    def is_minimized(self) -> bool:
+        """Check if window is minimized"""
+        return not WindowStyle.MINIMIZE & self.get_style()
 
     @property
     def is_evelated(self):
@@ -416,29 +421,25 @@ class Window:
 
         :param rect: RECT with top/left/bottom/right properties
         """
+        logger.debug("set rect to %s for %s", repr_rect(rect), self.title)
         if self.is_maximized:
             self.restore()
-        r1 = self.get_rect()
-        r2 = self._restricted_actual_rect
-        if r1 and r2 and (
-            r1.top == r2.top
-            and r1.bottom  == r2.bottom
-            and r1.left == r2.left
-            and r1.right == r2.right
-        ):
-            # some window might bring itself to top when set_window_rect get called
-            # i.e. clicking video file on File Explorer makes floating mpv player gets
-            # covered by the File Explorer window
-            logger.debug("skip set_rect for %s because they are the same", self.title)
-            return
         set_window_rect(self._hwnd, rect)
         self._restricted_rect = rect
+
+    def set_restrict_rect(self, rect: RECT):
+        """Set the restricted rect"""
+        self.set_rect(rect)
+        self._restricted_rect = rect
         self._restricted_actual_rect = self.get_rect()
-        logger.debug("set rect to %s for %s", repr_rect(rect), self.title)
 
     def restrict(self):
         """Restrict the window to the restricted rect"""
-        if self._restricted_rect:
+        if self._restricted_actual_rect:
+            r1 = self._restricted_actual_rect
+            r2 = self.get_rect()
+            if r1.left == r2.left and r1.top == r2.top and r1.right == r2.right and r1.bottom == r2.bottom:
+                return
             self.set_rect(self._restricted_rect)
             logger.debug("restrict to %s for %s", repr_rect(self._restricted_rect), self.title)
 
@@ -635,13 +636,13 @@ if __name__ == "__main__":
 
     # QIcon.fromData(handle).pixmap(32, 32).save("icon.png")
     # print(QPixmap.loadFromData(handle))
-    # time.sleep(2)
+    time.sleep(2)
     # inspect_active_window()
     # app_windows =list(get_app_windows())
     # top_window = top_most_window(app_windows)
-    # inspect_window(top_window.handle)
+    inspect_window(131638)
     # inspect_active_window(HWND(4196926))
-    for wd in get_app_windows():
-        inspect_window(wd.handle)
+    # for wd in get_app_windows():
+    #     inspect_window(wd.handle)
     # for win in get_windows():
     #     inspect_window(win)
