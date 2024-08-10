@@ -418,7 +418,7 @@ class Window:
         """
         if self.is_maximized:
             self.restore()
-        r1 = rect
+        r1 = self.get_rect()
         r2 = self._restricted_actual_rect
         if r1 and r2 and (
             r1.top == r2.top
