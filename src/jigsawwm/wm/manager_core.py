@@ -19,9 +19,8 @@ from jigsawwm.w32.window import (
     LONG,
     Window,
     is_app_window,
-    enum_windows,
-    EnumCheckResult,
     get_active_window,
+    iter_windows,
 )
 from jigsawwm.w32.monitor import get_monitor_from_cursor
 from jigsawwm.w32.winevent import WinEvent
@@ -56,7 +55,7 @@ class WindowManagerCore:
     config: WmConfig
     _hook_ids: List[int] = []
     _wait_mouse_released: bool = False
-    _managed_windows: Set[Window] = set()
+    _managed_windows: Dict[HWND, Window] = {}
     _queue: Optional[SimpleQueue]  = None
     _consumer: Optional[Thread] = None
     _ignore_events: bool = False
@@ -129,7 +128,7 @@ class WindowManagerCore:
                     break # terminate
                 event, hwnd = event
                 if event == event.EVENT_SCREEN_CHANGED or self.is_event_interested(event, hwnd):
-                    logger.info("consume_queue on event %s", event.name)
+                    logger.info("react on event %s for window %s", event.name, hwnd)
                     self.sync_windows()
             except : # pylint: disable=bare-except
                 logger.exception("consume_queue error", exc_info=True)
@@ -161,13 +160,13 @@ class WindowManagerCore:
                 monitor_state.switch_workspace(workspace_index)
                 return False
             # when switching monitor, another window gets actiated
-            if window in self._managed_windows or not self.is_window_manageable(window) or event == WinEvent.EVENT_SYSTEM_FOREGROUND:
+            if hwnd in self._managed_windows or not self.is_window_manageable(window) or event == WinEvent.EVENT_SYSTEM_FOREGROUND:
                 return False
         elif event == WinEvent.EVENT_OBJECT_HIDE: # same as above
             # when window is hidden or destroyed, it would not pass the is_window_manageable check
             # fix case: toggle chrome fullscreen
             # window.is_visible is for vscode, it somehow generte hide event when unfocused
-            if window not in self._managed_windows or window.is_visible:
+            if hwnd not in self._managed_windows or window.is_visible:
                 return False
         # elif event == WinEvent.EVENT_SYSTEM_MOVESIZEEND:
         #     return self.restrict(hwnd)
@@ -190,7 +189,6 @@ class WindowManagerCore:
                 logger.debug("ignore winevent %s for window %s", event.name, window.handle)
             return False
 
-        # logger.info("sync_windows on event %s from window %s", event.name, window)
         return True
 
     def init_sync(self):
@@ -238,11 +236,11 @@ class WindowManagerCore:
                 window.hide()
                 continue
             monitor = None
-            if window not in self._managed_windows: # first seen
+            if window.handle not in self._managed_windows: # first seen
                 monitor = self.find_monitor_from_config(window, monitors)
             if not monitor: # not rule found for the window or it has been seen before
                 monitor = get_monitor_from_window(window.handle)
-            self._managed_windows.add(window)
+            self._managed_windows[window.handle] = window
             # monitor = (
                 # virtdesk_state.find_monitor_of_window(window) # window has been managed
                 # or self.find_monitor_from_config(window, monitors) # window has a rule
@@ -251,7 +249,7 @@ class WindowManagerCore:
             # )
             # add window to lists
             group_wins_by_mons[monitor].add(window)
-            logger.debug("group windows: %s owns %s", monitor, window)
+            logger.debug("group windows: %s owns %s", monitor.name, window)
         # synchronize windows on each monitor
         # pass down to monitor_state for further synchronization
         for monitor, windows in group_wins_by_mons.items():
@@ -270,14 +268,21 @@ class WindowManagerCore:
         logger.debug("no rule found for %s", window)
         return None
 
-    def get_manageable_windows(self) -> List[Window]:
+    def get_manageable_windows(self) -> Set[Window]:
         """Retrieve all manageable windows"""
-        def check_window(hwnd: HWND) -> EnumCheckResult:
-            window = Window(hwnd)
-            if self.is_window_manageable(window):
-                return EnumCheckResult.CAPTURE
-            return EnumCheckResult.SKIP
-        return map(Window, enum_windows(check_window))
+        manageable_windows = set()
+        def check_window(hwnd: HWND) -> bool:
+            if hwnd in self._managed_windows:
+                # reuse the previous window object
+                manageable_windows.add(self._managed_windows[hwnd])
+            else:
+                # never seen before, create a new window for it
+                window = Window(hwnd)
+                if self.is_window_manageable(window):
+                    manageable_windows.add(window)
+            return True
+        iter_windows(check_window)
+        return manageable_windows
     
     def is_window_manageable(self, window: Window) -> bool:
         """Check if the window is manageable by the WindowManager"""
