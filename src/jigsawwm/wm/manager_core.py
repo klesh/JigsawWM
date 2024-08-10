@@ -270,6 +270,7 @@ class WindowManagerCore:
 
     def get_manageable_windows(self) -> Set[Window]:
         """Retrieve all manageable windows"""
+        # TODO: compress self._managed_windows to remove dead windows
         manageable_windows = set()
         def check_window(hwnd: HWND) -> bool:
             if hwnd in self._managed_windows:

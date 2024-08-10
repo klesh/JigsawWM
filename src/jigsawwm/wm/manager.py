@@ -252,3 +252,13 @@ class WindowManager(WindowManagerCore):
         """Switch to another virtual desktop"""
         virtdesk.switch_desktop(desktop_number)
         self.sync_windows()
+
+    def toggle_tilable(self):
+        """Toggle the active window between tilable and floating state"""
+        active_window, _ = self.get_active_window()
+        if not active_window:
+            return
+        logger.info("toggle_tilable: %s", active_window)
+        active_window.is_tilable = not active_window.is_tilable
+        self.sync_windows()
+        self.save_state()

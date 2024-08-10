@@ -88,6 +88,7 @@ hotkeys = [
     ("Win+Shift+s", partial(wm.move_to_workspace, 1)),
     ("Win+Shift+d", partial(wm.move_to_workspace, 2)),
     ("Win+Shift+f", partial(wm.move_to_workspace, 3)),
+    ("Win+Shift+Space", wm.toggle_tilable),
 ]
 
 
