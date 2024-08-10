@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from io import StringIO
 from typing import Callable, List, Optional, Iterable
 from os import path
+from functools import cached_property
 
 from . import process
 from .sendinput import send_input, INPUT, INPUTTYPE, KEYBDINPUT, KEYEVENTF
@@ -23,6 +24,22 @@ dwmapi = WinDLL("dwmapi", use_last_error=True)
 
 logger = logging.getLogger(__name__)
 
+
+def iter_windows(
+    cb: Callable[[HWND], bool]
+) -> List[HWND]:
+    """Iterate all top-level windows on current desktop.
+
+    :param cb: handle each window handle
+    """
+    @WINFUNCTYPE(BOOL, HWND, LPARAM)
+    def enum_windows_proc(hwnd: HWND, _lParam: LPARAM) -> BOOL: # pylint: disable=invalid-name
+        return cb(hwnd)
+
+    if not user32.EnumWindows(enum_windows_proc, None):
+        last_error = get_last_error()
+        if last_error:
+            raise WinError(last_error)
 
 def enum_windows(
     check: Optional[Callable[[HWND], EnumCheckResult]] = None
@@ -49,7 +66,6 @@ def enum_windows(
         if last_error:
             raise WinError(last_error)
     return hwnds
-
 
 def get_foreground_window() -> HWND:
     """Retrieves foreground window handle"""
@@ -232,8 +248,10 @@ class Window:
             exe = path.basename(exe)
         return f"<Window exe={exe} title={self.title[:10]} hwnd={self._hwnd}{' tilable' if self.is_tilable else ''}>"
 
-
-    @property
+    # some windows may change their style after created and there will be no event raised
+    # so we need to remember the tilable state to avoid undesirable behavior.
+    # i.e. Feishu meeting window initialy is not tilable, but it would become tilable after you press the "Meet now" button
+    @cached_property
     def is_tilable(self) -> bool:
         """Check if window is tilable"""
         style = self.get_style()
