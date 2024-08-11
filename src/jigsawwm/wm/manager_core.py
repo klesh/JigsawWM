@@ -204,7 +204,7 @@ class WindowManagerCore:
         """Synchronize internal windows state to the system state synchronously"""
         virtdesk_state = self.virtdesk_state
         # gather all manageable windows
-        manageable_windows = set(self.get_manageable_windows())
+        manageable_windows = self.get_manageable_windows()
         # sync monitors
         monitors = set(get_monitors())
         group_wins_by_mons: Dict[Monitor, Set[Window]] = {
@@ -245,6 +245,8 @@ class WindowManagerCore:
                 monitor = self.find_monitor_from_config(window, monitors)
             if not monitor: # not rule found for the window or it has been seen before
                 monitor = get_monitor_from_window(window.handle)
+            if not monitor:
+                continue
             self._managed_windows[window.handle] = window
             # monitor = (
                 # virtdesk_state.find_monitor_of_window(window) # window has been managed

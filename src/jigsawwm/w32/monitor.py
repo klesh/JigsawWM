@@ -264,7 +264,10 @@ def get_monitor_from_window(hwnd: HWND) -> Monitor:
     :rtype: Monitor
     """
     if hwnd:
-        return Monitor(monitor_from_window(hwnd))
+        hmon = monitor_from_window(hwnd)
+        if hmon:
+            return Monitor(hmon)
+    return None
 
 def inspect_monitors():
     """Prints monitor information and cursor position"""
