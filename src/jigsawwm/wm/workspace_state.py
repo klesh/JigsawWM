@@ -50,6 +50,8 @@ class WorkspaceState(PickableState):
         """Update the workspace based on configuration"""
         self.config = config
         self.theme = self.config.get_theme_by_name(self.theme_name)
+        self.windows = { w for w in self.windows if w.exists() }
+        self.tilable_windows = [ w for w in self.tilable_windows if w.exists() ]
         for window in self.windows:
             if window.exists() and not self.showing:
                 window.hide()
