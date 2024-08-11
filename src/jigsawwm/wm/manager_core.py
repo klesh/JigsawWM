@@ -226,6 +226,8 @@ class WindowManagerCore:
                 # unhide all windows in the workspace and append them to the list
                 # to be re-arranged
                 for window in workspace.windows:
+                    if not window.exists():
+                        continue
                     logger.debug("unhide %s", window)
                     window.show()
                     manageable_windows.add(window)
