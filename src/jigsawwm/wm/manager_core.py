@@ -134,7 +134,10 @@ class WindowManagerCore:
                     break # terminate
                 event, hwnd, ts = event
                 if event == event.EVENT_SCREEN_CHANGED or self.is_event_interested(event, hwnd):
-                    tts = 0.1 - (time.time() - ts) # delay for a certain time for windows state to be stable
+                    # delay for a certain time for windows state to be stable
+                    #  case 1: CVR won't be tiled when restored with maximized mode
+                    #  case 2: libreoffice is not tiled on first launch
+                    tts = 0.15 - (time.time() - ts)
                     if tts > 0:
                         time.sleep(tts)
                     logger.info("!!! REACT on event %s for window %s", event.name, Window(hwnd))
