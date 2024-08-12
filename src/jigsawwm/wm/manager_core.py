@@ -239,6 +239,7 @@ class WindowManagerCore:
             raise ValueError("target window has no restricted rect")
         window.set_restrict_rect(b)
         target_window.set_restrict_rect(a)
+        self.save_state()
         return True
 
     def init_sync(self):
@@ -309,6 +310,7 @@ class WindowManagerCore:
         for monitor, windows in group_wins_by_mons.items():
             monitor_state = virtdesk_state.get_monitor_state(monitor)
             monitor_state.sync_windows(windows)
+        self.save_state()
 
     def find_monitor_from_config(self, window: Window, monitors: List[Monitor]) -> Optional[Monitor]:
         """Find monitor from the config rules for the window"""
