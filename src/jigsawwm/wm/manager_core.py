@@ -197,7 +197,9 @@ class WindowManagerCore:
                 WinEvent.EVENT_SYSTEM_CAPTURESTART,
                 WinEvent.EVENT_SYSTEM_CAPTUREEND,
             ):
-                logger.debug("ignore winevent %s for window %s", event.name, window)
+                # do NOT inspect Window instance here, would crash the app
+                # logger.debug("ignore winevent %s for window %s", event.name, hwnd)
+                pass
             return False
 
         return True

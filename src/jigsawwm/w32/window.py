@@ -158,8 +158,10 @@ def is_app_window(hwnd: HWND, style: Optional[WindowExStyle] = None) -> bool:
         WindowStyle.VISIBLE in style
         and (WindowStyle.MAXIMIZEBOX & style or WindowStyle.MINIMIZEBOX & style)
         and is_toplevel_window(hwnd)
-        and not user32.GetParent(hwnd)
+        # and not user32.GetParent(hwnd) # fix: dbeaver preferences window keep showing when switching workspace
+        and is_window_visible(hwnd)
         and not is_window_cloaked(hwnd)
+        and not user32.IsIconic(hwnd)
         and not process.is_elevated(pid)
         and process.get_exepath(pid)
     )
@@ -621,7 +623,6 @@ def inspect_window(hwnd: HWND, file=sys.stdout):
         if s in exstyle:
             exstyle_flags.append(s.name)
     print("exstyle      :", ", ".join(exstyle_flags), file=file)
-    print("is_cloaked   :", window.is_cloaked, file=file)
     rect = window.get_rect()
     print("rect         :", rect.left, rect.top, rect.right, rect.bottom, file=file)
     bound = window.get_extended_frame_bounds()
@@ -630,6 +631,8 @@ def inspect_window(hwnd: HWND, file=sys.stdout):
     print("is_evelated  :", window.is_evelated, file=file)
     print("is_iconic    :", user32.IsIconic(hwnd), file=file)
     print("visible      :", user32.IsWindowVisible(hwnd), file=file)
+    print("is_cloaked   :", window.is_cloaked, file=file)
+    print("is_top_level :", is_toplevel_window(hwnd), file=file)
     print("parent       :", user32.GetParent(hwnd), file=file)
     print("dpi_awareness:", window.dpi_awareness.name, file=file)
 
@@ -642,22 +645,16 @@ def inspect_active_window(hwnd=None):
 
 
 if __name__ == "__main__":
-    # import time
-
-    # handle = get_window_icon(get_foreground_window())
-    # from PySide6.QtGui import QIcon, QImage, QPixmap
-
-    # QImage.fromHICON(handle).save("icon.png")
-
-    # QIcon.fromData(handle).pixmap(32, 32).save("icon.png")
-    # print(QPixmap.loadFromData(handle))
-    time.sleep(2)
-    inspect_active_window()
-    # app_windows =list(get_app_windows())
-    # top_window = top_most_window(app_windows)
-    # inspect_window(131638)
-    # inspect_active_window(HWND(4196926))
-    # for wd in get_app_windows():
-    #     inspect_window(wd.handle)
-    # for win in get_windows():
-    #     inspect_window(win)
+    if len(sys.argv)  > 1:
+        param = sys.argv[1]
+        if param.isdigit():
+            inspect_active_window(int(param))
+        elif param == "all":
+            for win in enum_windows():
+                inspect_window(win)
+        elif param == "app":
+            for wd in get_app_windows():
+                inspect_window(wd.handle)
+    else:
+        time.sleep(2)
+        inspect_active_window()
