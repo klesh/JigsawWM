@@ -209,7 +209,11 @@ class WindowManagerCore:
         monitor = get_monitor_from_window(window.handle)
         monitor_state = self.virtdesk_state.get_monitor_state(monitor)
         target_window, target_monitor_state = None, None
-        window_index = monitor_state.workspace.tilable_windows.index(window)
+        window_index = -1
+        try:
+            window_index = monitor_state.workspace.tilable_windows.index(window)
+        except ValueError:
+            return
         if window_index < 0:
             return False
         pos = get_cursor_pos()

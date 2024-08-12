@@ -51,7 +51,7 @@ def enum_windows(
     :return: list of window handles
     :rtype: List[HWND]
     """
-    check = check or (lambda _: 1)
+    check = check or (lambda _: EnumCheckResult.CAPTURE)
     hwnds = []
 
     @WINFUNCTYPE(BOOL, HWND, LPARAM)
@@ -156,6 +156,7 @@ def is_app_window(hwnd: HWND, style: Optional[WindowExStyle] = None) -> bool:
     pid = get_window_pid(hwnd)
     return bool(
         WindowStyle.VISIBLE in style
+        and WindowStyle.CLIPCHILDREN in style
         and (WindowStyle.MAXIMIZEBOX & style or WindowStyle.MINIMIZEBOX & style)
         and is_toplevel_window(hwnd)
         # and not user32.GetParent(hwnd) # fix: dbeaver preferences window keep showing when switching workspace

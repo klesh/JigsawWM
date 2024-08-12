@@ -132,17 +132,21 @@ def get_session_id():
 
 class ProcessDpiAwareness(IntEnum):
     """Process DPI Awareness Level"""
+    UNKNOWN = 0
     PROCESS_DPI_UNAWARE = 0
     PROCESS_SYSTEM_DPI_AWARE = 1
     PROCESS_PER_MONITOR_DPI_AWARE = 2
 
 def get_process_dpi_awareness(pid: int) -> ProcessDpiAwareness:
     """Retrieves the DPI awareness of the process"""
-    hprc = open_process_for_limited_query(pid)
-    awareness = c_int()
-    if shcore.GetProcessDpiAwareness(hprc, pointer(awareness)):
-        raise WinError(get_last_error())
-    return ProcessDpiAwareness(awareness.value)
+    try:
+        hprc = open_process_for_limited_query(pid)
+        awareness = c_int()
+        if shcore.GetProcessDpiAwareness(hprc, pointer(awareness)):
+            raise WinError(get_last_error())
+        return ProcessDpiAwareness(awareness.value)
+    except: # pylint: disable=bare-except
+        return ProcessDpiAwareness.UNKNOWN
 
 if __name__ == "__main__":
     # import sys
