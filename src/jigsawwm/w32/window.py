@@ -637,10 +637,10 @@ if __name__ == "__main__":
     # QIcon.fromData(handle).pixmap(32, 32).save("icon.png")
     # print(QPixmap.loadFromData(handle))
     time.sleep(2)
-    # inspect_active_window()
+    inspect_active_window()
     # app_windows =list(get_app_windows())
     # top_window = top_most_window(app_windows)
-    inspect_window(131638)
+    # inspect_window(131638)
     # inspect_active_window(HWND(4196926))
     # for wd in get_app_windows():
     #     inspect_window(wd.handle)

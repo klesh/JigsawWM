@@ -6,7 +6,6 @@ from os import path
 from jigsawwm.w32.window import RECT, Window, get_active_window
 from jigsawwm.w32.process import ProcessDpiAwareness
 from jigsawwm.w32.monitor import Monitor, set_cursor_pos
-from jigsawwm import workers
 
 from .config import WmConfig
 from .theme import Theme
@@ -119,7 +118,7 @@ class WorkspaceState(PickableState):
 
     def sync_windows(self, incoming_windows: Set[Window]):
         """Sync the internal windows list to the incoming windows list"""
-        logger.debug("%s sync windows", self)
+        logger.debug("%s sync windows, total %d", self, len(incoming_windows))
         # make sure windows are still valid
         incoming_windows = { w for w in incoming_windows if w.exists() }
         # update the internal windows list
@@ -206,7 +205,7 @@ class WorkspaceState(PickableState):
                 round(bottom + r.bottom - b.bottom),
             )
             window.set_restrict_rect(RECT(*compensated_rect))
-        workers.submit_with_delay(self.restrict, 0.2)
+        self.restrict()
 
     def restrict(self):
         """Restrict all managed windows to their specified rect"""

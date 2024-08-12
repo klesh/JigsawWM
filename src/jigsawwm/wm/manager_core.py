@@ -2,6 +2,7 @@
 import logging
 import os
 import pickle
+import time
 from typing import Dict, List, Set, Tuple, Optional
 from queue import SimpleQueue
 from threading import Thread
@@ -129,9 +130,12 @@ class WindowManagerCore:
                 event = self._queue.get()
                 if not event:
                     break # terminate
-                event, hwnd = event
+                event, hwnd, ts = event
                 if event == event.EVENT_SCREEN_CHANGED or self.is_event_interested(event, hwnd):
-                    logger.info("react on event %s for window %s", event.name, hwnd)
+                    tts = 0.1 - (time.time() - ts) # delay for a certain time for windows state to be stable
+                    if tts > 0:
+                        time.sleep(tts)
+                    logger.info("!!! REACT on event %s for window %s", event.name, Window(hwnd))
                     self.sync_windows()
             except : # pylint: disable=bare-except
                 logger.exception("consume_queue error", exc_info=True)
@@ -341,11 +345,11 @@ class WindowManagerCore:
     ):
         if self._ignore_events:
             return
-        self._queue.put_nowait((event, hwnd))
+        self._queue.put_nowait((event, hwnd, time.time()))
 
     def _screen_changed_callback(self):
         # wait a little bit for monitors to be ready
-        self._queue.put_nowait((WinEvent.EVENT_SCREEN_CHANGED, None))
+        self._queue.put_nowait((WinEvent.EVENT_SCREEN_CHANGED, None, time.time()))
 
     def install_hooks(self):
         """Install hooks for window events"""
