@@ -12,6 +12,8 @@ from jigsawwm.w32.monitor import (
     Monitor,
     get_monitor_from_window,
     get_monitors,
+    get_cursor_pos,
+    get_monitor_from_pos
 )
 from jigsawwm.w32.reg import get_current_desktop_id
 from jigsawwm.w32.window import (
@@ -142,7 +144,7 @@ class WindowManagerCore:
 
     def is_event_interested(self, event: WinEvent, hwnd: HWND) -> bool:
         """Check if event is interested"""
-        window = Window(hwnd)
+        window = self._managed_windows.get(hwnd) or Window(hwnd)
         # ignore if left mouse button is pressed in case of dragging
         if not self._wait_mouse_released and event == WinEvent.EVENT_OBJECT_PARENTCHANGE and sysinout.state.get( Vk.LBUTTON )  :
             # delay the sync until button released to avoid flickering
@@ -175,12 +177,14 @@ class WindowManagerCore:
             # window.is_visible is for vscode, it somehow generte hide event when unfocused
             if hwnd not in self._managed_windows or window.is_visible:
                 return False
-        # elif event == WinEvent.EVENT_SYSTEM_MOVESIZEEND:
-        #     return self.restrict(hwnd)
+        elif event == WinEvent.EVENT_SYSTEM_MOVESIZEEND:
+            if self.try_swapping_window(window):
+                return False
+            return True
         elif event not in (
             WinEvent.EVENT_SYSTEM_MINIMIZESTART,
             WinEvent.EVENT_SYSTEM_MINIMIZEEND,
-            WinEvent.EVENT_SYSTEM_MOVESIZEEND, # fix case: resizing any app window
+            # WinEvent.EVENT_SYSTEM_MOVESIZEEND, # fix case: resizing any app window
             # WinEvent.EVENT_OBJECT_PARENTCHANGE,
         ):
             if event not in (
@@ -193,9 +197,42 @@ class WindowManagerCore:
                 WinEvent.EVENT_SYSTEM_CAPTURESTART,
                 WinEvent.EVENT_SYSTEM_CAPTUREEND,
             ):
-                logger.debug("ignore winevent %s for window %s", event.name, window.handle)
+                logger.debug("ignore winevent %s for window %s", event.name, window)
             return False
 
+        return True
+
+    def try_swapping_window(self, window: Window) -> Optional[Tuple[Window, MonitorState]]:
+        """Check if the window is being reordered"""
+        monitor = get_monitor_from_window(window.handle)
+        monitor_state = self.virtdesk_state.get_monitor_state(monitor)
+        target_window, target_monitor_state = None, None
+        window_index = monitor_state.workspace.tilable_windows.index(window)
+        if window_index < 0:
+            return False
+        pos = get_cursor_pos()
+        target_monitor = get_monitor_from_pos(pos.x, pos.y)
+        target_monitor_state = self.virtdesk_state.get_monitor_state(target_monitor)
+        target_window_index = -1
+        for i, w in enumerate(target_monitor_state.workspace.tilable_windows):
+            r = w.restricted_actual_rect
+            if pos.x > r.left and pos.x < r.right and pos.y > r.top and pos.y < r.bottom:
+                target_window = w
+                target_window_index = i
+        if not target_window or target_window == window:
+            return False
+        # swap
+        a = monitor_state.workspace.tilable_windows
+        b = target_monitor_state.workspace.tilable_windows
+        a[window_index], b[target_window_index] = target_window, window
+        a = window.restricted_rect
+        if not a:
+            raise ValueError("window has no restricted rect")
+        b = target_window.restricted_rect
+        if not b:
+            raise ValueError("target window has no restricted rect")
+        window.set_restrict_rect(b)
+        target_window.set_restrict_rect(a)
         return True
 
     def init_sync(self):

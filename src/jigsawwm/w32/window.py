@@ -228,8 +228,9 @@ class Window:
     """
 
     _hwnd: HWND
-    _restricted_rect = None
-    _restricted_actual_rect = None
+    restricted_rect = None
+    compensated_rect = None
+    restricted_actual_rect = None
     attrs: dict = None
 
     def __init__(self, hwnd: HWND):
@@ -425,28 +426,42 @@ class Window:
         if self.is_maximized:
             self.restore()
         set_window_rect(self._hwnd, rect)
-        self._restricted_rect = rect
 
     def set_restrict_rect(self, rect: RECT):
         """Set the restricted rect"""
         self.set_rect(rect)
-        self._restricted_rect = rect
-        self._restricted_actual_rect = self.get_rect()
+        self.restricted_rect = rect
+        self.compensated_rect = None
+        if self.dpi_awareness == process.ProcessDpiAwareness.PROCESS_PER_MONITOR_DPI_AWARE:
+            # seems like the `get_extended_frame_bounds` would return physical size
+            # for DPI unware window, skip them for now
+            # TODO: convert physical size to logical size for DPI unware window
+            # compensation
+            r = self.get_rect()
+            b = self.get_extended_frame_bounds()
+            self.compensated_rect = RECT(
+                round(rect.left + r.left - b.left),
+                round(rect.top + r.top - b.top),
+                round(rect.right + r.right - b.right),
+                round(rect.bottom + r.bottom - b.bottom),
+            )
+            self.set_rect(self.compensated_rect)
+        self.restricted_actual_rect = self.get_rect()
 
     def restrict(self):
         """Restrict the window to the restricted rect"""
-        if self._restricted_actual_rect:
-            r1 = self._restricted_actual_rect
+        if self.restricted_actual_rect:
+            r1 = self.restricted_actual_rect
             r2 = self.get_rect()
             if r1.left == r2.left and r1.top == r2.top and r1.right == r2.right and r1.bottom == r2.bottom:
                 return
-            self.set_rect(self._restricted_rect)
-            logger.debug("restrict to %s for %s", repr_rect(self._restricted_rect), self.title)
+            self.set_rect(self.compensated_rect or self.restricted_rect)
+            logger.debug("restrict to %s for %s", repr_rect(self.restricted_rect), self.title)
 
     def unrestrict(self):
         """Unrestrict the window"""
-        self._restricted_rect = None
-        self._restricted_actual_rect = None
+        self.restricted_rect = None
+        self.restricted_actual_rect = None
 
     def shrink(self, margin: int=20):
         """Shrink the window by margin"""

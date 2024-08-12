@@ -4,7 +4,6 @@ from typing import List, Set, Optional
 from os import path
 
 from jigsawwm.w32.window import RECT, Window, get_active_window
-from jigsawwm.w32.process import ProcessDpiAwareness
 from jigsawwm.w32.monitor import Monitor, set_cursor_pos
 
 from .config import WmConfig
@@ -187,25 +186,8 @@ class WorkspaceState(PickableState):
             right -= gap
             bottom -= gap
             rect = RECT(left, top, right, bottom)
+            window.set_restrict_rect(rect)
             i += 1
-            if window.dpi_awareness != ProcessDpiAwareness.PROCESS_PER_MONITOR_DPI_AWARE:
-                # seems like the `get_extended_frame_bounds` would return physical size
-                # for DPI unware window, skip them for now
-                # TODO: convert physical size to logical size for DPI unware window
-                window.set_restrict_rect(rect)
-                continue
-            window.set_rect(rect)
-            # compensation
-            r = window.get_rect()
-            b = window.get_extended_frame_bounds()
-            compensated_rect = (
-                round(left + r.left - b.left),
-                round(top + r.top - b.top),
-                round(right + r.right - b.right),
-                round(bottom + r.bottom - b.bottom),
-            )
-            window.set_restrict_rect(RECT(*compensated_rect))
-        self.restrict()
 
     def restrict(self):
         """Restrict all managed windows to their specified rect"""
