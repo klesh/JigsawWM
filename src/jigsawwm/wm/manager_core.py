@@ -138,21 +138,21 @@ class WindowManagerCore:
 
     def is_event_interested(self, event: WinEvent, hwnd: HWND) -> bool:
         """Check if event is interested"""
+        window = Window(hwnd)
         # ignore if left mouse button is pressed in case of dragging
-        if event == WinEvent.EVENT_OBJECT_PARENTCHANGE and sysinout.state.get( Vk.LBUTTON )  :
+        if not self._wait_mouse_released and event == WinEvent.EVENT_OBJECT_PARENTCHANGE and sysinout.state.get( Vk.LBUTTON )  :
             # delay the sync until button released to avoid flickering
-            logger.debug("wait_mouse_released on event %s", event.name)
+            logger.debug("start waiting mouse release on event %s from window %s", event.name, window)
             self._wait_mouse_released = True
             return False
         elif self._wait_mouse_released:
-            logger.debug("mouse_released on event %s", event.name)
             if not sysinout.state.get( Vk.LBUTTON ):
+                logger.debug("finish waiting mouse release on event %s from window %s", event.name, window)
                 self._wait_mouse_released = False
                 return True
             else:
                 return False
         # # filter by event
-        window = Window(hwnd)
         if event == WinEvent.EVENT_OBJECT_SHOW or event == WinEvent.EVENT_OBJECT_UNCLOAKED or event == WinEvent.EVENT_SYSTEM_FOREGROUND:
             # a window belongs to hidden workspace just got activated
             # put your default browser into workspace and then ctrl-click a link, e.g. http://google.com 
