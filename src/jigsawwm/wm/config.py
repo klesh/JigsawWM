@@ -1,7 +1,6 @@
 """This module contains the configuration dataclass for the window manager"""
 import re
 import logging
-from os import path
 from dataclasses import dataclass, field
 from typing import Set, List, Dict, Optional
 from jigsawwm.w32.monitor import Monitor
@@ -18,6 +17,8 @@ class WmRule:
     title_regex: Optional[str] = None
     to_monitor_index: Optional[int] = 0
     to_workspace_index: Optional[int] = 0
+    manageable: bool = True # managed in workspace
+    tilable: bool = True # is it tilable in a workspace
 
 @dataclass
 class WmConfig:
@@ -66,16 +67,15 @@ class WmConfig:
             )[0]
         return self._monitor_themes[monitor.name]
 
-    def is_window_tilable(self, window: Window) -> bool:
+    def is_window_manageable(self, window: Window) -> bool:
         """Check if window is to be managed"""
-        exebasename = path.basename(window.exe)
-        if self.force_managed_exe_names:
-            if exebasename in self.force_managed_exe_names:
-                return True
-        if self.ignore_exe_names:
-            if exebasename in self.ignore_exe_names:
-                return False
-        return True
+        rule = self.find_rule_for_window(window)
+        return rule is None or rule.manageable
+
+    def is_window_tilable(self, window: Window) -> bool:
+        """Check if window is to be tilable"""
+        rule = self.find_rule_for_window(window)
+        return rule is None or (rule.manageable and rule.tilable)
 
     def find_rule_for_window(self, window: Window) -> Optional[WmRule]:
         """Find the rule for the window"""

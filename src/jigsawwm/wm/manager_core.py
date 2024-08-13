@@ -348,7 +348,7 @@ class WindowManagerCore:
     
     def is_window_manageable(self, window: Window) -> bool:
         """Check if the window is manageable by the WindowManager"""
-        return is_app_window(window.handle)
+        return is_app_window(window.handle) and self.config.is_window_manageable(window)
 
     def unhide_workspaces(self):
         """Unhide all workspaces"""

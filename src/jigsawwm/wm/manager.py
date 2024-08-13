@@ -1,7 +1,7 @@
 """Window Manager Operations"""
 import logging
 import time
-from typing import List, Callable, Optional, Set, Iterable
+from typing import List, Callable, Optional, Iterable
 from threading import Thread
 from jigsawwm import ui
 from jigsawwm.w32 import virtdesk
@@ -19,15 +19,11 @@ class WindowManager(WindowManagerCore):
     def __init__(
         self,
         themes: List[Theme] = None,
-        ignore_exe_names: Set[str] = None,
-        force_managed_exe_names: Set[str] = None,
         init_exe_sequence: List[List[str]] = None,
         rules: List[WmRule] = None,
     ):
         config = WmConfig(
             themes=themes,
-            ignore_exe_names=set(ignore_exe_names or []),
-            force_managed_exe_names = set(force_managed_exe_names or []),
             init_exe_sequence = init_exe_sequence or [],
             rules=rules,
         )
