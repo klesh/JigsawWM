@@ -3,7 +3,7 @@ from log import *
 from functools import partial
 from typing import Union,Iterator
 
-from jigsawwm import daemon, ui
+from jigsawwm import daemon
 from jigsawwm.tiler import tilers
 from jigsawwm.w32.vk import Vk
 from jigsawwm.w32.window import inspect_active_window
@@ -46,7 +46,8 @@ wm = WindowManager(
     rules = [
         WmRule(exe_regex=r"\bWindowsTerminal\.exe$", manageable=False),
         WmRule(exe_regex=r"\bSnippingTool\.exe$", manageable=False),
-        WmRule(exe_regex=r"\Flow\.Launcher\.exe", tilable=False),
+        WmRule(exe_regex=r"\bFlow\.Launcher\.exe", manageable=False),
+        WmRule(exe_regex=r"\bmsedgewebview2.exe\.exe", manageable=False),
 
         WmRule(exe_regex=r"\bWeChat\.exe$", tilable=False),
         WmRule(exe_regex=r"\bMediaInfo\.exe$", tilable=False),
@@ -66,21 +67,21 @@ wm = WindowManager(
 )
 
 hotkeys = [
-    ([Vk.WIN, Vk.J], wm.activate_next, ui.hide_windows_splash),
-    ([Vk.WIN, Vk.K], wm.activate_prev, ui.hide_windows_splash),
+    ([Vk.WIN, Vk.J], wm.activate_next),
+    ([Vk.WIN, Vk.K], wm.activate_prev),
     ([Vk.WIN, Vk.SHIFT, Vk.J], wm.swap_next),
     ([Vk.WIN, Vk.SHIFT, Vk.K], wm.swap_prev),
     ("Win+/", wm.set_master),
-    ([Vk.WIN, Vk.CONTROL, Vk.SPACE], wm.next_theme, ui.hide_windows_splash),
+    ([Vk.WIN, Vk.CONTROL, Vk.SPACE], wm.next_theme),
     ([Vk.WIN, Vk.U], wm.prev_monitor),
     ([Vk.WIN, Vk.I], wm.next_monitor),
     ([Vk.WIN, Vk.SHIFT, Vk.U], wm.move_to_prev_monitor),
     ([Vk.WIN, Vk.SHIFT, Vk.I], wm.move_to_next_monitor),
     ([Vk.WIN, Vk.CONTROL, Vk.I], inspect_active_window),
-    ("Win+Ctrl+a", partial(wm.switch_workspace, 0), ui.hide_windows_splash),
-    ("Win+Ctrl+s", partial(wm.switch_workspace, 1), ui.hide_windows_splash),
-    ("Win+Ctrl+d", partial(wm.switch_workspace, 2), ui.hide_windows_splash),
-    ("Win+Ctrl+f", partial(wm.switch_workspace, 3), ui.hide_windows_splash),
+    ("Win+Ctrl+a", partial(wm.switch_workspace, 0)),
+    ("Win+Ctrl+s", partial(wm.switch_workspace, 1)),
+    ("Win+Ctrl+d", partial(wm.switch_workspace, 2)),
+    ("Win+Ctrl+f", partial(wm.switch_workspace, 3)),
     ("Win+Shift+a", partial(wm.move_to_workspace, 0)),
     ("Win+Shift+s", partial(wm.move_to_workspace, 1)),
     ("Win+Shift+d", partial(wm.move_to_workspace, 2)),

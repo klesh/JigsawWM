@@ -108,6 +108,7 @@ class WinEvent(enum.IntEnum):
 
     #
     EVENT_SCREEN_CHANGED = 0x80000000
+    EVENT_HIDE_SPLASH = 0x80000001
     UNKNOWN = 0x00
 
     @classmethod

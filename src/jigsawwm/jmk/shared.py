@@ -28,7 +28,13 @@ class JmkTrigger:
         """Trigger"""
         logger.info("keys triggered: %s", self.keys)
         self.triggerred = True
-        workers.submit(self.callback)
+
+        def wrapped():
+            release_cb = self.callback()
+            if release_cb:
+                self.release_callback = release_cb
+
+        workers.submit(wrapped)
 
     def release(self):
         """Release"""
