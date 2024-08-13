@@ -46,6 +46,7 @@ wm = WindowManager(
     rules = [
         WmRule(exe_regex=r"\bWindowsTerminal\.exe$", manageable=False),
         WmRule(exe_regex=r"\bSnippingTool\.exe$", manageable=False),
+        WmRule(exe_regex=r"\Flow\.Launcher\.exe", tilable=False),
 
         WmRule(exe_regex=r"\bWeChat\.exe$", tilable=False),
         WmRule(exe_regex=r"\bMediaInfo\.exe$", tilable=False),

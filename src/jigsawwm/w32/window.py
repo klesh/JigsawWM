@@ -158,7 +158,7 @@ def is_app_window(hwnd: HWND) -> bool:
     return bool(
         WindowStyle.VISIBLE in style
         # and WindowStyle.CLIPCHILDREN in style # would make obsidian not being managed
-        and (WindowStyle.MAXIMIZEBOX & style or WindowStyle.MINIMIZEBOX & style)
+        # and (WindowStyle.MAXIMIZEBOX & style or WindowStyle.MINIMIZEBOX & style)
         and is_toplevel_window(hwnd)
         # and not user32.GetParent(hwnd) # fix: dbeaver preferences window keep showing when switching workspace
         and WindowExStyle.TRANSPARENT not in exstyle # ignore ubuntu.exe
