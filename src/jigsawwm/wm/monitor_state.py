@@ -137,19 +137,22 @@ class MonitorState(PickableState):
         self.workspace.remove_window(window)
         self.workspaces[workspace_index].add_window(window)
 
-    def sync_windows(self, windows: Set[Window]):
+    def sync_windows(self, windows: Set[Window]) -> bool:
         """Synchronize managed windows with given actual windows currently visible and arrange them
         accordingly
 
         :param Set[Window] windows: latest visible windows
         """
-        logger.debug("%s sync windows", self)
-        self.workspace.sync_windows(windows)
+        changed = False
+        changed |= self.workspace.sync_windows(windows)
         for window in self.windows:
             rule: WmRule = window.attrs.pop("rule", None)
             if rule:
                 if rule.to_workspace_index is not None and rule.to_monitor_index != 0:
                     self.move_to_workspace(window, rule.to_workspace_index)
+                    changed = True
+        logger.debug("%s sync windows %s", self, "changed" if changed else "unchanged")
+        return changed
 
     def unhide_workspaces(self):
         """Unhide all workspaces of the monitor"""

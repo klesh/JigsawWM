@@ -310,10 +310,12 @@ class WindowManagerCore:
             logger.debug("group windows: %s owns %s", monitor.name, window)
         # synchronize windows on each monitor
         # pass down to monitor_state for further synchronization
+        changed = False
         for monitor, windows in group_wins_by_mons.items():
             monitor_state = virtdesk_state.get_monitor_state(monitor)
-            monitor_state.sync_windows(windows)
-        self.save_state()
+            changed |= monitor_state.sync_windows(windows)
+        if changed:
+            self.save_state()
 
     def find_monitor_from_config(self, window: Window, monitors: List[Monitor]) -> Optional[Monitor]:
         """Find monitor from the config rules for the window"""

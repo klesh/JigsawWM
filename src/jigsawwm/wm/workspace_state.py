@@ -115,12 +115,12 @@ class WorkspaceState(PickableState):
         """Check if the workspace has the window"""
         return window in self.windows
 
-    def sync_windows(self, incoming_windows: Set[Window]):
+    def sync_windows(self, incoming_windows: Set[Window]) -> bool:
         """Sync the internal windows list to the incoming windows list"""
-        logger.debug("%s sync windows, total %d", self, len(incoming_windows))
         # make sure windows are still valid
         incoming_windows = { w for w in incoming_windows if w.exists() }
         # update the internal windows list
+        changed = self.windows != incoming_windows
         self.windows = incoming_windows
         # process the tilable windows
         incoming_tilable_windows = {
@@ -153,9 +153,13 @@ class WorkspaceState(PickableState):
         else:
             new_tilable_windows += new_tilable_portion
         if new_tilable_windows == self.tilable_windows:
-            return self.restrict()
-        self.tilable_windows = new_tilable_windows
-        self.arrange()
+            self.restrict()
+        else:
+            changed = True
+            self.tilable_windows = new_tilable_windows
+            self.arrange()
+        logger.debug("%s sync windows, total %d, %s", self, len(incoming_windows), "changed" if changed else "unchanged")
+        return changed
 
     def arrange(self):
         """Arrange windows based on the theme
