@@ -111,6 +111,16 @@ class WorkspaceState(PickableState):
         logger.debug("%s remove window %s", self, window)
         self.sync_windows(self.windows.difference({window}))
 
+    def add_windows(self, windows: Set[Window]):
+        """Add windows to the workspace"""
+        logger.debug("%s add windows %s", self, windows)
+        self.sync_windows(self.windows.union(windows))
+
+    def remove_windows(self, windows: Window):
+        """Remove windows from the workspace"""
+        logger.debug("%s remove windows %s", self, windows)
+        self.sync_windows(self.windows.difference(windows))
+
     def has_window(self, window: Window):
         """Check if the workspace has the window"""
         return window in self.windows

@@ -169,12 +169,13 @@ class WindowManagerCore:
         if event == WinEvent.EVENT_OBJECT_SHOW or event == WinEvent.EVENT_OBJECT_UNCLOAKED or event == WinEvent.EVENT_SYSTEM_FOREGROUND:
             # a window belongs to hidden workspace just got activated
             # put your default browser into workspace and then ctrl-click a link, e.g. http://google.com 
-            state = self.virtdesk_state.find_window_in_hidden_workspaces(window.handle)
-            if state:
-                monitor_state, workspace_index  = state
-                logger.debug("switch workspace to index %d on monitor %s for event %s of activated window %s", workspace_index, monitor_state.monitor.name, event.name, window)
-                monitor_state.switch_workspace(workspace_index)
-                return False
+            if event == WinEvent.EVENT_SYSTEM_FOREGROUND:
+                state = self.virtdesk_state.find_window_in_hidden_workspaces(window.handle)
+                if state:
+                    monitor_state, workspace_index  = state
+                    logger.debug("switch workspace to index %d on monitor %s for event %s of activated window %s", workspace_index, monitor_state.monitor.name, event.name, window)
+                    monitor_state.switch_workspace(workspace_index)
+                    return False
             # when switching monitor, another window gets actiated
             if hwnd in self._managed_windows or not self.is_window_manageable(window) or event == WinEvent.EVENT_SYSTEM_FOREGROUND:
                 return False

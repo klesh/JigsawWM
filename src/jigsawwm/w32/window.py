@@ -160,7 +160,8 @@ def is_app_window(hwnd: HWND) -> bool:
         WindowStyle.VISIBLE in style
         # and WindowStyle.CLIPCHILDREN in style # would make obsidian not being managed
         # and (WindowStyle.MAXIMIZEBOX & style or WindowStyle.MINIMIZEBOX & style)
-        and class_name != "Shell_TrayWnd"
+        and class_name != "Shell_TrayWnd" # taskbar
+        and class_name != "Progman" # desktop background
         and is_toplevel_window(hwnd)
         # and not user32.GetParent(hwnd) # fix: dbeaver preferences window keep showing when switching workspace
         and WindowExStyle.TRANSPARENT not in exstyle # ignore ubuntu.exe
@@ -313,6 +314,11 @@ class Window:
         :rtype: int
         """
         return get_window_pid(self._hwnd)
+
+    @property
+    def parent_handle(self) -> HWND:
+        """Retrieves the parent window handle"""
+        return user32.GetParent(self._hwnd)
 
     @property
     def is_iconic(self) -> bool:

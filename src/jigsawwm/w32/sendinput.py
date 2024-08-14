@@ -3,11 +3,13 @@ import os
 import random
 import time
 import typing
+import logging
 from ctypes import *
 from ctypes.wintypes import *
 
 from .vk import Vk
 
+logger = logging.getLogger(__name__)
 user32 = WinDLL("user32", use_last_error=True)
 
 ULONG_PTR = LPARAM
@@ -145,7 +147,7 @@ def send_input(*inputs: typing.List[INPUT], extra: int = 0):
     length = len(inputs)
     array = INPUT * length
     if not user32.SendInput(length, array(*inputs), sizeof(INPUT)):
-        raise WinError(get_last_error())
+        logger.exception("send input error: %s", WinError(get_last_error())) 
 
 
 def is_synthesized(msg: typing.Union[KEYBDINPUT, MOUSEINPUT]) -> bool:
