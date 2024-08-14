@@ -185,7 +185,10 @@ class WindowManagerCore:
             # when window is hidden or destroyed, it would not pass the is_window_manageable check
             # fix case: toggle chrome fullscreen
             # window.is_visible is for vscode, it somehow generte hide event when unfocused
-            if hwnd not in self._managed_windows or window.is_visible:
+            # when switching workspace, windows would be hidden then trigger sync_windows
+            #  and some windows might still be visible at the time which lead to a backend and forth swithcing forever
+            #  find_window_in_hidden_workspaces is for preventing that from happening
+            if hwnd not in self._managed_windows or window.is_visible or self.virtdesk_state.find_window_in_hidden_workspaces(window):
                 return False
         elif event == WinEvent.EVENT_SYSTEM_MOVESIZEEND:
             if self.try_swapping_window(window):
@@ -341,14 +344,15 @@ class WindowManagerCore:
         # TODO: compress self._managed_windows to remove dead windows
         manageable_windows = set()
         def check_window(hwnd: HWND) -> bool:
+            window = Window(hwnd)
+            if not self.is_window_manageable(window):
+                return True
             if hwnd in self._managed_windows:
                 # reuse the previous window object
                 manageable_windows.add(self._managed_windows[hwnd])
             else:
                 # never seen before, create a new window for it
-                window = Window(hwnd)
-                if self.is_window_manageable(window):
-                    manageable_windows.add(window)
+                manageable_windows.add(window)
             return True
         iter_windows(check_window)
         return manageable_windows

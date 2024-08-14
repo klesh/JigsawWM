@@ -2,8 +2,7 @@
 import logging
 import time
 from typing import List, Callable, Optional, Iterable
-from threading import Thread
-from jigsawwm import ui
+from jigsawwm import ui, workers
 from jigsawwm.w32 import virtdesk
 from jigsawwm.w32.window import Window, top_most_window
 from jigsawwm.w32.winevent import WinEvent
@@ -121,7 +120,10 @@ class WindowManager(WindowManagerCore):
         """Put hide splash event into the queue"""
         # hiding splash must be put into the queue due to each interested events are proccessed with delay
         logger.info("put hide splash event")
-        self._queue.put_nowait((WinEvent.EVENT_HIDE_SPLASH, None, time.time()))
+        # delay it a little bit because keys release event might happen before the splash is shown
+        def wrapped():
+            self._queue.put_nowait((WinEvent.EVENT_HIDE_SPLASH, None, time.time()))
+        workers.submit_with_delay(wrapped, 0.2)
 
     def switch_theme_by_offset(self, delta: int) -> Callable:
         """Switch theme by offset"""
@@ -191,11 +193,8 @@ class WindowManager(WindowManagerCore):
         self.save_state()
         ui.show_windows_splash(monitor_state, None)
         if hide_splash_in:
-            def wait_then_hide():
-                time.sleep(hide_splash_in)
-                ui.hide_windows_splash()
-            self._hide_ui_thread = Thread(target=wait_then_hide)
-            self._hide_ui_thread.start()
+            logger.debug("hide splash in %s", hide_splash_in)
+            workers.submit_with_delay(self.put_hide_splash_event, hide_splash_in)
             return None
         return self.put_hide_splash_event
 
