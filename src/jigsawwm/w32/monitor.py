@@ -144,7 +144,7 @@ class Monitor:
 
     def __repr__(self):
         rect = self.get_rect()
-        return f"<Monitor: {self.name} {rect.left} {rect.top} {rect.right-rect.left} {rect.bottom-rect.top} {self.get_scale_factor()/100}>"
+        return f"<Monitor: {self.name} {self._hmon} {rect.left} {rect.top} {rect.right-rect.left} {rect.bottom-rect.top} {self.get_scale_factor()/100}>"
 
     @cached_property
     def name(self) -> str:
@@ -279,7 +279,7 @@ def inspect_monitors():
         print("scale factor     :", monitor.get_scale_factor())
         monitor_info = monitor.get_info()
         print("device           :", monitor_info.szDevice)
-        print("screen info    :", monitor.get_screen_info())
+        print("screen info      :", monitor.get_screen_info())
         m = monitor_info.rcWork
         print(
             f"monitor workarea : left {m.left} top {m.top}  right {m.right}  bottom {m.bottom}"

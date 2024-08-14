@@ -141,9 +141,11 @@ class WindowManagerCore:
                     # delay for a certain time for windows state to be stable
                     #  case 1: CVR won't be tiled when restored with maximized mode
                     #  case 2: libreoffice is not tiled on first launch
-                    tts = 0.15 - (time.time() - ts)
+                    tts = 0.2 - (time.time() - ts)
                     if tts > 0:
                         time.sleep(tts)
+                    if event == WinEvent.EVENT_SCREEN_CHANGED:
+                        logger.info("new monitors: %s old monitors: %s", set(get_monitors()), self.virtdesk_state.monitor_states.keys())
                     logger.info("!!! REACT on event %s for window %s", event.name, Window(hwnd))
                     self.sync_windows()
             except : # pylint: disable=bare-except
