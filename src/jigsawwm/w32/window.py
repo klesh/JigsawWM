@@ -161,6 +161,7 @@ def is_app_window(hwnd: HWND) -> bool:
         # and WindowStyle.CLIPCHILDREN in style # would make obsidian not being managed
         # and (WindowStyle.MAXIMIZEBOX & style or WindowStyle.MINIMIZEBOX & style)
         and class_name != "Shell_TrayWnd" # taskbar
+        and class_name != "Shell_SecondaryTrayWnd"
         and class_name != "Progman" # desktop background
         and is_toplevel_window(hwnd)
         # and not user32.GetParent(hwnd) # fix: dbeaver preferences window keep showing when switching workspace
@@ -505,7 +506,12 @@ class Window:
 
     def toggle(self, show: bool):
         """Toggle window visibility"""
+        # fusion360 object selection window not functioning properly after hidden and show, unless minimized then restored
+        if not show:
+            self.minimize()
         user32.ShowWindow(self._hwnd,  ShowWindowCmd.SW_SHOWNA if show else ShowWindowCmd.SW_HIDE)
+        if show:
+            self.restore()
 
 
 def get_app_windows() -> List[Window]:
