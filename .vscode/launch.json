@@ -33,6 +33,12 @@
       "request": "launch",
       "module": "jigsawwm.jmk2",
       "justMyCode": true
+    },
+    {
+      "name": "attach",
+      "type": "debugpy",
+      "request": "attach",
+      "processId": "${command:pickProcess}"
     }
   ]
 }
