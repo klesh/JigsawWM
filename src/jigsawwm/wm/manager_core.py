@@ -133,10 +133,6 @@ class WindowManagerCore:
                 if not event:
                     break # terminate
                 event, hwnd, ts = event
-                if event == WinEvent.EVENT_HIDE_SPLASH:
-                    logger.info("HIDE splash event")
-                    ui.hide_windows_splash()
-                    continue
                 if event == WinEvent.EVENT_SCREEN_CHANGED or self.is_event_interested(event, hwnd):
                     # delay for a certain time for windows state to be stable
                     #  case 1: CVR won't be tiled when restored with maximized mode

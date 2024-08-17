@@ -1,11 +1,9 @@
 """Window Manager Operations"""
 import logging
-import time
 from typing import List, Callable, Optional, Iterable
 from jigsawwm import ui, workers
 from jigsawwm.w32 import virtdesk
 from jigsawwm.w32.window import Window, top_most_window
-from jigsawwm.w32.winevent import WinEvent
 from jigsawwm.w32.monitor import get_topo_sorted_monitors
 from .manager_core import WindowManagerCore, MonitorState
 from .theme import Theme
@@ -27,7 +25,6 @@ class WindowManager(WindowManagerCore):
             init_exe_sequence = init_exe_sequence or [],
             rules=rules,
         )
-        self._hide_ui_thread = None
         self._ignore_events = False
         super().__init__(config)
 
@@ -50,7 +47,7 @@ class WindowManager(WindowManagerCore):
             if monitor_state.workspace.tilable_windows:
                 self.activate(monitor_state.workspace.tilable_windows[0])
             ui.show_windows_splash(monitor_state, None)
-            return self.put_hide_splash_event
+            return ui.hide_windows_splash
         try:
             src_index = monitor_state.tilable_windows.index(active_window)
         except ValueError:
@@ -59,7 +56,7 @@ class WindowManager(WindowManagerCore):
         dst_window = monitor_state.tilable_windows[dst_index]
         self.activate(dst_window)
         ui.show_windows_splash(monitor_state, dst_window)
-        return self.put_hide_splash_event
+        return ui.hide_windows_splash
 
     def _reorder(self, reorderer: Callable[[List[Window], int], None]):
         active_window, monitor_state = self.get_active_tilable_window()
@@ -116,15 +113,6 @@ class WindowManager(WindowManagerCore):
 
         self._reorder(reorderer)
 
-    def put_hide_splash_event(self):
-        """Put hide splash event into the queue"""
-        # hiding splash must be put into the queue due to each interested events are proccessed with delay
-        logger.info("put hide splash event")
-        # delay it a little bit because keys release event might happen before the splash is shown
-        def wrapped():
-            self._queue.put_nowait((WinEvent.EVENT_HIDE_SPLASH, None, time.time()))
-        workers.submit_with_delay(wrapped, 0.2)
-
     def switch_theme_by_offset(self, delta: int) -> Callable:
         """Switch theme by offset"""
         logger.info("switching theme by offset: %s", delta)
@@ -134,7 +122,7 @@ class WindowManager(WindowManagerCore):
         monitor_state.set_theme(theme)
         self.save_state()
         ui.show_windows_splash(monitor_state, None)
-        return self.put_hide_splash_event
+        return ui.hide_windows_splash
 
     def get_monitor_state_by_offset(self, delta: int, src_monitor_state: Optional[MonitorState]=None) -> MonitorState:
         """Retrieves a pair of monitor_states, the current active one and its offset in the list"""
@@ -189,14 +177,13 @@ class WindowManager(WindowManagerCore):
         self._ignore_events = True
         monitor_state.switch_workspace(workspace_index)
         self._ignore_events = False
-        logger.debug("show_windows_splash")
         self.save_state()
         ui.show_windows_splash(monitor_state, None)
         if hide_splash_in:
             logger.debug("hide splash in %s", hide_splash_in)
-            workers.submit_with_delay(self.put_hide_splash_event, hide_splash_in)
+            workers.submit_with_delay(ui.hide_windows_splash, hide_splash_in)
             return None
-        return self.put_hide_splash_event
+        return ui.hide_windows_splash
 
     def move_to_workspace(self, workspace_index: int):
         """Move active window to a specific workspace"""
