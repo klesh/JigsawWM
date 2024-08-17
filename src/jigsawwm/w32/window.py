@@ -13,6 +13,7 @@ from functools import cached_property
 from . import process
 from .sendinput import send_input, INPUT, INPUTTYPE, KEYBDINPUT, KEYEVENTF
 from .vk import Vk
+from .monitor import get_monitor_from_window
 from .window_structs import (
   WindowStyle, WindowExStyle, EnumCheckResult, ShowWindowCmd, DwmWindowAttribute,
   repr_rect
@@ -236,27 +237,28 @@ class Window:
     :param hwnd: HWND the window handle
     """
 
-    _hwnd: HWND
+    handle: HWND
     restricted_rect = None
     compensated_rect = None
     restricted_actual_rect = None
     attrs: dict = None
+    restored_once = False
 
     def __init__(self, hwnd: HWND):
-        self._hwnd = hwnd
+        self.handle = hwnd
         self.attrs = {}
 
     def __eq__(self, other):
-        return isinstance(other, Window) and self._hwnd == other._hwnd
+        return isinstance(other, Window) and self.handle == other.handle
 
     def __hash__(self):
-        return hash(self._hwnd)
+        return hash(self.handle)
 
     def __repr__(self):
         exe = self.exe
         if exe:
             exe = path.basename(exe)
-        return f"<Window exe={exe} title={self.title[:10]} hwnd={self._hwnd}{' tilable' if self.is_tilable else ''}>"
+        return f"<Window exe={exe} title={self.title[:10]} hwnd={self.handle}{' tilable' if self.is_tilable else ''}>"
 
     # some windows may change their style after created and there will be no event raised
     # so we need to remember the tilable state to avoid undesirable behavior.
@@ -272,11 +274,6 @@ class Window:
         )
 
     @property
-    def handle(self) -> HWND:
-        """Retrieves the window handle"""
-        return self._hwnd
-
-    @property
     def title(self) -> str:
         """Retrieves the text of the specified window's title bar (if it has one)
 
@@ -285,7 +282,7 @@ class Window:
         :return: text of the title bar
         :rtype: str
         """
-        return get_window_title(self._hwnd)
+        return get_window_title(self.handle)
 
     @property
     def class_name(self):
@@ -296,7 +293,7 @@ class Window:
         :return: class name
         :rtype: str
         """
-        return get_window_class_name(self._hwnd)
+        return get_window_class_name(self.handle)
 
     @property
     def exe(self):
@@ -314,17 +311,17 @@ class Window:
         :return: process id
         :rtype: int
         """
-        return get_window_pid(self._hwnd)
+        return get_window_pid(self.handle)
 
     @property
     def parent_handle(self) -> HWND:
         """Retrieves the parent window handle"""
-        return user32.GetParent(self._hwnd)
+        return user32.GetParent(self.handle)
 
     @property
     def is_iconic(self) -> bool:
         """Check if window is iconic"""
-        return user32.IsIconic(self._hwnd)
+        return user32.IsIconic(self.handle)
 
     @property
     def is_visible(self) -> bool:
@@ -335,7 +332,7 @@ class Window:
             Otherwise, the return value is `False`.
         :rtype: bool
         """
-        return is_window_visible(self._hwnd) and not self.is_cloaked and not self.is_iconic
+        return is_window_visible(self.handle) and not self.is_cloaked and not self.is_iconic
 
     @property
     def is_maximized(self) -> bool:
@@ -348,9 +345,20 @@ class Window:
         return not WindowStyle.MINIMIZE & self.get_style()
 
     @property
+    def is_fullscreen(self) -> bool:
+        """Check if window is fullscreen"""
+        mr = get_monitor_from_window(self.handle).get_rect()
+        wr = self.get_rect()
+        return mr.top == wr.top and mr.left == wr.left and mr.right == wr.right and mr.bottom == wr.bottom
+
+    @property
     def is_evelated(self):
         """Check if window is elevated (Administrator)"""
         return process.is_elevated(self.pid)
+
+    @property
+    def is_restored(self):
+        return not (user32.IsIconic(self.handle) or user32.IsZoomed(self.handle))
 
     @property
     def dpi_awareness(self):
@@ -363,12 +371,12 @@ class Window:
 
         Ref: https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/ne-dwmapi-dwmwindowattribute
         """
-        return is_window_cloaked(self._hwnd)
+        return is_window_cloaked(self.handle)
 
     @property
     def icon_handle(self) -> HANDLE:
         """Retrieves the icon handle of the specified window"""
-        return get_window_icon(self._hwnd)
+        return get_window_icon(self.handle)
 
     def get_style(self) -> WindowStyle:
         """Retrieves style
@@ -376,7 +384,7 @@ class Window:
         :return: window style
         :rtype: WindowStyle
         """
-        return get_window_style(self._hwnd)
+        return get_window_style(self.handle)
 
     def get_exstyle(self) -> WindowExStyle:
         """Retrieves ex-style
@@ -384,20 +392,20 @@ class Window:
         :return: window ex-style
         :rtype: ExWindowStyle
         """
-        return get_window_exstyle(self._hwnd)
+        return get_window_exstyle(self.handle)
 
     def minimize(self):
         """Minimizes the specified window and activates the next top-level window in the Z order."""
-        minimize_window(self._hwnd)
+        minimize_window(self.handle)
 
     def maximize(self):
         """Activates the window and displays it as a maximized window."""
-        maximize_window(self._hwnd)
+        maximize_window(self.handle)
 
     def restore(self):
         """Activates and displays the window. If the window is minimized or maximized,
         the system restores it to its original size and position."""
-        restore_window(self._hwnd)
+        restore_window(self.handle)
 
     def toggle_maximize(self):
         """Toggle maximize style"""
@@ -408,14 +416,14 @@ class Window:
 
     def exists(self) -> bool:
         """Check if window exists"""
-        return is_window(self._hwnd)
+        return is_window(self.handle)
 
     def get_extended_frame_bounds(self) -> RECT:
         """Retrieves extended frame bounds
 
         Ref: https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/ne-dwmapi-dwmwindowattribute
         """
-        return get_window_extended_frame_bounds(self._hwnd)
+        return get_window_extended_frame_bounds(self.handle)
 
     def get_rect(self) -> RECT:
         """Retrieves the dimensions of the bounding rectangle of the specified window.
@@ -427,7 +435,7 @@ class Window:
         :return: a RECT with top/left/bottom/right properties
         :rtype: RECT
         """
-        return get_window_rect(self._hwnd)
+        return get_window_rect(self.handle)
 
     def set_rect(self, rect: RECT):
         """Sets the dimensions of the bounding rectangle (Call SetWindowPos with RECT)
@@ -437,12 +445,13 @@ class Window:
         :param rect: RECT with top/left/bottom/right properties
         """
         logger.debug("set rect to %s for %s", repr_rect(rect), self.title)
-        if self.is_maximized:
-            self.restore()
-        set_window_rect(self._hwnd, rect)
+        set_window_rect(self.handle, rect)
 
     def set_restrict_rect(self, rect: RECT):
         """Set the restricted rect"""
+        if not self.is_restored:
+            self.restore()
+            self.restored_once = True
         self.set_rect(rect)
         self.restricted_rect = rect
         self.compensated_rect = None
@@ -464,6 +473,10 @@ class Window:
 
     def restrict(self):
         """Restrict the window to the restricted rect"""
+        if self.restored_once and not self.is_restored:
+            # user intentionally maximize the window, don't restrict it
+            return
+        self.restored_once = True
         if self.restricted_actual_rect:
             r1 = self.restricted_actual_rect
             r2 = self.get_rect()
@@ -485,7 +498,7 @@ class Window:
         rect.top += margin
         rect.right -= margin
         rect.bottom -= margin
-        set_window_rect(self._hwnd, rect)
+        set_window_rect(self.handle, rect)
 
     def activate(self) -> bool:
         """Brings the thread that created current window into the foreground and activates the window"""
@@ -498,18 +511,18 @@ class Window:
 
     def show(self):
         """Shows the window"""
-        user32.ShowWindow(self._hwnd, ShowWindowCmd.SW_SHOWNA)
+        user32.ShowWindow(self.handle, ShowWindowCmd.SW_SHOWNA)
 
     def hide(self):
         """Hides the window"""
-        user32.ShowWindow(self._hwnd, ShowWindowCmd.SW_HIDE)
+        user32.ShowWindow(self.handle, ShowWindowCmd.SW_HIDE)
 
     def toggle(self, show: bool):
         """Toggle window visibility"""
         # fusion360 object selection window not functioning properly after hidden and show, unless minimized then restored
         if not show:
             self.minimize()
-        user32.ShowWindow(self._hwnd,  ShowWindowCmd.SW_SHOWNA if show else ShowWindowCmd.SW_HIDE)
+        user32.ShowWindow(self.handle,  ShowWindowCmd.SW_SHOWNA if show else ShowWindowCmd.SW_HIDE)
         if show:
             self.restore()
 
@@ -650,6 +663,7 @@ def inspect_window(hwnd: HWND, file=sys.stdout):
     print("visible      :", user32.IsWindowVisible(hwnd), file=file)
     print("is_cloaked   :", window.is_cloaked, file=file)
     print("is_top_level :", is_toplevel_window(hwnd), file=file)
+    print("is_resored   :", window.is_restored, file=file)
     print("parent       :", user32.GetParent(hwnd), file=file)
     print("dpi_awareness:", window.dpi_awareness.name, file=file)
 
