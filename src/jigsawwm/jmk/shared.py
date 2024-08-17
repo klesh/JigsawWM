@@ -3,6 +3,7 @@ import logging
 import typing
 from dataclasses import dataclass
 from functools import partial
+from threading import Lock
 
 from jigsawwm.w32.vk import * # pylint: disable=unused-wildcard-import,wildcard-import
 from jigsawwm import workers
@@ -23,6 +24,7 @@ class JmkTrigger:
     triggerred: bool = False
     lit_keys: typing.Set[Vk] = None
     first_lit_at: float = None
+    _lock: Lock = field(default_factory=Lock)
 
     def trigger(self):
         """Trigger"""
@@ -33,7 +35,9 @@ class JmkTrigger:
             release_cb = self.callback()
             if release_cb:
                 self.release_callback = release_cb
+            self._lock.release()
 
+        self._lock.acquire()
         workers.submit(wrapped)
 
     def release(self):
@@ -42,8 +46,15 @@ class JmkTrigger:
             return
         logger.info("keys released: %s", self.keys)
         self.triggerred = False
-        if self.release_callback:
-            workers.submit(self.release_callback)
+
+        def wrapped():
+            if self.release_callback:
+                workers.submit(self.release_callback)
+                self._lock.release()
+
+        self._lock.acquire()
+        workers.submit(wrapped)
+
 
 class JmkTriggers(JmkHandler):
     """A handler that handles triggers."""
@@ -56,6 +67,7 @@ class JmkTriggers(JmkHandler):
         next_handler,
         triggers: typing.List[typing.Tuple[JmkCombination, typing.Callable, typing.Optional[typing.Callable]]] = None,
     ):
+        super().__init__()
         self.next_handler = next_handler
         self.triggers = {}
         if triggers:
