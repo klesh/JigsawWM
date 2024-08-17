@@ -143,6 +143,7 @@ hotkeys = [
     ("Win+OEM_PERIOD", "LAlt+OEM_PERIOD"),
     ("Win+Ctrl+l", "LWin+LCtrl+Right"),
     ("Win+Ctrl+h", "LWin+LCtrl+Left"),
+    ("Win+Ctrl+q", daemon.stop),
     # ("Win+Ctrl+a", partial(virtdesk.switch_desktop, 1)),
     # ("Win+Ctrl+s", partial(virtdesk.switch_desktop, 2)),
     # ("Win+Ctrl+d", partial(virtdesk.switch_desktop, 3)),
