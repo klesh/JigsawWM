@@ -168,18 +168,17 @@ class WindowManagerCore:
             else:
                 return False
         # # filter by event
-        if event == WinEvent.EVENT_OBJECT_SHOW or event == WinEvent.EVENT_OBJECT_UNCLOAKED or event == WinEvent.EVENT_SYSTEM_FOREGROUND:
+        if event == WinEvent.EVENT_SYSTEM_FOREGROUND:
             # a window belongs to hidden workspace just got activated
             # put your default browser into workspace and then ctrl-click a link, e.g. http://google.com 
-            if event == WinEvent.EVENT_SYSTEM_FOREGROUND:
-                state = self.virtdesk_state.find_window_in_hidden_workspaces(window.handle)
-                if state:
-                    monitor_state, workspace_index  = state
-                    logger.debug("switch workspace to index %d on monitor %s for event %s of activated window %s", workspace_index, monitor_state.monitor.name, event.name, window)
-                    monitor_state.switch_workspace(workspace_index)
-                    return False
-            # when switching monitor, another window gets actiated
-            if hwnd in self._managed_windows or not self.is_window_manageable(window) or event == WinEvent.EVENT_SYSTEM_FOREGROUND:
+            state = self.virtdesk_state.find_window_in_hidden_workspaces(window.handle)
+            if state:
+                monitor_state, workspace_index  = state
+                logger.debug("switch workspace to index %d on monitor %s for event %s of activated window %s", workspace_index, monitor_state.monitor.name, event.name, window)
+                monitor_state.switch_workspace(workspace_index)
+            return False
+        elif event == WinEvent.EVENT_OBJECT_SHOW or event == WinEvent.EVENT_OBJECT_UNCLOAKED:
+            if hwnd in self._managed_windows or not self.is_window_manageable(window):
                 return False
         elif event == WinEvent.EVENT_OBJECT_HIDE: # same as above
             # when window is hidden or destroyed, it would not pass the is_window_manageable check
@@ -317,11 +316,11 @@ class WindowManagerCore:
             # )
             # add window to lists
             group_wins_by_mons[monitor].add(window)
-            logger.debug("group windows: %s owns %s", monitor.name, window)
         # synchronize windows on each monitor
         # pass down to monitor_state for further synchronization
         changed = False
         for monitor, windows in group_wins_by_mons.items():
+            logger.info("distribute windows %s to %s", windows, monitor.name)
             monitor_state = virtdesk_state.get_monitor_state(monitor)
             changed |= monitor_state.sync_windows(windows)
         if changed:
@@ -336,7 +335,7 @@ class WindowManagerCore:
             window.attrs["rule"] = rule
             if len(monitors) > rule.to_monitor_index:
                 return monitors[rule.to_monitor_index]
-        logger.debug("no rule found for %s", window)
+        # logger.debug("no rule found for %s", window)
         return None
 
     def get_manageable_windows(self) -> Set[Window]:
