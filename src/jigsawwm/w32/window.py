@@ -169,7 +169,6 @@ def is_app_window(hwnd: HWND) -> bool:
         and WindowExStyle.TRANSPARENT not in exstyle # ignore ubuntu.exe
         and is_window_visible(hwnd)
         and not is_window_cloaked(hwnd)
-        and not user32.IsIconic(hwnd)
         and not process.is_elevated(pid)
         and process.get_exepath(pid)
     )
@@ -243,6 +242,7 @@ class Window:
     restricted_actual_rect = None
     attrs: dict = None
     restored_once = False
+    minimized_by_user = False
 
     def __init__(self, hwnd: HWND):
         self.handle = hwnd
@@ -520,11 +520,12 @@ class Window:
     def toggle(self, show: bool):
         """Toggle window visibility"""
         # fusion360 object selection window not functioning properly after hidden and show, unless minimized then restored
+        # notepad status bar not positioning properly unless it get restored before show
         if not show:
             self.minimize()
-        user32.ShowWindow(self.handle,  ShowWindowCmd.SW_SHOWNA if show else ShowWindowCmd.SW_HIDE)
-        if show:
+        elif not self.minimized_by_user:
             self.restore()
+        user32.ShowWindow(self.handle,  ShowWindowCmd.SW_SHOWNA if show else ShowWindowCmd.SW_HIDE)
 
 
 def get_app_windows() -> List[Window]:

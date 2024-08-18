@@ -3,7 +3,7 @@ import logging
 from typing import List, Set, Optional
 from os import path
 
-from jigsawwm.w32.window import RECT, Window, get_active_window
+from jigsawwm.w32.window import RECT, Window, get_foreground_window
 from jigsawwm.w32.monitor import Monitor, set_cursor_pos
 
 from .config import WmConfig
@@ -56,9 +56,13 @@ class WorkspaceState(PickableState):
 
     def on_unfocus(self):
         """Unfocus the workspace"""
-        fw = get_active_window()
-        if fw in self.windows:
-            self.last_active_window = fw
+        fw = get_foreground_window()
+        for w in self.windows:
+            w.minimized_by_user = w.is_iconic
+            if fw == w.handle:
+                self.last_active_window = w
+                return
+        self.last_active_window = None
 
     def on_focus(self):
         """Focus on the last active window or the center of the screen"""
@@ -135,7 +139,7 @@ class WorkspaceState(PickableState):
         # process the tilable windows
         incoming_tilable_windows = {
             w for w in incoming_windows
-            if w.is_tilable and w.is_visible and self.config.is_window_tilable(w)
+            if w.is_tilable and w.is_visible and not w.is_iconic and self.config.is_window_tilable(w)
         }
         # remove windows that are not in the incoming list
         new_tilable_windows = []
