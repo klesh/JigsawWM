@@ -23,7 +23,7 @@ def submit(func, *args, **kwargs):
         except Exception as e: # pylint: disable=broad-exception-caught
             if handle_exc:
                 handle_exc(e) # pylint: disable=not-callable
-            logger.exception(e)
+            logger.exception(e, exc_info=True)
 
     return executor.submit(wrapped, *args, **kwargs)
 

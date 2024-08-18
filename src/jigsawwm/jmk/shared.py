@@ -29,15 +29,17 @@ class JmkTrigger:
     def trigger(self):
         """Trigger"""
         logger.info("keys triggered: %s", self.keys)
+        self._lock.acquire()
         self.triggerred = True
 
         def wrapped():
-            release_cb = self.callback()
-            if release_cb:
-                self.release_callback = release_cb
-            self._lock.release()
+            try:
+                release_cb = self.callback()
+                if release_cb:
+                    self.release_callback = release_cb
+            finally:
+                self._lock.release()
 
-        self._lock.acquire()
         workers.submit(wrapped)
 
     def release(self):
@@ -45,14 +47,16 @@ class JmkTrigger:
         if not self.triggerred:
             return
         logger.info("keys released: %s", self.keys)
+        self._lock.acquire()
         self.triggerred = False
 
         def wrapped():
             if self.release_callback:
-                workers.submit(self.release_callback)
-                self._lock.release()
+                try:
+                    workers.submit(self.release_callback)
+                finally:
+                    self._lock.release()
 
-        self._lock.acquire()
         workers.submit(wrapped)
 
 
