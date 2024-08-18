@@ -149,8 +149,8 @@ class WindowManager(WindowManagerCore):
         src_monitor_state = self.get_active_monitor_state()
         dst_monitor_state = self.get_monitor_state_by_offset(delta, src_monitor_state=src_monitor_state)
         self._ignore_events = True
-        src_monitor_state.workspace.on_unfocus()
-        dst_monitor_state.workspace.on_focus()
+        src_monitor_state.workspace.before_hide()
+        dst_monitor_state.workspace.after_show()
         self._ignore_events = False
 
     def move_to_monitor_by_offset(self, delta: int):

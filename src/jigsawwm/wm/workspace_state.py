@@ -54,8 +54,8 @@ class WorkspaceState(PickableState):
             if window.exists() and not self.showing:
                 window.hide()
 
-    def on_unfocus(self):
-        """Unfocus the workspace"""
+    def before_hide(self):
+        """Before hiding the workspace"""
         fw = get_foreground_window()
         for w in self.windows:
             w.minimized_by_user = w.is_iconic
@@ -64,8 +64,8 @@ class WorkspaceState(PickableState):
                 return
         self.last_active_window = None
 
-    def on_focus(self):
-        """Focus on the last active window or the center of the screen"""
+    def after_show(self):
+        """After showing the workspace"""
         if (
             self.last_active_window
             and self.last_active_window.exists()
@@ -91,12 +91,12 @@ class WorkspaceState(PickableState):
         logger.debug("%s toggle show %s", self, show)
         self.showing = show
         if not show:
-            self.on_unfocus()
+            self.before_hide()
         for window in self.windows:
             window.toggle(show)
         if show:
             self.sync_windows(self.windows)
-            self.on_focus()
+            self.after_show()
 
     def set_theme(self, theme: Theme):
         """Set theme for the workspace"""

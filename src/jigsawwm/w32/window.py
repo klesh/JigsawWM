@@ -525,11 +525,11 @@ class Window:
 
     def show(self):
         """Shows the window"""
-        user32.ShowWindow(self.handle, ShowWindowCmd.SW_SHOWNA)
+        show_window(self.handle, ShowWindowCmd.SW_SHOWNA)
 
     def hide(self):
         """Hides the window"""
-        user32.ShowWindow(self.handle, ShowWindowCmd.SW_HIDE)
+        show_window(self.handle, ShowWindowCmd.SW_HIDE)
 
     def toggle(self, show: bool):
         """Toggle window visibility"""
@@ -539,7 +539,7 @@ class Window:
             self.minimize()
         elif not self.minimized_by_user:
             self.restore()
-        user32.ShowWindow(self.handle,  ShowWindowCmd.SW_SHOWNA if show else ShowWindowCmd.SW_HIDE)
+        show_window(self.handle,  ShowWindowCmd.SW_SHOWNA if show else ShowWindowCmd.SW_HIDE)
 
 def filter_app_windows(check: Callable[[HWND], bool]) -> List[Window]:
     """Filter app windows of the current desktop"""
