@@ -21,9 +21,10 @@ from jigsawwm.w32.window import (
     HWND,
     LONG,
     Window,
-    is_app_window,
+    is_visible_app_window,
     get_foreground_window,
     iter_windows,
+    windows_might_hidden_by_us,
 )
 from jigsawwm.w32.monitor import get_monitor_from_cursor
 from jigsawwm.w32.winevent import WinEvent
@@ -195,6 +196,8 @@ class WindowManagerCore:
             # WinEvent.EVENT_SYSTEM_MOVESIZEEND, # fix case: resizing any app window
             # WinEvent.EVENT_OBJECT_PARENTCHANGE,
         ):
+            if self.virtdesk_state.find_window_in_hidden_workspaces(window.handle):
+                return False
             if event not in (
                 WinEvent.EVENT_OBJECT_LOCATIONCHANGE,
                 WinEvent.EVENT_OBJECT_NAMECHANGE,
@@ -351,10 +354,14 @@ class WindowManagerCore:
             return True
         iter_windows(check_window)
         return manageable_windows
-    
+
+    def is_window_ignored(self, window: Window) -> bool:
+        """Check if the window is manageable by the WindowManager"""
+        return window.handle == ui.instance.winId() or not self.config.is_window_manageable(window)
+
     def is_window_manageable(self, window: Window) -> bool:
         """Check if the window is manageable by the WindowManager"""
-        return window.handle != ui.instance.winId() and is_app_window(window.handle) and self.config.is_window_manageable(window)
+        return not self.is_window_ignored(window) and is_visible_app_window(window.handle)
 
     def unhide_workspaces(self):
         """Unhide all workspaces"""
@@ -383,6 +390,15 @@ class WindowManagerCore:
                     logger.exception("load windows states error", exc_info=True)
             for virtdesk_state in self.virtdesk_states.values():
                 virtdesk_state.update_config(self.config)
+            for w in windows_might_hidden_by_us():
+                if self.is_window_ignored(w):
+                    continue
+                state = self.virtdesk_state.find_window_in_hidden_workspaces(w.handle)
+                if not state:
+                    logger.warning("recover possibly lost window %s", w)
+                    w.toggle(True)
+                else:
+                    logger.info("window %s belong to monitor %s workspace #%d", w, state[0], state[1])
             self.sync_windows()
             loaded = True
         else:

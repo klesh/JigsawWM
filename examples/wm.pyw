@@ -58,7 +58,7 @@ wm = WindowManager(
         WmRule(exe_regex=r"\bApplicationFrameHost\.exe$", tilable=False),
         WmRule(exe_regex=r"\bnotepad\+\+\.exe", tilable=False),
         WmRule(exe_regex=r"\bPotPlayerMini64\.exe", tilable=False),
-        WmRule(exe_regex=r"\bmintty\.exe", tilable=False),
+        # WmRule(exe_regex=r"\bmintty\.exe", tilable=False),
         WmRule(exe_regex=r"\bopenvpn-gui\.exe", tilable=False),
 
         WmRule(exe_regex=r"\bObsidian\.exe$", title_regex=None, to_monitor_index=1),

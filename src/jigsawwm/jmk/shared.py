@@ -51,11 +51,11 @@ class JmkTrigger:
         self.triggerred = False
 
         def wrapped():
-            if self.release_callback:
-                try:
+            try:
+                if self.release_callback:
                     workers.submit(self.release_callback)
-                finally:
-                    self._lock.release()
+            finally:
+                self._lock.release()
 
         workers.submit(wrapped)
 

@@ -151,28 +151,42 @@ def is_toplevel_window(hwnd: HWND) -> bool:
     return user32.IsTopLevelWindow(hwnd)
 
 
-def is_app_window(hwnd: HWND) -> bool:
-    """Check if window is a app window (user mode / visible / resizable)"""
-    style = get_window_style(hwnd)
+NOT_APP_CLASS_NAMES = {
+    "Shell_TrayWnd", # taskbar
+    "Shell_SecondaryTrayWnd",
+    "Progman", # desktop background
+    "WorkerW",
+}
+
+def _is_app_window_base(hwnd: HWND) -> bool:
+    """Check if window is a app window which could be managed"""
+    # style = get_window_style(hwnd)
     exstyle = get_window_exstyle(hwnd)
     pid = get_window_pid(hwnd)
     class_name = get_window_class_name(hwnd)
     return bool(
-        WindowStyle.VISIBLE in style
-        # and WindowStyle.CLIPCHILDREN in style # would make obsidian not being managed
-        # and (WindowStyle.MAXIMIZEBOX & style or WindowStyle.MINIMIZEBOX & style)
-        and class_name != "Shell_TrayWnd" # taskbar
-        and class_name != "Shell_SecondaryTrayWnd"
-        and class_name != "Progman" # desktop background
+        not is_window_cloaked(hwnd) # we never cloaked a window
+        and class_name not in NOT_APP_CLASS_NAMES
         and is_toplevel_window(hwnd)
-        # and not user32.GetParent(hwnd) # fix: dbeaver preferences window keep showing when switching workspace
         and WindowExStyle.TRANSPARENT not in exstyle # ignore ubuntu.exe
-        and is_window_visible(hwnd)
-        and not is_window_cloaked(hwnd)
-        and not process.is_elevated(pid)
+        and not process.is_elevated(pid) # ignore admin windows
         and process.get_exepath(pid)
+        # and WindowStyle.CLIPCHILDREN in style # would make obsidian not being managed
+        # and not user32.GetParent(hwnd) # fix: dbeaver preferences window keep showing when switching workspace
+        # and (WindowStyle.MAXIMIZEBOX & style or WindowStyle.MINIMIZEBOX & style)
     )
 
+def is_visible_app_window(hwnd: HWND) -> bool:
+    """Check if window is a visible app window which could be managed"""
+    return _is_app_window_base(hwnd) and is_window_visible(hwnd)
+
+def is_hidden_app_window(hwnd: HWND) -> bool:
+    """Check if window is a hidden app window"""
+    return _is_app_window_base(hwnd) and not is_window_visible(hwnd) and user32.IsIconic(hwnd)
+
+def windows_might_hidden_by_us() -> List[HWND]:
+    """Get list of app windows which might be hidden by us previously"""
+    return filter_app_windows(is_hidden_app_window)
 
 def get_window_extended_frame_bounds(hwnd: HWND) -> RECT:
     """Retrieve extended frame bounds of the specified window"""
@@ -527,15 +541,13 @@ class Window:
             self.restore()
         user32.ShowWindow(self.handle,  ShowWindowCmd.SW_SHOWNA if show else ShowWindowCmd.SW_HIDE)
 
-
-def get_app_windows() -> List[Window]:
-    """Get all app windows of the current desktop"""
+def filter_app_windows(check: Callable[[HWND], bool]) -> List[Window]:
+    """Filter app windows of the current desktop"""
     return map(Window, enum_windows(
         lambda hwnd: EnumCheckResult.CAPTURE
-        if is_app_window(hwnd)
+        if check(hwnd)
         else EnumCheckResult.SKIP
     ))
-
 
 def get_window_from_pos(x, y: int) -> Optional[Window]:
     """Retrieves the window at the specified position"""
@@ -658,7 +670,7 @@ def inspect_window(hwnd: HWND, file=sys.stdout):
     print("rect         :", rect.left, rect.top, rect.right, rect.bottom, file=file)
     bound = window.get_extended_frame_bounds()
     print("bound        :", bound.left, bound.top, bound.right, bound.bottom, file=file)
-    print("is_app_window:", is_app_window(hwnd), file=file)
+    print("is_app_window:", is_visible_app_window(hwnd), file=file)
     print("is_evelated  :", window.is_evelated, file=file)
     print("is_iconic    :", user32.IsIconic(hwnd), file=file)
     print("visible      :", user32.IsWindowVisible(hwnd), file=file)
@@ -685,7 +697,13 @@ if __name__ == "__main__":
             for win in enum_windows():
                 inspect_window(win)
         elif param == "app":
-            for wd in get_app_windows():
+            for wd in filter_app_windows(is_visible_app_window):
+                inspect_window(wd.handle)
+        elif param == "hidden":
+            for wd in filter_app_windows(is_hidden_app_window):
+                inspect_window(wd.handle)
+        elif param == "exe":
+            for wd in filter_app_windows(lambda hwnd: process.get_exepath(get_window_pid(hwnd)).lower().endswith(sys.argv[2].lower())):
                 inspect_window(wd.handle)
     else:
         time.sleep(2)
