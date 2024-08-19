@@ -243,6 +243,11 @@ def get_window_icon(hwnd: HWND) -> HANDLE:
     return handle
 
 
+NOT_TILABLE_EXE_NAMES = {
+    "QuickLook.exe"
+}
+
+
 @dataclass
 class Window:
     """Represents a top-level window
@@ -269,10 +274,7 @@ class Window:
         return hash(self.handle)
 
     def __repr__(self):
-        exe = self.exe
-        if exe:
-            exe = path.basename(exe)
-        return f"<Window exe={exe} title={self.title[:10]} hwnd={self.handle}{' tilable' if self.is_tilable else ''}>"
+        return f"<Window exe={self.exe_name} title={self.title[:10]} hwnd={self.handle}{' tilable' if self.is_tilable else ''}>"
 
     # some windows may change their style after created and there will be no event raised
     # so we need to remember the tilable state to avoid undesirable behavior.
@@ -284,6 +286,7 @@ class Window:
         return (
             WindowStyle.SIZEBOX in style
             and WindowStyle.MAXIMIZEBOX & style and WindowStyle.MINIMIZEBOX & style
+            and self.exe_name not in NOT_TILABLE_EXE_NAMES
             # and not WindowStyle.MINIMIZE & style
         )
 
@@ -298,7 +301,7 @@ class Window:
         """
         return get_window_title(self.handle)
 
-    @property
+    @cached_property
     def class_name(self):
         """Retrieves the name of the class to which the specified window belongs.
 
@@ -309,7 +312,7 @@ class Window:
         """
         return get_window_class_name(self.handle)
 
-    @property
+    @cached_property
     def exe(self):
         """Retrieves the full path of the executable
 
@@ -318,7 +321,15 @@ class Window:
         """
         return process.get_exepath(self.pid)
 
-    @property
+    @cached_property
+    def exe_name(self):
+        """Retrieves the name of the executable"""
+        exe = self.exe
+        if exe:
+            exe = path.basename(exe)
+        return exe
+
+    @cached_property
     def pid(self) -> int:
         """Retrieves the process id
 
@@ -365,16 +376,17 @@ class Window:
         wr = self.get_rect()
         return mr.top == wr.top and mr.left == wr.left and mr.right == wr.right and mr.bottom == wr.bottom
 
-    @property
+    @cached_property
     def is_evelated(self):
         """Check if window is elevated (Administrator)"""
         return process.is_elevated(self.pid)
 
     @property
     def is_restored(self):
-        return not (user32.IsIconic(self.handle) or user32.IsZoomed(self.handle))
+        """Check if window is restored"""
+        return not self.is_iconic and not self.is_fullscreen and not self.is_maximized
 
-    @property
+    @cached_property
     def dpi_awareness(self):
         """Check if window is api aware"""
         return process.get_process_dpi_awareness(self.pid)
