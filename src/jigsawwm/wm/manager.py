@@ -25,7 +25,6 @@ class WindowManager(WindowManagerCore):
             init_exe_sequence = init_exe_sequence or [],
             rules=rules,
         )
-        self._ignore_events = False
         super().__init__(config)
 
     def activate(self, window: Window):
@@ -148,10 +147,8 @@ class WindowManager(WindowManagerCore):
         logger.debug("switch_monitor_by_offset: %s", delta)
         src_monitor_state = self.get_active_monitor_state()
         dst_monitor_state = self.get_monitor_state_by_offset(delta, src_monitor_state=src_monitor_state)
-        self._ignore_events = True
         src_monitor_state.workspace.before_hide()
         dst_monitor_state.workspace.after_show()
-        self._ignore_events = False
 
     def move_to_monitor_by_offset(self, delta: int):
         """Move active window to another monitor by offset"""
@@ -174,9 +171,7 @@ class WindowManager(WindowManagerCore):
             monitor_state = self.get_active_monitor_state()
         if monitor_state.active_workspace_index == workspace_index:
             return
-        self._ignore_events = True
         monitor_state.switch_workspace(workspace_index)
-        self._ignore_events = False
         self.save_state()
         ui.show_windows_splash(monitor_state, None)
         if hide_splash_in:
@@ -190,9 +185,7 @@ class WindowManager(WindowManagerCore):
         active_window, src_monitor_state = self.get_active_window()
         if not active_window:
             return
-        self._ignore_events = True
         src_monitor_state.move_to_workspace(active_window, workspace_index)
-        self._ignore_events = False
         self.save_state()
 
     def prev_theme(self):

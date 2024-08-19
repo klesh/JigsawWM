@@ -5,7 +5,7 @@ import pickle
 import time
 from typing import Dict, List, Set, Tuple, Optional
 from queue import SimpleQueue
-from threading import Thread
+from threading import Thread, Lock
 
 from jigsawwm.w32 import hook
 from jigsawwm.w32.monitor import (
@@ -62,7 +62,8 @@ class WindowManagerCore:
     _managed_windows: Dict[HWND, Window] = {}
     _queue: Optional[SimpleQueue]  = None
     _consumer: Optional[Thread] = None
-    _ignore_events: bool = False
+    _ignore_events: Set[frozenset] = set()
+    _ignore_events_lock = Lock()
 
     def __init__(
         self,
@@ -118,6 +119,7 @@ class WindowManagerCore:
         self.init_sync()
         self.install_hooks()
         ui.on_screen_changed(self._screen_changed_callback)
+        self.set_window_event_callbacks()
 
     def stop(self):
         """Stop the WindowManagerCore service"""
@@ -134,6 +136,10 @@ class WindowManagerCore:
                 if not event:
                     break # terminate
                 event, hwnd, ts = event
+                # check if event in ignore list
+                if self.pop_ignored_event(event, hwnd):
+                    logger.debug("event %s ignored for window %s", event.name, Window(hwnd))
+                    continue
                 if event == WinEvent.EVENT_SCREEN_CHANGED or self.is_event_interested(event, hwnd):
                     # delay for a certain time for windows state to be stable
                     #  case 1: CVR won't be tiled when restored with maximized mode
@@ -147,6 +153,29 @@ class WindowManagerCore:
                     self.sync_windows()
             except : # pylint: disable=bare-except
                 logger.exception("consume_queue error", exc_info=True)
+
+    def ignore_event(self, event, hwnd=None):
+        """Ignore the event"""
+        logger.debug("ignore event %s for window %s", event.name, hwnd)
+        with self._ignore_events_lock:
+            self._ignore_events.add(frozenset((event, hwnd)))
+
+    def pop_ignored_event(self, event, hwnd=None):
+        """Pop the ignored event"""
+        key = frozenset((event, hwnd))
+        with self._ignore_events_lock:
+            if key in self._ignore_events:
+                self._ignore_events.remove(key)
+                return True
+        return False
+
+    def set_window_event_callbacks(self):
+        """Set window event callbacks"""
+        Window.before_show = lambda w: self.ignore_event(WinEvent.EVENT_OBJECT_SHOW, w.handle)
+        Window.before_hide = lambda w: self.ignore_event(WinEvent.EVENT_OBJECT_HIDE, w.handle)
+        Window.before_activate = lambda w: self.ignore_event(WinEvent.EVENT_SYSTEM_FOREGROUND, w.handle)
+        Window.before_minimize = lambda w: self.ignore_event(WinEvent.EVENT_SYSTEM_MINIMIZESTART, w.handle)
+        Window.before_unminimize = lambda w: self.ignore_event(WinEvent.EVENT_SYSTEM_MINIMIZEEND, w.handle)
 
     def is_event_interested(self, event: WinEvent, hwnd: HWND) -> bool:
         """Check if event is interested"""
@@ -181,13 +210,14 @@ class WindowManagerCore:
             # when window is hidden or destroyed, it would not pass the is_window_manageable check
             # fix case: toggle chrome fullscreen
             # window.is_visible is for vscode, it somehow generte hide event when unfocused
-            # when switching workspace, windows would be hidden then trigger sync_windows
-            #  and some windows might still be visible at the time which lead to a backend and forth swithcing forever
-            #  find_window_in_hidden_workspaces is for preventing that from happening
-            if hwnd not in self._managed_windows or window.is_visible or self.virtdesk_state.find_window_in_hidden_workspaces(window):
+            if hwnd not in self._managed_windows or window.is_visible:
                 return False
         elif event == WinEvent.EVENT_SYSTEM_MOVESIZEEND:
             if self.try_swapping_window(window):
+                return False
+            return True
+        elif event == WinEvent.EVENT_SYSTEM_MINIMIZEEND:
+            if not window.is_visible:
                 return False
             return True
         elif event not in (
@@ -380,7 +410,6 @@ class WindowManagerCore:
         """Load the windows state"""
         logger.info("loading state")
         loaded = False
-        self._ignore_events = True
         if os.path.exists(DEFAULT_STATE_PATH):
             with open(DEFAULT_STATE_PATH, "rb") as f:
                 try:
@@ -390,6 +419,7 @@ class WindowManagerCore:
                     logger.exception("load windows states error", exc_info=True)
             for virtdesk_state in self.virtdesk_states.values():
                 virtdesk_state.update_config(self.config)
+            logger.info("recover possibly lost windows")
             for w in windows_might_hidden_by_us():
                 if self.is_window_ignored(w):
                     continue
@@ -403,7 +433,6 @@ class WindowManagerCore:
             loaded = True
         else:
             logger.info("nothing from the last session")
-        self._ignore_events = False
         return loaded
 
     def _winevent_callback(
@@ -415,8 +444,6 @@ class WindowManagerCore:
         _id_evt_thread: DWORD,
         _evt_time: DWORD,
     ):
-        if self._ignore_events:
-            return
         self._queue.put_nowait((event, hwnd, time.time()))
 
     def _screen_changed_callback(self):

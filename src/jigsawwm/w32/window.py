@@ -87,7 +87,6 @@ def show_window(hwnd: HWND, cmd: ShowWindowCmd):
     """Show window"""
     user32.ShowWindow(hwnd, cmd)
 
-
 def minimize_window(hwnd: HWND):
     """Minimize window"""
     show_window(hwnd, ShowWindowCmd.SW_MINIMIZE)
@@ -420,17 +419,36 @@ class Window:
         """
         return get_window_exstyle(self.handle)
 
+    before_minimize: Optional[Callable] = None
+
     def minimize(self):
         """Minimizes the specified window and activates the next top-level window in the Z order."""
+        if self.is_minimized:
+            return
+        if self.before_minimize:
+            self.before_minimize()
         minimize_window(self.handle)
+
+    before_maximize: Optional[Callable] = None
 
     def maximize(self):
         """Activates the window and displays it as a maximized window."""
+        if self.is_maximized:
+            return
+        if self.before_maximize:
+            self.before_maximize()
         maximize_window(self.handle)
+
+    before_unminimize: Optional[Callable] = None
+    before_unmaximize: Optional[Callable] = None
 
     def restore(self):
         """Activates and displays the window. If the window is minimized or maximized,
         the system restores it to its original size and position."""
+        if self.before_unminimize and self.is_minimized:
+            self.before_unminimize()
+        if self.before_unmaximize and self.is_maximized:
+            self.before_unmaximize()
         restore_window(self.handle)
 
     def toggle_maximize(self):
@@ -526,21 +544,38 @@ class Window:
         rect.bottom -= margin
         set_window_rect(self.handle, rect)
 
+    before_activate: Optional[Callable] = None
+
     def activate(self) -> bool:
         """Brings the thread that created current window into the foreground and activates the window"""
         # move cursor to the center of the window
+        if self.before_activate:
+            self.before_activate()
         rect = self.get_rect()
         x = rect.left + (rect.right - rect.left) / 2
         y = rect.top + (rect.bottom - rect.top) / 2
         user32.SetCursorPos(int(x), int(y))
         return set_active_window(self)
 
+    before_show: Optional[Callable] = None
+
     def show(self):
         """Shows the window"""
+        if self.is_visible:
+            return
+        if self.before_show:
+            self.before_show()
         show_window(self.handle, ShowWindowCmd.SW_SHOWNA)
+
+    before_hide: Optional[Callable] = None
 
     def hide(self):
         """Hides the window"""
+        if not self.is_visible:
+            return
+        if self.before_hide:
+            logger.debug("before hide %s", self)
+            self.before_hide()
         show_window(self.handle, ShowWindowCmd.SW_HIDE)
 
     def toggle(self, show: bool):
@@ -549,9 +584,10 @@ class Window:
         # notepad status bar not positioning properly unless it get restored before show
         if not show:
             self.minimize()
+            return self.hide()
         elif not self.minimized_by_user:
             self.restore()
-        show_window(self.handle,  ShowWindowCmd.SW_SHOWNA if show else ShowWindowCmd.SW_HIDE)
+        return self.show()
 
 def filter_app_windows(check: Callable[[HWND], bool]) -> List[Window]:
     """Filter app windows of the current desktop"""
