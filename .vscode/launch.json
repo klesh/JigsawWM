@@ -39,6 +39,12 @@
       "type": "debugpy",
       "request": "attach",
       "processId": "${command:pickProcess}"
+    },
+    {
+     "name": "inspect save file",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "jigsawwm.wm.manager_core",
     }
   ]
 }

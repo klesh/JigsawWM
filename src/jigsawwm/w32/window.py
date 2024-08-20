@@ -427,6 +427,7 @@ class Window:
             return
         if self.before_minimize:
             self.before_minimize()
+        logger.debug("minimize window: %s", self)
         minimize_window(self.handle)
 
     before_maximize: Optional[Callable] = None
@@ -449,6 +450,7 @@ class Window:
             self.before_unminimize()
         if self.before_unmaximize and self.is_maximized:
             self.before_unmaximize()
+        logger.debug("restore window: %s", self)
         restore_window(self.handle)
 
     def toggle_maximize(self):
