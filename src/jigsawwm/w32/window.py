@@ -419,42 +419,17 @@ class Window:
         """
         return get_window_exstyle(self.handle)
 
-    before_minimize: Optional[Callable] = None
-
     def minimize(self):
         """Minimizes the specified window and activates the next top-level window in the Z order."""
-        if self.is_iconic:
-            logger.debug("window %s already minimized", self)
-            return
-        if self.get_style() & WindowStyle.MINIMIZEBOX == 0:
-            logger.debug("window %s can not be minimized", self)
-            return
-        if self.before_minimize:
-            self.before_minimize()
-        logger.debug("minimize window: %s", self)
         minimize_window(self.handle)
-
-    before_maximize: Optional[Callable] = None
 
     def maximize(self):
         """Activates the window and displays it as a maximized window."""
-        if self.is_zoomed:
-            return
-        if self.before_maximize:
-            self.before_maximize()
         maximize_window(self.handle)
-
-    before_unminimize: Optional[Callable] = None
-    before_unmaximize: Optional[Callable] = None
 
     def restore(self):
         """Activates and displays the window. If the window is minimized or maximized,
         the system restores it to its original size and position."""
-        if self.before_unminimize and self.is_iconic:
-            self.before_unminimize()
-        if self.before_unmaximize and self.is_zoomed:
-            self.before_unmaximize()
-        logger.debug("restore window: %s", self)
         restore_window(self.handle)
 
     def toggle_maximize(self):
@@ -550,38 +525,21 @@ class Window:
         rect.bottom -= margin
         set_window_rect(self.handle, rect)
 
-    before_activate: Optional[Callable] = None
-
     def activate(self) -> bool:
         """Brings the thread that created current window into the foreground and activates the window"""
         # move cursor to the center of the window
-        if self.before_activate:
-            self.before_activate()
         rect = self.get_rect()
         x = rect.left + (rect.right - rect.left) / 2
         y = rect.top + (rect.bottom - rect.top) / 2
         user32.SetCursorPos(int(x), int(y))
         return set_active_window(self)
 
-    before_show: Optional[Callable] = None
-
     def show(self):
         """Shows the window"""
-        if self.is_visible:
-            return
-        if self.before_show:
-            self.before_show()
         show_window(self.handle, ShowWindowCmd.SW_SHOWNA)
-
-    before_hide: Optional[Callable] = None
 
     def hide(self):
         """Hides the window"""
-        if not self.is_visible:
-            return
-        if self.before_hide:
-            logger.debug("before hide %s", self)
-            self.before_hide()
         show_window(self.handle, ShowWindowCmd.SW_HIDE)
 
     def toggle(self, show: bool):
@@ -589,9 +547,9 @@ class Window:
         # fusion360 object selection window not functioning properly after hidden and show, unless minimized then restored
         # notepad status bar not positioning properly unless it get restored before show
         if not show:
-            self.minimize()
             return self.hide()
-        elif not self.minimized_by_user:
+        elif not self.minimized_by_user and self.exe_name in {"Fusion360.exe"}:
+            self.minimize()
             self.restore()
         return self.show()
 
@@ -741,6 +699,12 @@ def inspect_active_window(hwnd=None):
     print(text)
     # messagebox.showinfo("JigsawWM", text)
 
+def filter_exe(exe_name: str, class_name: str = None):
+    """filter exe"""
+    return lambda hwnd: (
+        process.get_exepath(get_window_pid(hwnd)).lower().endswith(exe_name)
+        and (class_name is None or get_window_class_name(hwnd).lower() == class_name)
+    )
 
 if __name__ == "__main__":
     if len(sys.argv)  > 1:
@@ -757,8 +721,15 @@ if __name__ == "__main__":
             for wd in filter_app_windows(is_hidden_app_window):
                 inspect_window(wd.handle)
         elif param == "exe":
-            for wd in filter_app_windows(lambda hwnd: process.get_exepath(get_window_pid(hwnd)).lower().endswith(sys.argv[2].lower())):
+            for wd in filter_app_windows(
+                filter_exe(
+                    sys.argv[2].lower(), 
+                    sys.argv[3].lower() if len(sys.argv) > 3 else None,
+                )
+            ):
                 inspect_window(wd.handle)
+        elif param == "unhide":
+            Window(int(sys.argv[2])).show()
     else:
         time.sleep(2)
         inspect_active_window()

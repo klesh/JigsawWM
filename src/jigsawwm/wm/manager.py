@@ -1,7 +1,7 @@
 """Window Manager Operations"""
 import logging
 from typing import List, Callable, Optional, Iterable
-from jigsawwm import ui, workers
+from jigsawwm import ui
 from jigsawwm.w32 import virtdesk
 from jigsawwm.w32.window import Window, top_most_window
 from jigsawwm.w32.monitor import get_topo_sorted_monitors
@@ -64,7 +64,6 @@ class WindowManager(WindowManagerCore):
         if len(monitor_state.tilable_windows) < 2:
             return
         next_active_window = reorderer(monitor_state.tilable_windows, monitor_state.tilable_windows.index(active_window))
-        # monitor_state.workspace.save_state()
         monitor_state.arrange()
         self.activate(next_active_window or active_window)
         self.save_state()
@@ -160,32 +159,6 @@ class WindowManager(WindowManagerCore):
         src_monitor_state.remove_window(active_window)
         dst_monitor_state.add_window(active_window)
         self.activate_top_most_window(src_monitor_state.windows)
-        self.save_state()
-
-    def switch_workspace(self, workspace_index: int, monitor_name: str = None, hide_splash_in: Optional[float] = None) -> Callable:
-        """Switch to a specific workspace"""
-        logger.debug("switch workspace to %d", workspace_index)
-        if monitor_name:
-            monitor_state = self.virtdesk_state.get_monitor_state_by_name(monitor_name)
-        else:
-            monitor_state = self.get_active_monitor_state()
-        if monitor_state.active_workspace_index == workspace_index:
-            return
-        monitor_state.switch_workspace(workspace_index)
-        self.save_state()
-        ui.show_windows_splash(monitor_state, None)
-        if hide_splash_in:
-            logger.debug("hide splash in %s", hide_splash_in)
-            workers.submit_with_delay(ui.hide_windows_splash, hide_splash_in)
-            return None
-        return ui.hide_windows_splash
-
-    def move_to_workspace(self, workspace_index: int):
-        """Move active window to a specific workspace"""
-        active_window, src_monitor_state = self.get_active_window()
-        if not active_window:
-            return
-        src_monitor_state.move_to_workspace(active_window, workspace_index)
         self.save_state()
 
     def prev_theme(self):

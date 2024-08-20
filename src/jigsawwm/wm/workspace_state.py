@@ -56,13 +56,14 @@ class WorkspaceState(PickableState):
 
     def before_hide(self):
         """Before hiding the workspace"""
+        self.last_active_window = None
         fw = get_foreground_window()
         for w in self.windows:
             w.minimized_by_user = w.is_iconic
+            logger.debug("%s before hide window %s", self, w)
             if fw == w.handle:
                 self.last_active_window = w
-                return
-        self.last_active_window = None
+        logger.debug("%s last activated window %s", self, self.last_active_window)
 
     def after_show(self):
         """After showing the workspace"""
@@ -88,7 +89,7 @@ class WorkspaceState(PickableState):
 
     def toggle(self, show: bool, no_activation: bool = False):
         """Toggle all windows in the workspace"""
-        logger.debug("%s toggle show %s", self, show)
+        logger.debug("%s toggle show %s activation: %s", self, show, not no_activation)
         self.showing = show
         if not show:
             self.before_hide()

@@ -3,9 +3,9 @@ import logging
 import os
 import pickle
 import time
-from typing import Dict, List, Set, Tuple, Optional
+from typing import Dict, List, Set, Tuple, Optional, Callable
 from queue import SimpleQueue
-from threading import Thread, Lock
+from threading import Thread
 
 from jigsawwm.w32 import hook
 from jigsawwm.w32.monitor import (
@@ -29,10 +29,11 @@ from jigsawwm.w32.window import (
 from jigsawwm.w32.monitor import get_monitor_from_cursor
 from jigsawwm.w32.winevent import WinEvent
 from jigsawwm.jmk import sysinout, Vk
-from jigsawwm import ui
+from jigsawwm import ui, workers
 
 from .virtdesk_state import VirtDeskState, MonitorState
 from .config import WmConfig
+from .debug_state import inspect_virtdesk_states
 
 logger = logging.getLogger(__name__)
 
@@ -62,8 +63,6 @@ class WindowManagerCore:
     _managed_windows: Dict[HWND, Window] = {}
     _queue: Optional[SimpleQueue]  = None
     _consumer: Optional[Thread] = None
-    _ignore_events: Set[frozenset] = set()
-    _ignore_events_lock = Lock()
 
     def __init__(
         self,
@@ -119,7 +118,6 @@ class WindowManagerCore:
         self.init_sync()
         self.install_hooks()
         ui.on_screen_changed(self._screen_changed_callback)
-        self.set_window_event_callbacks()
 
     def stop(self):
         """Stop the WindowManagerCore service"""
@@ -135,50 +133,31 @@ class WindowManagerCore:
                 event = self._queue.get()
                 if not event:
                     break # terminate
-                event, hwnd, ts = event
-                # check if event in ignore list
-                if self.pop_ignored_event(event, hwnd):
-                    logger.debug("event %s ignored for window %s", event.name, Window(hwnd))
-                    continue
-                if event == WinEvent.EVENT_SCREEN_CHANGED or self.is_event_interested(event, hwnd):
+                event, args, ts = event
+                delay = self.is_event_interested(event, args)
+                if delay:
                     # delay for a certain time for windows state to be stable
                     #  case 1: CVR won't be tiled when restored with maximized mode
                     #  case 2: libreoffice is not tiled on first launch
-                    tts = 0.2 - (time.time() - ts)
+                    tts = delay - (time.time() - ts)
                     if tts > 0:
                         time.sleep(tts)
-                    if event == WinEvent.EVENT_SCREEN_CHANGED:
-                        logger.info("new monitors: %s old monitors: %s", set(get_monitors()), self.virtdesk_state.monitor_states.keys())
-                    logger.info("!!! REACT on event %s for window %s", event.name, Window(hwnd))
+                    logger.info("!!! REACT on event %s for window %s", event.name, Window(args))
                     self.sync_windows()
-            except : # pylint: disable=bare-except
+                elif event == WinEvent.EVENT_SWITCH_WORKSPACE:
+                    self._switch_workspace(*args)
+                elif event == WinEvent.EVENT_MOVE_TO_WORKSPACE:
+                    self._move_to_workspace(*args)
+                elif event == WinEvent.EVENT_HIDE_SPLASH:
+                    ui.hide_windows_splash()
+            except: # pylint: disable=bare-except
                 logger.exception("consume_queue error", exc_info=True)
 
-    def ignore_event(self, event, hwnd=None):
-        """Ignore the event"""
-        logger.debug("ignore event %s for window %s", event.name, hwnd)
-        with self._ignore_events_lock:
-            self._ignore_events.add(frozenset((event, hwnd)))
-
-    def pop_ignored_event(self, event, hwnd=None):
-        """Pop the ignored event"""
-        key = frozenset((event, hwnd))
-        with self._ignore_events_lock:
-            if key in self._ignore_events:
-                self._ignore_events.remove(key)
-                return True
-        return False
-
-    def set_window_event_callbacks(self):
-        """Set window event callbacks"""
-        Window.before_show = lambda w: self.ignore_event(WinEvent.EVENT_OBJECT_SHOW, w.handle)
-        Window.before_hide = lambda w: self.ignore_event(WinEvent.EVENT_OBJECT_HIDE, w.handle)
-        Window.before_activate = lambda w: self.ignore_event(WinEvent.EVENT_SYSTEM_FOREGROUND, w.handle)
-        Window.before_minimize = lambda w: self.ignore_event(WinEvent.EVENT_SYSTEM_MINIMIZESTART, w.handle)
-        Window.before_unminimize = lambda w: self.ignore_event(WinEvent.EVENT_SYSTEM_MINIMIZEEND, w.handle)
-
-    def is_event_interested(self, event: WinEvent, hwnd: HWND) -> bool:
+    def is_event_interested(self, event: WinEvent, hwnd: HWND) -> float:
         """Check if event is interested"""
+        if event == WinEvent.EVENT_SCREEN_CHANGED:
+            logger.info("new monitors: %s old monitors: %s", set(get_monitors()), self.virtdesk_state.monitor_states.keys())
+            return 0.5
         window = self._managed_windows.get(hwnd) or Window(hwnd)
         # ignore if left mouse button is pressed in case of dragging
         if not self._wait_mouse_released and event == WinEvent.EVENT_OBJECT_PARENTCHANGE and sysinout.state.get( Vk.LBUTTON )  :
@@ -190,44 +169,41 @@ class WindowManagerCore:
             if not sysinout.state.get( Vk.LBUTTON ):
                 logger.debug("finish waiting mouse release on event %s from window %s", event.name, window)
                 self._wait_mouse_released = False
-                return True
             else:
                 return False
         # # filter by event
         if event == WinEvent.EVENT_SYSTEM_FOREGROUND:
             # a window belongs to hidden workspace just got activated
             # put your default browser into workspace and then ctrl-click a link, e.g. http://google.com 
-            state = self.virtdesk_state.find_window_in_hidden_workspaces(window.handle)
+            state = self.virtdesk_state.find_window_in_hidden_workspaces(hwnd)
             if state:
                 monitor_state, workspace_index  = state
-                logger.debug("switch workspace to index %d on monitor %s for event %s of activated window %s", workspace_index, monitor_state.monitor.name, event.name, window)
+                logger.info("switch workspace to index %d on monitor %s for event %s of activated window %s", workspace_index, monitor_state.monitor.name, event.name, window)
                 monitor_state.switch_workspace(workspace_index, no_activation=True)
+            logger.debug("ignore foreground window %s", window)
             return False
         elif event == WinEvent.EVENT_OBJECT_SHOW or event == WinEvent.EVENT_OBJECT_UNCLOAKED:
             if hwnd in self._managed_windows or not self.is_window_manageable(window):
                 return False
         elif event == WinEvent.EVENT_OBJECT_HIDE: # same as above
-            # when window is hidden or destroyed, it would not pass the is_window_manageable check
             # fix case: toggle chrome fullscreen
-            # window.is_visible is for vscode, it somehow generte hide event when unfocused
-            if hwnd not in self._managed_windows or window.is_visible:
+            # window.is_visible is for vscode, it somehow genertes hide event when unfocused
+            if hwnd not in self._managed_windows or window.is_visible or self.virtdesk_state.find_window_in_hidden_workspaces(hwnd):
                 return False
+            # if logger.isEnabledFor(logging.DEBUG):
+            #     inspect_virtdesk_states(self.virtdesk_states)
         elif event == WinEvent.EVENT_SYSTEM_MOVESIZEEND:
             if self.try_swapping_window(window):
                 return False
-            return True
         elif event == WinEvent.EVENT_SYSTEM_MINIMIZEEND:
             if not window.is_visible:
                 return False
-            return True
-        elif event not in (
-            WinEvent.EVENT_SYSTEM_MINIMIZESTART,
-            WinEvent.EVENT_SYSTEM_MINIMIZEEND,
-            # WinEvent.EVENT_SYSTEM_MOVESIZEEND, # fix case: resizing any app window
-            # WinEvent.EVENT_OBJECT_PARENTCHANGE,
-        ):
-            if self.virtdesk_state.find_window_in_hidden_workspaces(window.handle):
+            # if logger.isEnabledFor(logging.DEBUG):
+            #     inspect_virtdesk_states(self.virtdesk_states)
+        elif event == WinEvent.EVENT_SYSTEM_MINIMIZESTART:
+            if self.virtdesk_state.find_window_in_hidden_workspaces(hwnd):
                 return False
+        else:
             if event not in (
                 WinEvent.EVENT_OBJECT_LOCATIONCHANGE,
                 WinEvent.EVENT_OBJECT_NAMECHANGE,
@@ -243,7 +219,7 @@ class WindowManagerCore:
                 pass
             return False
 
-        return True
+        return 0.2
 
     def try_swapping_window(self, window: Window) -> Optional[Tuple[Window, MonitorState]]:
         """Check if the window is being reordered"""
@@ -394,6 +370,38 @@ class WindowManagerCore:
         """Check if the window is manageable by the WindowManager"""
         return not self.is_window_ignored(window) and is_visible_app_window(window.handle)
 
+    def _put_hide_splash(self):
+        self._queue.put_nowait((WinEvent.EVENT_HIDE_SPLASH, None, time.time()))
+
+    def switch_workspace(self, workspace_index: int, monitor_name: str = None, hide_splash_in: Optional[float] = None) -> Callable:
+        """Switch to a specific workspace"""
+        if monitor_name:
+            monitor_state = self.virtdesk_state.get_monitor_state_by_name(monitor_name)
+        else:
+            monitor_state = self.get_active_monitor_state()
+        self._queue.put_nowait((WinEvent.EVENT_SWITCH_WORKSPACE, (monitor_state, workspace_index, hide_splash_in), time.time()))
+        return self._put_hide_splash
+
+    def _switch_workspace(self, monitor_state: MonitorState, workspace_index: int, hide_splash_in: Optional[float] = None) -> Callable:
+        logger.debug("switch workspace to %d", workspace_index)
+        monitor_state.switch_workspace(workspace_index)
+        self.save_state()
+        ui.show_windows_splash(monitor_state, None)
+        if hide_splash_in:
+            logger.debug("hide splash in %s", hide_splash_in)
+            workers.submit_with_delay(ui.hide_windows_splash, hide_splash_in)
+
+    def move_to_workspace(self, workspace_index: int):
+        """Move active window to a specific workspace"""
+        window, monitor_state = self.get_active_window()
+        if not window:
+            return
+        self._queue.put_nowait((WinEvent.EVENT_MOVE_TO_WORKSPACE, (monitor_state, window, workspace_index), time.time()))
+
+    def _move_to_workspace(self, monitor_state: MonitorState, window: Window, workspace_index: int):
+        monitor_state.move_to_workspace(window, workspace_index)
+        self.save_state()
+
     def unhide_workspaces(self):
         """Unhide all workspaces"""
         for virtdesk_state in self.virtdesk_states.values():
@@ -443,7 +451,7 @@ class WindowManagerCore:
         _id_obj: LONG,
         _id_chd: LONG,
         _id_evt_thread: DWORD,
-        _evt_time: DWORD,
+        evt_time: DWORD,
     ):
         self._queue.put_nowait((event, hwnd, time.time()))
 
@@ -467,3 +475,8 @@ class WindowManagerCore:
             hook.unhook_winevent(hook_id)
         self._hook_ids = []
         self.unhide_workspaces()
+
+
+    def inspect_state(self):
+        """Inspect the state of the virtual desktops"""
+        inspect_virtdesk_states(self.virtdesk_states)

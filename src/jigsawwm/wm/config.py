@@ -27,7 +27,7 @@ class WmConfig:
     ignore_exe_names: Set[str] = None
     force_managed_exe_names: Set[str] = None
     init_exe_sequence: List[List[str]] = None
-    workspace_names: List[str] = field(default_factory=lambda: ["1", "2", "3", "4"])
+    workspace_names: List[str] = field(default_factory=lambda: ["0", "1", "2", "3"])
     rules: Optional[List[WmRule]] = None
     _monitor_themes: Dict[str, Theme] = field(default_factory=dict)
     _rules_regexs: List[List[re.Pattern]] = None

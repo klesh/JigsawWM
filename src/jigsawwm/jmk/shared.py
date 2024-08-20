@@ -96,6 +96,8 @@ class JmkTriggers(JmkHandler):
             new_comb = parse_combination(cb)
             cb = partial(send_combination, *new_comb)
         for keys in self.expand_comb(comb):
+            if frozenset(keys) in self.triggers:
+                raise ValueError(f"hotkey {keys} already registered")
             trigger = JmkTrigger(keys, cb, release_cb)
             self.triggers[frozenset(keys)] = trigger
 
