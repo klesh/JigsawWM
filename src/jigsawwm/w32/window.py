@@ -273,7 +273,12 @@ class Window:
         return hash(self.handle)
 
     def __repr__(self):
-        return f"<Window exe={self.exe_name} title={self.title[:10]} hwnd={self.handle}{' tilable' if self.is_tilable else ''}>"
+        marks = ' '
+        if self.is_tilable:
+            marks += 'T'
+        if self.minimized_by_user:
+            marks += '_'
+        return f"<Window exe={self.exe_name} title={self.title[:10]} hwnd={self.handle}{marks}>"
 
     # some windows may change their style after created and there will be no event raised
     # so we need to remember the tilable state to avoid undesirable behavior.
@@ -359,14 +364,9 @@ class Window:
         return is_window_visible(self.handle) and not self.is_cloaked and not self.is_iconic
 
     @property
-    def is_maximized(self) -> bool:
+    def is_zoomed(self) -> bool:
         """Check if window is maximized"""
-        return self.get_style() & WindowStyle.MAXIMIZE
-
-    @property
-    def is_minimized(self) -> bool:
-        """Check if window is minimized"""
-        return not WindowStyle.MINIMIZE & self.get_style()
+        return user32.IsZoomed(self.handle)
 
     @property
     def is_fullscreen(self) -> bool:
@@ -383,7 +383,7 @@ class Window:
     @property
     def is_restored(self):
         """Check if window is restored"""
-        return not self.is_iconic and not self.is_fullscreen and not self.is_maximized
+        return not self.is_iconic and not self.is_fullscreen and not self.is_zoomed
 
     @cached_property
     def dpi_awareness(self):
@@ -423,7 +423,11 @@ class Window:
 
     def minimize(self):
         """Minimizes the specified window and activates the next top-level window in the Z order."""
-        if self.is_minimized:
+        if self.is_iconic:
+            logger.debug("window %s already minimized", self)
+            return
+        if self.get_style() & WindowStyle.MINIMIZEBOX == 0:
+            logger.debug("window %s can not be minimized", self)
             return
         if self.before_minimize:
             self.before_minimize()
@@ -434,7 +438,7 @@ class Window:
 
     def maximize(self):
         """Activates the window and displays it as a maximized window."""
-        if self.is_maximized:
+        if self.is_zoomed:
             return
         if self.before_maximize:
             self.before_maximize()
@@ -446,16 +450,16 @@ class Window:
     def restore(self):
         """Activates and displays the window. If the window is minimized or maximized,
         the system restores it to its original size and position."""
-        if self.before_unminimize and self.is_minimized:
+        if self.before_unminimize and self.is_iconic:
             self.before_unminimize()
-        if self.before_unmaximize and self.is_maximized:
+        if self.before_unmaximize and self.is_zoomed:
             self.before_unmaximize()
         logger.debug("restore window: %s", self)
         restore_window(self.handle)
 
     def toggle_maximize(self):
         """Toggle maximize style"""
-        if self.is_maximized:
+        if self.is_zoomed:
             self.restore()
         else:
             self.maximize()

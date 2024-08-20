@@ -15,11 +15,12 @@ with open(DEFAULT_STATE_PATH, "rb") as f:
             for monitor, monitor_state in vdstate.monitor_states.items():
                 logger.info("  monitor: %s", monitor.name)
                 for ws in monitor_state.workspaces:
-                  logger.info("    workspace: %s", ws.name)
-                  for win in ws.windows:
-                      logger.info("      %s", win)
-                  for win in ws.tilable_windows:
-                      logger.info("        tilable: %s", win)
-        logger.info("state: %s", virtdesk_states)
+                    logger.info("    workspace: %s", ws.name)
+                    for i, win in enumerate(ws.tilable_windows):
+                        logger.info("      %s %d %s", '*' if ws.last_active_window == win else ' ',i, win)
+                    for win in ws.windows:
+                        if win in ws.tilable_windows:
+                          continue
+                        logger.info("      %s%s", '*' if ws.last_active_window == win else ' ', win)
     except: # pylint: disable=bare-except
         logger.exception("load windows states error", exc_info=True)
