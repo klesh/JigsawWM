@@ -1,4 +1,4 @@
-pyside6 ~= 6.5.2
-mailcalaid ~= 1.0.1
+pyside6 ~= 6.7.2
+mailcalaid ~= 1.0.2
 pyvda ~= 0.4.3
 screeninfo ~= 0.8.1
