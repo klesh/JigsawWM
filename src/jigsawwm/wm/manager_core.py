@@ -201,7 +201,7 @@ class WindowManagerCore:
             if state:
                 monitor_state, workspace_index  = state
                 logger.debug("switch workspace to index %d on monitor %s for event %s of activated window %s", workspace_index, monitor_state.monitor.name, event.name, window)
-                monitor_state.switch_workspace(workspace_index)
+                monitor_state.switch_workspace(workspace_index, no_activation=True)
             return False
         elif event == WinEvent.EVENT_OBJECT_SHOW or event == WinEvent.EVENT_OBJECT_UNCLOAKED:
             if hwnd in self._managed_windows or not self.is_window_manageable(window):
@@ -247,6 +247,7 @@ class WindowManagerCore:
 
     def try_swapping_window(self, window: Window) -> Optional[Tuple[Window, MonitorState]]:
         """Check if the window is being reordered"""
+        logger.debug("try swapping windows")
         monitor = get_monitor_from_window(window.handle)
         monitor_state = self.virtdesk_state.get_monitor_state(monitor)
         target_window, target_monitor_state = None, None

@@ -86,7 +86,7 @@ class WorkspaceState(PickableState):
             )
             set_cursor_pos(x, y)
 
-    def toggle(self, show: bool):
+    def toggle(self, show: bool, no_activation: bool = False):
         """Toggle all windows in the workspace"""
         logger.debug("%s toggle show %s", self, show)
         self.showing = show
@@ -96,7 +96,8 @@ class WorkspaceState(PickableState):
             window.toggle(show)
         if show:
             self.sync_windows(self.windows)
-            self.after_show()
+            if not no_activation:
+                self.after_show()
 
     def set_theme(self, theme: Theme):
         """Set theme for the workspace"""

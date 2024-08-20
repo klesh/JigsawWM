@@ -101,7 +101,7 @@ class MonitorState(PickableState):
         """Find the workspace by name"""
         return next(filter(lambda w: w.name == name, self.workspaces), None)
 
-    def switch_workspace(self, workspace_index: int):
+    def switch_workspace(self, workspace_index: int, no_activation=False):
         """Switch to the workspace by index"""
         logger.debug("%s switch workspace by index to #%d", self, workspace_index)
         workspace_index = workspace_index % len(self.workspaces)
@@ -109,7 +109,7 @@ class MonitorState(PickableState):
         #     logger.warning("already in workspace index %s", workspace_index)
         #     return
         self.workspaces[self.active_workspace_index].toggle(False)
-        self.workspaces[workspace_index].toggle(True)
+        self.workspaces[workspace_index].toggle(True, no_activation)
         self.active_workspace_index = workspace_index
 
     def switch_workspace_by_name(self, workspace_name: str):
