@@ -41,10 +41,11 @@
       "processId": "${command:pickProcess}"
     },
     {
-     "name": "inspect save file",
+      "name": "inspect save file",
       "type": "debugpy",
       "request": "launch",
-      "module": "jigsawwm.wm.manager_core",
+      "console": "externalTerminal",
+      "module": "jigsawwm.wm.debug_state",
     }
   ]
 }

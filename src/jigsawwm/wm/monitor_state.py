@@ -5,7 +5,7 @@ from typing import Set, List
 from jigsawwm.w32.monitor import Monitor
 from jigsawwm.w32.window import Window
 
-from .config import WmConfig, WmRule
+from .config import WmConfig
 from .theme import Theme
 from .workspace_state import WorkspaceState
 from .pickable_state import PickableState
@@ -91,6 +91,7 @@ class MonitorState(PickableState):
 
     def add_window(self, window: Window):
         """Add a window to the active workspace of the monitor"""
+        window.attrs["monitor_state"] = self
         self.workspace.add_window(window)
 
     def remove_window(self, window: Window):
@@ -112,12 +113,12 @@ class MonitorState(PickableState):
         self.workspaces[workspace_index].toggle(True, no_activation=no_activation)
         self.active_workspace_index = workspace_index
 
-    def switch_workspace_by_name(self, workspace_name: str):
+    def switch_workspace_by_name(self, workspace_name: str, no_activation = False):
         """Switch to the workspace by index"""
         logger.debug("%s switch workspace by name to %s", self, workspace_name)
         for i, workspace in enumerate(self.workspaces):
             if workspace.name == workspace_name:
-                self.switch_workspace(i)
+                self.switch_workspace(i, no_activation=no_activation)
                 return
 
     def move_to_workspace(self, window: Window, workspace_index: int):
@@ -142,22 +143,13 @@ class MonitorState(PickableState):
         self.workspace.remove_windows(windows)
         self.workspaces[workspace_index].add_windows(windows)
 
-    def sync_windows(self, windows: Set[Window]) -> bool:
+    def sync_windows(self) -> bool:
         """Synchronize managed windows with given actual windows currently visible and arrange them
         accordingly
 
         :param Set[Window] windows: latest visible windows
         """
-        changed = False
-        changed |= self.workspace.sync_windows(windows)
-        for window in self.windows:
-            rule: WmRule = window.attrs.pop("rule", None)
-            if rule:
-                if rule.to_workspace_index is not None and rule.to_monitor_index != 0:
-                    self.move_to_workspace(window, rule.to_workspace_index)
-                    changed = True
-        logger.debug("%s sync windows %s", self, "changed" if changed else "unchanged")
-        return changed
+        self.workspace.sync_windows()
 
     def unhide_workspaces(self):
         """Unhide all workspaces of the monitor"""

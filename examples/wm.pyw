@@ -6,7 +6,6 @@ from typing import Union,Iterator
 from jigsawwm import daemon
 from jigsawwm.tiler import tilers
 from jigsawwm.w32.vk import Vk
-from jigsawwm.w32.window import inspect_active_window
 from jigsawwm.wm.manager import Theme, WindowManager, WmRule
 
 
@@ -77,7 +76,7 @@ hotkeys = [
     ([Vk.WIN, Vk.I], wm.next_monitor),
     ([Vk.WIN, Vk.SHIFT, Vk.U], wm.move_to_prev_monitor),
     ([Vk.WIN, Vk.SHIFT, Vk.I], wm.move_to_next_monitor),
-    ([Vk.WIN, Vk.CONTROL, Vk.I], inspect_active_window),
+    ([Vk.WIN, Vk.CONTROL, Vk.I], wm.inspect_active_window),
     ("Win+Ctrl+a", partial(wm.switch_workspace, 0)),
     ("Win+Ctrl+s", partial(wm.switch_workspace, 1)),
     ("Win+Ctrl+d", partial(wm.switch_workspace, 2)),

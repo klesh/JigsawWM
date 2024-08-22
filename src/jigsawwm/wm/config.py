@@ -15,10 +15,10 @@ class WmRule:
     """WmRule holds the rule for managing windows"""
     exe_regex: Optional[str] = None
     title_regex: Optional[str] = None
-    to_monitor_index: Optional[int] = 0
-    to_workspace_index: Optional[int] = 0
-    manageable: bool = True # managed in workspace
-    tilable: bool = True # is it tilable in a workspace
+    to_monitor_index: Optional[int] = None
+    to_workspace_index: Optional[int] = None
+    manageable: Optional[bool] = None # managed in workspace
+    tilable: Optional[bool] = None # is it tilable in a workspace
 
 @dataclass
 class WmConfig:
@@ -66,16 +66,6 @@ class WmConfig:
                 key=lambda x: x.affinity_index(monitor.get_screen_info()), reverse=True
             )[0]
         return self._monitor_themes[monitor.name]
-
-    def is_window_manageable(self, window: Window) -> bool:
-        """Check if window is to be managed"""
-        rule = self.find_rule_for_window(window)
-        return rule is None or rule.manageable
-
-    def is_window_tilable(self, window: Window) -> bool:
-        """Check if window is to be tilable"""
-        rule = self.find_rule_for_window(window)
-        return rule is None or (rule.manageable and rule.tilable)
 
     def find_rule_for_window(self, window: Window) -> Optional[WmRule]:
         """Find the rule for the window"""

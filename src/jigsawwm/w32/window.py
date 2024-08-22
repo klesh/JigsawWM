@@ -4,9 +4,8 @@ import sys
 import time
 from ctypes import * # pylint: disable=wildcard-import,unused-wildcard-import
 from ctypes.wintypes import * # pylint: disable=wildcard-import,unused-wildcard-import
-from dataclasses import dataclass
-from io import StringIO
-from typing import Callable, List, Optional, Iterable
+from dataclasses import dataclass, field
+from typing import Callable, List, Optional, Any, Dict
 from os import path
 from functools import cached_property
 
@@ -15,233 +14,29 @@ from .sendinput import send_input, INPUT, INPUTTYPE, KEYBDINPUT, KEYEVENTF
 from .vk import Vk
 from .monitor import get_monitor_from_window
 from .window_structs import (
-  WindowStyle, WindowExStyle, EnumCheckResult, ShowWindowCmd, DwmWindowAttribute,
+  WindowStyle, WindowExStyle, ShowWindowCmd, DwmWindowAttribute,
   repr_rect
 )
 
 user32 = WinDLL("user32", use_last_error=True)
 kernel32 = WinDLL("kernel32", use_last_error=True)
 dwmapi = WinDLL("dwmapi", use_last_error=True)
-
 logger = logging.getLogger(__name__)
 
-
-def iter_windows(
-    cb: Callable[[HWND], bool]
-) -> List[HWND]:
-    """Iterate all top-level windows on current desktop.
-
-    :param cb: handle each window handle
-    """
-    @WINFUNCTYPE(BOOL, HWND, LPARAM)
-    def enum_windows_proc(hwnd: HWND, _lParam: LPARAM) -> BOOL: # pylint: disable=invalid-name
-        return cb(hwnd)
-
-    if not user32.EnumWindows(enum_windows_proc, None):
-        last_error = get_last_error()
-        if last_error:
-            raise WinError(last_error)
-
-def enum_windows(
-    check: Optional[Callable[[HWND], EnumCheckResult]] = None
-) -> List[HWND]:
-    """Returns a List of all top-level windows on current desktop.
-
-    :param check: optional, to determinate if a HWN should be added to list, or stop iteration
-
-    :return: list of window handles
-    :rtype: List[HWND]
-    """
-    check = check or (lambda _: EnumCheckResult.CAPTURE)
-    hwnds = []
-
-    @WINFUNCTYPE(BOOL, HWND, LPARAM)
-    def enum_windows_proc(hwnd: HWND, _lParam: LPARAM) -> BOOL: # pylint: disable=invalid-name
-        r = check(hwnd)
-        if EnumCheckResult.CAPTURE in r:
-            hwnds.append(hwnd)
-        return EnumCheckResult.STOP not in r
-
-    if not user32.EnumWindows(enum_windows_proc, None):
-        last_error = get_last_error()
-        if last_error:
-            raise WinError(last_error)
-    return hwnds
-
-def get_foreground_window() -> HWND:
-    """Retrieves foreground window handle"""
-    return user32.GetForegroundWindow()
-
-
-def get_window_style(hwnd: HWND) -> WindowStyle:
-    """Retrieves style of the specified window handle"""
-    return WindowStyle(user32.GetWindowLongA(hwnd, -16))
-
-
-def get_window_exstyle(hwnd: HWND) -> WindowExStyle:
-    """Retrieves ex-style of the specified window handle"""
-    return WindowExStyle(user32.GetWindowLongA(hwnd, -20))
-
-
-def show_window(hwnd: HWND, cmd: ShowWindowCmd):
-    """Show window"""
-    user32.ShowWindow(hwnd, cmd)
-
-def minimize_window(hwnd: HWND):
-    """Minimize window"""
-    show_window(hwnd, ShowWindowCmd.SW_MINIMIZE)
-
-
-def maximize_window(hwnd: HWND):
-    """Maximize window"""
-    show_window(hwnd, ShowWindowCmd.SW_MAXIMIZE)
-
-
-def restore_window(hwnd: HWND):
-    """Restore window"""
-    show_window(hwnd, ShowWindowCmd.SW_RESTORE)
-
-
-def get_window_title(hwnd: HWND) -> str:
-    """Retrieves window title"""
-    title = create_unicode_buffer(255)
-    user32.GetWindowTextW(hwnd, title, 255)
-    return str(title.value)
-
-
-def get_window_class_name(hwnd: HWND) -> str:
-    """Retrieves window class name"""
-    buff = create_unicode_buffer(100)
-    user32.GetClassNameW(hwnd, buff, 100)
-    return str(buff.value)
-
-
-def get_window_pid(hwnd: HWND) -> DWORD:
-    """Retrieves id of the process that owns the window"""
-    pid = DWORD()
-    user32.GetWindowThreadProcessId(hwnd, pointer(pid))
-    return pid
-
-
-def is_window_visible(hwnd: HWND) -> bool:
-    """Check if window is visible"""
-    return bool(user32.IsWindowVisible(hwnd))
-
-
-def is_window_cloaked(hwnd: HWND) -> bool:
-    """Check if window is cloaked"""
-    cloaked = INT()
-    windll.dwmapi.DwmGetWindowAttribute(
-        hwnd,
-        DwmWindowAttribute.DWMWA_CLOAKED,
-        pointer(cloaked),
-        sizeof(cloaked),
-    )
-    return bool(cloaked.value)
-
-
-def is_window(hwnd: HWND) -> bool:
-    """Check if handle is a window handle"""
-    return user32.IsWindow(hwnd)
-
-
-def is_toplevel_window(hwnd: HWND) -> bool:
-    """Check if window is a top-level window"""
-    return user32.IsTopLevelWindow(hwnd)
-
-
-NOT_APP_CLASS_NAMES = {
+MANAGEABLE_CLASSNAME_BLACKLIST = {
     "Shell_TrayWnd", # taskbar
     "Shell_SecondaryTrayWnd",
     "Progman", # desktop background
     "WorkerW",
 }
-
-def _is_app_window_base(hwnd: HWND) -> bool:
-    """Check if window is a app window which could be managed"""
-    # style = get_window_style(hwnd)
-    exstyle = get_window_exstyle(hwnd)
-    pid = get_window_pid(hwnd)
-    class_name = get_window_class_name(hwnd)
-    return bool(
-        not is_window_cloaked(hwnd) # we never cloaked a window
-        and class_name not in NOT_APP_CLASS_NAMES
-        and is_toplevel_window(hwnd)
-        and WindowExStyle.TRANSPARENT not in exstyle # ignore ubuntu.exe
-        and not process.is_elevated(pid) # ignore admin windows
-        and process.get_exepath(pid)
-        # and WindowStyle.CLIPCHILDREN in style # would make obsidian not being managed
-        # and not user32.GetParent(hwnd) # fix: dbeaver preferences window keep showing when switching workspace
-        # and (WindowStyle.MAXIMIZEBOX & style or WindowStyle.MINIMIZEBOX & style)
-    )
-
-def is_visible_app_window(hwnd: HWND) -> bool:
-    """Check if window is a visible app window which could be managed"""
-    return _is_app_window_base(hwnd) and is_window_visible(hwnd)
-
-def is_hidden_app_window(hwnd: HWND) -> bool:
-    """Check if window is a hidden app window"""
-    return _is_app_window_base(hwnd) and not is_window_visible(hwnd) and user32.IsIconic(hwnd)
-
-def windows_might_hidden_by_us() -> List[HWND]:
-    """Get list of app windows which might be hidden by us previously"""
-    return filter_app_windows(is_hidden_app_window)
-
-def get_window_extended_frame_bounds(hwnd: HWND) -> RECT:
-    """Retrieve extended frame bounds of the specified window"""
-    bound = RECT()
-    windll.dwmapi.DwmGetWindowAttribute(
-        hwnd,
-        DwmWindowAttribute.DWMWA_EXTENDED_FRAME_BOUNDS,
-        pointer(bound),
-        sizeof(bound),
-    )
-    return bound
-
-
-def get_window_rect(hwnd: HWND) -> RECT:
-    """Retrieves rect(position/size) of the specified window"""
-    rect = RECT()
-    if not user32.GetWindowRect(hwnd, pointer(rect)):
-        raise WinError(get_last_error())
-    return rect
-
-
 SWP_NOACTIVATE = 0x0010
 SET_WINDOW_RECT_FLAG = SWP_NOACTIVATE
-
-
-def set_window_rect(hwnd: HWND, rect: RECT):
-    """Move/resize specified window"""
-    x, y, w, h = rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top
-    if not user32.SetWindowPos(hwnd, None, x, y, w, h, SET_WINDOW_RECT_FLAG):
-        raise WinError(get_last_error())
-
-
 GCL_HICONSM = -34
 GCL_HICON = -14
-
 ICON_SMALL = 0
 ICON_BIG = 1
 ICON_SMALL2 = 2
-
 WM_GETICON = 0x7F
-
-
-def get_window_icon(hwnd: HWND) -> HANDLE:
-    """Retrieves the icon handle of the specified window"""
-    handle = user32.SendMessageW(hwnd, WM_GETICON, ICON_SMALL2, 0)
-    if not handle:
-        handle = user32.SendMessageW(hwnd, WM_GETICON, ICON_SMALL, 0)
-    if not handle:
-        handle = user32.SendMessageW(hwnd, WM_GETICON, ICON_BIG, 0)
-    if not handle:
-        handle = user32.GetClassLongPtrW(hwnd, GCL_HICONSM)
-    if not handle:
-        handle = user32.GetClassLongPtrW(hwnd, GCL_HICON)
-    return handle
-
-
 NOT_TILABLE_EXE_NAMES = {
     "QuickLook.exe"
 }
@@ -258,9 +53,11 @@ class Window:
     restricted_rect = None
     compensated_rect = None
     restricted_actual_rect = None
-    attrs: dict = None
+    attrs: dict = field(default_factory=dict)
     restored_once = False
     minimized_by_user = False
+    user_manageable = None
+    unmanageable_reason: Optional[str] = None
 
     def __init__(self, hwnd: HWND):
         self.handle = hwnd
@@ -274,17 +71,21 @@ class Window:
 
     def __repr__(self):
         marks = ' '
-        if self.is_tilable:
+        if self.tilable:
             marks += 'T'
+        if self.manageable:
+            marks += 'M'
+        if self.restricted_rect:
+            marks += 'R'
         if self.minimized_by_user:
             marks += '_'
-        return f"<Window exe={self.exe_name} title={self.title[:10]} hwnd={self.handle}{marks}>"
+        return f"<Window id={id(self)} exe={self.exe_name} title={self.title[:10]} hwnd={self.handle}{marks}>"
 
     # some windows may change their style after created and there will be no event raised
     # so we need to remember the tilable state to avoid undesirable behavior.
     # i.e. Feishu meeting window initialy is not tilable, but it would become tilable after you press the "Meet now" button
     @cached_property
-    def is_tilable(self) -> bool:
+    def tilable(self) -> bool:
         """Check if window is tilable"""
         style = self.get_style()
         return (
@@ -295,6 +96,18 @@ class Window:
         )
 
     @property
+    def manageable(self) -> bool:
+        """Check if window is manageable"""
+        if self.user_manageable is not None:
+            return self.user_manageable
+        self.unmanageable_reason = self.check_unmanageable()
+        return not self.unmanageable_reason
+
+    @manageable.setter
+    def manageable(self, value):
+        self.user_manageable = value
+
+    @property
     def title(self) -> str:
         """Retrieves the text of the specified window's title bar (if it has one)
 
@@ -303,7 +116,9 @@ class Window:
         :return: text of the title bar
         :rtype: str
         """
-        return get_window_title(self.handle)
+        title = create_unicode_buffer(255)
+        user32.GetWindowTextW(self.handle, title, 255)
+        return str(title.value)
 
     @cached_property
     def class_name(self):
@@ -314,7 +129,9 @@ class Window:
         :return: class name
         :rtype: str
         """
-        return get_window_class_name(self.handle)
+        buff = create_unicode_buffer(100)
+        user32.GetClassNameW(self.handle, buff, 100)
+        return str(buff.value)
 
     @cached_property
     def exe(self):
@@ -340,7 +157,9 @@ class Window:
         :return: process id
         :rtype: int
         """
-        return get_window_pid(self.handle)
+        pid = DWORD()
+        user32.GetWindowThreadProcessId(self.handle, pointer(pid))
+        return pid
 
     @property
     def parent_handle(self) -> HWND:
@@ -361,7 +180,7 @@ class Window:
             Otherwise, the return value is `False`.
         :rtype: bool
         """
-        return is_window_visible(self.handle) and not self.is_cloaked and not self.is_iconic
+        return bool(user32.IsWindowVisible(self.handle))
 
     @property
     def is_zoomed(self) -> bool:
@@ -396,12 +215,56 @@ class Window:
 
         Ref: https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/ne-dwmapi-dwmwindowattribute
         """
-        return is_window_cloaked(self.handle)
+        cloaked = INT()
+        windll.dwmapi.DwmGetWindowAttribute(
+            self.handle,
+            DwmWindowAttribute.DWMWA_CLOAKED,
+            pointer(cloaked),
+            sizeof(cloaked),
+        )
+        return bool(cloaked.value)
 
-    @property
+    @cached_property
+    def is_toplevel(self) -> bool:
+        """Retrieve if the window is top level"""
+        return user32.IsTopLevelWindow(self.handle)
+
+    @cached_property
     def icon_handle(self) -> HANDLE:
         """Retrieves the icon handle of the specified window"""
-        return get_window_icon(self.handle)
+        handle = user32.SendMessageW(self.handle, WM_GETICON, ICON_SMALL2, 0)
+        if not handle:
+            handle = user32.SendMessageW(self.handle, WM_GETICON, ICON_SMALL, 0)
+        if not handle:
+            handle = user32.SendMessageW(self.handle, WM_GETICON, ICON_BIG, 0)
+        if not handle:
+            handle = user32.GetClassLongPtrW(self.handle, GCL_HICONSM)
+        if not handle:
+            handle = user32.GetClassLongPtrW(self.handle, GCL_HICON)
+        return handle
+
+    def check_unmanageable(self) -> str:
+        """Check if window is a app window which could be managed"""
+        if not self.is_toplevel:
+            return "not a top-level window"
+        if self.is_cloaked:
+            return "%s unmanageable: cloaked"
+        if self.class_name in MANAGEABLE_CLASSNAME_BLACKLIST:
+            return "blacklisted"
+        exstyle = self.get_exstyle()
+        if WindowExStyle.TRANSPARENT in exstyle:
+            return "WindowExStyle.TRANSPARENT"
+        if process.is_elevated(self.pid):
+            return "admin window"
+        if not self.exe:
+            return "no executable path"
+        return None
+
+    def get_attr(self, key: str) -> Any:
+        """Retrieve attribute"""
+        if key not in self.attrs:
+            logger.warning("%s doesn't contain attr %s", self, key)
+        return self.attrs.get(key)
 
     def get_style(self) -> WindowStyle:
         """Retrieves style
@@ -409,7 +272,7 @@ class Window:
         :return: window style
         :rtype: WindowStyle
         """
-        return get_window_style(self.handle)
+        return WindowStyle(user32.GetWindowLongA(self.handle, -16))
 
     def get_exstyle(self) -> WindowExStyle:
         """Retrieves ex-style
@@ -417,20 +280,20 @@ class Window:
         :return: window ex-style
         :rtype: ExWindowStyle
         """
-        return get_window_exstyle(self.handle)
+        return WindowExStyle(user32.GetWindowLongA(self.handle, -20))
 
     def minimize(self):
         """Minimizes the specified window and activates the next top-level window in the Z order."""
-        minimize_window(self.handle)
+        self.show_window(ShowWindowCmd.SW_MINIMIZE)
 
     def maximize(self):
         """Activates the window and displays it as a maximized window."""
-        maximize_window(self.handle)
+        self.show_window(ShowWindowCmd.SW_MAXIMIZE)
 
     def restore(self):
         """Activates and displays the window. If the window is minimized or maximized,
         the system restores it to its original size and position."""
-        restore_window(self.handle)
+        self.show_window(ShowWindowCmd.SW_RESTORE)
 
     def toggle_maximize(self):
         """Toggle maximize style"""
@@ -441,14 +304,21 @@ class Window:
 
     def exists(self) -> bool:
         """Check if window exists"""
-        return is_window(self.handle)
+        return user32.IsWindow(self.handle)
 
     def get_extended_frame_bounds(self) -> RECT:
         """Retrieves extended frame bounds
 
         Ref: https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/ne-dwmapi-dwmwindowattribute
         """
-        return get_window_extended_frame_bounds(self.handle)
+        bound = RECT()
+        windll.dwmapi.DwmGetWindowAttribute(
+            self.handle,
+            DwmWindowAttribute.DWMWA_EXTENDED_FRAME_BOUNDS,
+            pointer(bound),
+            sizeof(bound),
+        )
+        return bound
 
     def get_rect(self) -> RECT:
         """Retrieves the dimensions of the bounding rectangle of the specified window.
@@ -460,7 +330,10 @@ class Window:
         :return: a RECT with top/left/bottom/right properties
         :rtype: RECT
         """
-        return get_window_rect(self.handle)
+        rect = RECT()
+        if not user32.GetWindowRect(self.handle, pointer(rect)):
+            raise WinError(get_last_error())
+        return rect
 
     def set_rect(self, rect: RECT):
         """Sets the dimensions of the bounding rectangle (Call SetWindowPos with RECT)
@@ -470,7 +343,9 @@ class Window:
         :param rect: RECT with top/left/bottom/right properties
         """
         logger.debug("set rect to %s for %s", repr_rect(rect), self.title)
-        set_window_rect(self.handle, rect)
+        x, y, w, h = rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top
+        if not user32.SetWindowPos(self.handle, None, x, y, w, h, SET_WINDOW_RECT_FLAG):
+            raise WinError(get_last_error())
 
     def set_restrict_rect(self, rect: RECT):
         """Set the restricted rect"""
@@ -523,7 +398,7 @@ class Window:
         rect.top += margin
         rect.right -= margin
         rect.bottom -= margin
-        set_window_rect(self.handle, rect)
+        self.set_rect(rect)
 
     def activate(self) -> bool:
         """Brings the thread that created current window into the foreground and activates the window"""
@@ -532,15 +407,59 @@ class Window:
         x = rect.left + (rect.right - rect.left) / 2
         y = rect.top + (rect.bottom - rect.top) / 2
         user32.SetCursorPos(int(x), int(y))
-        return set_active_window(self)
+        # activation
+        # simple way
+        if user32.SetForegroundWindow(self.handle):
+            return
+        # well, simple way didn't work, we have to make our process Foreground
+        our_thread_id = kernel32.GetCurrentThreadId()
+        fore_thread_id = None
+        target_thread_id = user32.GetWindowThreadProcessId(self.handle, None)
+
+        uf = False  # attached our thread to the fore thread
+        ft = False  # attached the fore thread to the target thread
+        curr_fore_hwnd = user32.GetForegroundWindow()
+        if curr_fore_hwnd:
+            fore_thread_id = user32.GetWindowThreadProcessId(curr_fore_hwnd, None)
+            if fore_thread_id and fore_thread_id != our_thread_id:
+                uf = user32.AttachThreadInput(our_thread_id, fore_thread_id, True)
+            if fore_thread_id and target_thread_id and fore_thread_id != target_thread_id:
+                ft = user32.AttachThreadInput(fore_thread_id, target_thread_id, True)
+        new_fore_window = None
+        retry = 5
+        while new_fore_window != self.handle and retry > 0:
+            send_input(
+                INPUT(
+                    type=INPUTTYPE.KEYBOARD,
+                    ki=KEYBDINPUT(wVk=Vk.MENU, dwFlags=KEYEVENTF.KEYUP),
+                ),
+                INPUT(
+                    type=INPUTTYPE.KEYBOARD,
+                    ki=KEYBDINPUT(wVk=Vk.MENU, dwFlags=KEYEVENTF.KEYUP),
+                ),
+            )
+            user32.SetForegroundWindow(self.handle)
+            new_fore_window = user32.GetForegroundWindow()
+            retry -= 1
+            time.sleep(0.01)
+        logger.debug("set_active_window: %s", new_fore_window == self.handle)
+        # detach input thread
+        if uf:
+            user32.AttachThreadInput(our_thread_id, fore_thread_id, False)
+        if ft:
+            user32.AttachThreadInput(fore_thread_id, target_thread_id, False)
+
+    def show_window(self, cmd: ShowWindowCmd):
+        """Show window"""
+        user32.ShowWindow(self.handle, cmd)
 
     def show(self):
         """Shows the window"""
-        show_window(self.handle, ShowWindowCmd.SW_SHOWNA)
+        self.show_window(ShowWindowCmd.SW_SHOWNA)
 
     def hide(self):
         """Hides the window"""
-        show_window(self.handle, ShowWindowCmd.SW_HIDE)
+        self.show_window(ShowWindowCmd.SW_HIDE)
 
     def toggle(self, show: bool):
         """Toggle window visibility"""
@@ -553,75 +472,98 @@ class Window:
             self.restore()
         return self.show()
 
-def filter_app_windows(check: Callable[[HWND], bool]) -> List[Window]:
+    def inspect(self, file=sys.stdout):
+        """Inspect window and print the information to the file"""
+        if not self.exists():
+            print("window doesn't exist anymore")
+            return
+        print(self, file=file)
+        print("pid          :", self.pid, file=file)
+        print("class name   :", self.class_name, file=file)
+        print("exe path     :", self.exe, file=file)
+        style = self.get_style()
+        style_flags = []
+        for s in WindowStyle:
+            if s in style:
+                style_flags.append(s.name)
+        print("style        :", ", ".join(style_flags), file=file)
+        exstyle = self.get_exstyle()
+        exstyle_flags = []
+        for s in WindowExStyle:
+            if s in exstyle:
+                exstyle_flags.append(s.name)
+        print("exstyle      :", ", ".join(exstyle_flags), file=file)
+        for k, v in self.attrs.items():
+            print(f"attr({k}): {v}", file=file)
+        rect = self.get_rect()
+        print("rect         :", rect.left, rect.top, rect.right, rect.bottom, file=file)
+        bound = self.get_extended_frame_bounds()
+        print("bound        :", bound.left, bound.top, bound.right, bound.bottom, file=file)
+        print("is_evelated  :", self.is_evelated, file=file)
+        print("is_toplevel  :", self.is_toplevel, file=file)
+        print("is_cloaked   :", self.is_cloaked, file=file)
+        print("is_visible   :", self.is_visible, file=file)
+        print("is_iconic    :", self.is_iconic, file=file)
+        print("is_resored   :", self.is_restored, file=file)
+        print("unmanageable :", self.unmanageable_reason, file=file)
+        print("parent       :", self.parent_handle, file=file)
+        print("dpi_awareness:", self.dpi_awareness.name, file=file)
+
+
+_seen_windows: Dict[HWND, Window] = {}
+
+def get_seen_windows() -> Dict[HWND, Window]:
+    """Retrieve all windows that ever been seen"""
+    return _seen_windows
+
+def replace_seen_windows(data: Dict[HWND, Window]):
+    """Replace seen windows"""
+    global _seen_windows # pylint: disable=global-statement
+    _seen_windows = data
+
+def lookup_window(hwnd: Optional[HWND]) -> Optional[Window]:
+    """Lookup window"""
+    if not hwnd:
+        raise ValueError("hwnd is None")
+    if hwnd not in _seen_windows:
+        _seen_windows[hwnd] = Window(hwnd)
+    return _seen_windows[hwnd]
+
+def filter_windows(check: Callable[[Window], bool]) -> List[Window]:
     """Filter app windows of the current desktop"""
-    return map(Window, enum_windows(
-        lambda hwnd: EnumCheckResult.CAPTURE
-        if check(hwnd)
-        else EnumCheckResult.SKIP
-    ))
+
+    windows = set()
+    @WINFUNCTYPE(BOOL, HWND, LPARAM)
+    def enum_windows_proc(hwnd: HWND, _lParam: LPARAM) -> BOOL: # pylint: disable=invalid-name
+        window = lookup_window(hwnd)
+        try:
+            if check(window):
+                windows.add(window)
+        except StopIteration:
+            return False
+        return True
+
+    if not user32.EnumWindows(enum_windows_proc, None):
+        last_error = get_last_error()
+        if last_error:
+            raise WinError(last_error)
+    return windows
 
 def get_window_from_pos(x, y: int) -> Optional[Window]:
     """Retrieves the window at the specified position"""
     hwnd = user32.WindowFromPoint(POINT(int(x), int(y)))
     if hwnd:
-        return Window(user32.GetAncestor(hwnd, 2))
-
+        return lookup_window(user32.GetAncestor(hwnd, 2))
 
 def get_active_window() -> Optional[Window]:
     """Retrieves current activated window"""
-    hwnd = get_foreground_window()
+    hwnd = user32.GetForegroundWindow()
     if hwnd:
-        return Window(hwnd)
+        return lookup_window(hwnd)
 
-
-def set_active_window(window: Window) -> bool:
-    """Brings the thread that created the specified window into the foreground
-       and activates the window
-
-    Ref: https://github.com/AutoHotkey/AutoHotkey/blob/e379b60e44d35494d4a19d1e5001f2dd38773391/source/window.cpp#L25
-    """
-    # simple way
-    if user32.SetForegroundWindow(window.handle):
-        return
-    # well, simple way didn't work, we have to make our process Foreground
-    our_thread_id = kernel32.GetCurrentThreadId()
-    fore_thread_id = None
-    target_thread_id = user32.GetWindowThreadProcessId(window.handle, None)
-
-    uf = False  # attached our thread to the fore thread
-    ft = False  # attached the fore thread to the target thread
-    curr_fore_hwnd = user32.GetForegroundWindow()
-    if curr_fore_hwnd:
-        fore_thread_id = user32.GetWindowThreadProcessId(curr_fore_hwnd, None)
-        if fore_thread_id and fore_thread_id != our_thread_id:
-            uf = user32.AttachThreadInput(our_thread_id, fore_thread_id, True)
-        if fore_thread_id and target_thread_id and fore_thread_id != target_thread_id:
-            ft = user32.AttachThreadInput(fore_thread_id, target_thread_id, True)
-    new_fore_window = None
-    retry = 5
-    while new_fore_window != window.handle and retry > 0:
-        send_input(
-            INPUT(
-                type=INPUTTYPE.KEYBOARD,
-                ki=KEYBDINPUT(wVk=Vk.MENU, dwFlags=KEYEVENTF.KEYUP),
-            ),
-            INPUT(
-                type=INPUTTYPE.KEYBOARD,
-                ki=KEYBDINPUT(wVk=Vk.MENU, dwFlags=KEYEVENTF.KEYUP),
-            ),
-        )
-        user32.SetForegroundWindow(window.handle)
-        new_fore_window = user32.GetForegroundWindow()
-        retry -= 1
-        time.sleep(0.01)
-    logger.debug("set_active_window: %s", new_fore_window == window.handle)
-    # detach input thread
-    if uf:
-        user32.AttachThreadInput(our_thread_id, fore_thread_id, False)
-    if ft:
-        user32.AttachThreadInput(fore_thread_id, target_thread_id, False)
-
+###
+### helper functions
+###
 
 def minimize_active_window():
     """Minize active window"""
@@ -629,107 +571,31 @@ def minimize_active_window():
     if window:
         window.minimize()
 
-
 def toggle_maximize_active_window():
     """Maximize/Unmaximize active window"""
     window = get_active_window()
     if window:
         window.toggle_maximize()
 
-def top_most_window(windows: Iterable[Window]) -> Optional[Window]:
-    """Get the top most window from the list of windows"""
-    hwnd = user32.GetTopWindow(user32.GetDesktopWindow())
-    while hwnd:
-        if Window(hwnd) in windows:
-            for w in windows:
-                if w.handle == hwnd:
-                    return w
-        hwnd = user32.GetWindow(hwnd, 2)
-    return None
-
-def sprint_window(hwnd: HWND) -> str:
-    """Inspect window and return the information as string"""
-    f = StringIO()
-    inspect_window(hwnd, file=f)
-    return f.getvalue()
-
-
-def inspect_window(hwnd: HWND, file=sys.stdout):
-    """Inspect window and print the information to the file"""
-    print(file=file)
-    window = Window(hwnd)
-    if not window.exists():
-        print("window doesn't exist anymore")
-        return
-    print("hwnd         :", window.handle, file=file)
-    print("title        :", window.title, file=file)
-    print("pid          :", window.pid, file=file)
-    print("class name   :", window.class_name, file=file)
-    print("exe path     :", window.exe, file=file)
-    style = window.get_style()
-    style_flags = []
-    for s in WindowStyle:
-        if s in style:
-            style_flags.append(s.name)
-    print("style        :", ", ".join(style_flags), file=file)
-    exstyle = window.get_exstyle()
-    exstyle_flags = []
-    for s in WindowExStyle:
-        if s in exstyle:
-            exstyle_flags.append(s.name)
-    print("exstyle      :", ", ".join(exstyle_flags), file=file)
-    rect = window.get_rect()
-    print("rect         :", rect.left, rect.top, rect.right, rect.bottom, file=file)
-    bound = window.get_extended_frame_bounds()
-    print("bound        :", bound.left, bound.top, bound.right, bound.bottom, file=file)
-    print("is_app_window:", is_visible_app_window(hwnd), file=file)
-    print("is_evelated  :", window.is_evelated, file=file)
-    print("is_iconic    :", user32.IsIconic(hwnd), file=file)
-    print("visible      :", user32.IsWindowVisible(hwnd), file=file)
-    print("is_cloaked   :", window.is_cloaked, file=file)
-    print("is_top_level :", is_toplevel_window(hwnd), file=file)
-    print("is_resored   :", window.is_restored, file=file)
-    print("parent       :", user32.GetParent(hwnd), file=file)
-    print("dpi_awareness:", window.dpi_awareness.name, file=file)
-
-
-def inspect_active_window(hwnd=None):
-    """Inspect active window and show the information in a message box"""
-    text = sprint_window(hwnd or get_foreground_window())
-    print(text)
-    # messagebox.showinfo("JigsawWM", text)
-
-def filter_exe(exe_name: str, class_name: str = None):
-    """filter exe"""
-    return lambda hwnd: (
-        process.get_exepath(get_window_pid(hwnd)).lower().endswith(exe_name)
-        and (class_name is None or get_window_class_name(hwnd).lower() == class_name)
-    )
+###
+### debugging
+###
 
 if __name__ == "__main__":
     if len(sys.argv)  > 1:
         param = sys.argv[1]
         if param.isdigit():
-            inspect_active_window(int(param))
-        elif param == "all":
-            for win in enum_windows():
-                inspect_window(win)
+            lookup_window(int(param)).inspect()
         elif param == "app":
-            for wd in filter_app_windows(is_visible_app_window):
-                inspect_window(wd.handle)
-        elif param == "hidden":
-            for wd in filter_app_windows(is_hidden_app_window):
-                inspect_window(wd.handle)
+            for wd in filter_windows(lambda w: w.manageable and w.is_visible):
+                print()
+                wd.inspect()
         elif param == "exe":
-            for wd in filter_app_windows(
-                filter_exe(
-                    sys.argv[2].lower(), 
-                    sys.argv[3].lower() if len(sys.argv) > 3 else None,
-                )
-            ):
-                inspect_window(wd.handle)
+            for wd in filter_windows(lambda w: w.exe_name.lower() == sys.argv[2].lower()):
+                print()
+                wd.inspect()
         elif param == "unhide":
             Window(int(sys.argv[2])).show()
     else:
         time.sleep(2)
-        inspect_active_window()
+        get_active_window().inspect()

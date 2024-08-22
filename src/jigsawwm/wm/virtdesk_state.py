@@ -3,11 +3,11 @@ import logging
 from typing import Dict, Optional, Tuple
 from ctypes.wintypes import HWND
 
-from jigsawwm.w32.monitor import Monitor, get_monitors
+from jigsawwm.w32.monitor import Monitor, get_monitors, monitor_from_cursor
 from jigsawwm.w32.window import Window
 
 from .config import WmConfig
-from .monitor_state import MonitorState
+from .monitor_state import MonitorState 
 from .pickable_state import PickableState
 
 logger = logging.getLogger(__name__)
@@ -88,3 +88,7 @@ class VirtDeskState(PickableState):
                             return None
                         return monitor_state, workspace_index
         return None
+
+    def monitor_state_from_cursor(self) -> MonitorState:
+        """Retrieve monitor_state from current cursor"""
+        return self.get_monitor_state(Monitor(monitor_from_cursor()))

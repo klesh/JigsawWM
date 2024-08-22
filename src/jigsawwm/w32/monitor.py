@@ -76,6 +76,16 @@ def monitor_from_window(hwnd: HWND) -> HMONITOR:
     return user32.MonitorFromWindow(hwnd, 0)
 
 
+def monitor_from_cursor() -> HMONITOR:
+    """Retrieves monitor from current cursor
+
+    :returns: monitor handle
+    :rtype: HMONITOR
+    """
+    pt = get_cursor_pos()
+    return monitor_from_point(pt.x, pt.y)
+
+
 CCHDEVICENAME = 32
 
 
@@ -131,23 +141,23 @@ class Monitor:
     :param hmon: HMONITOR the monitor handle
     """
 
-    _hmon: HMONITOR
+    handle: HMONITOR
 
     def __init__(self, hmon: HMONITOR):
-        self._hmon = hmon
+        self.handle = hmon
 
     def __eq__(self, other):
-        return isinstance(other, Monitor) and self._hmon == other._hmon
+        return isinstance(other, Monitor) and self.handle == other.handle
 
     def __hash__(self):
-        return hash(self._hmon)
+        return hash(self.handle)
 
     def __repr__(self):
         info = self.get_info()
         if info is None:
-            return f"<Monitor: {self.name} {self._hmon}>"
+            return f"<Monitor: {self.name} {self.handle} gone>"
         rect = info.rcMonitor
-        return f"<Monitor: {self.name} {self._hmon} {rect.left} {rect.top} {rect.right-rect.left} {rect.bottom-rect.top} {self.get_scale_factor()/100}>"
+        return f"<Monitor: {self.name} {self.handle} {rect.left} {rect.top} {rect.right-rect.left} {rect.bottom-rect.top} {self.get_scale_factor()/100}>"
 
     @cached_property
     def name(self) -> str:
@@ -170,8 +180,8 @@ class Monitor:
         """
         monitor_info = MONITORINFOEX()
         monitor_info.cbSize = sizeof(monitor_info) # pylint: disable=invalid-name
-        if not user32.GetMonitorInfoA(self._hmon, pointer(monitor_info)):
-            raise WinError(get_last_error())
+        if not user32.GetMonitorInfoA(self.handle, pointer(monitor_info)):
+            return None
         return monitor_info
 
     def get_scale_factor(self) -> DEVICE_SCALE_FACTOR:
@@ -181,7 +191,7 @@ class Monitor:
         :rtype: DEVICE_SCALE_FACTOR
         """
         scale_factor = ULONG()
-        if shcore.GetScaleFactorForMonitor(self._hmon, byref(scale_factor)) != 0:
+        if shcore.GetScaleFactorForMonitor(self.handle, byref(scale_factor)) != 0:
             raise WinError(get_last_error())
         return DEVICE_SCALE_FACTOR(scale_factor.value)
 

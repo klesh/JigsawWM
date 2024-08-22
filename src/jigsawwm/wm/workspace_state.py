@@ -3,8 +3,8 @@ import logging
 from typing import List, Set, Optional
 from os import path
 
-from jigsawwm.w32.window import RECT, Window, get_foreground_window
 from jigsawwm.w32.monitor import Monitor, set_cursor_pos
+from jigsawwm.w32.window import Window, get_active_window, RECT
 
 from .config import WmConfig
 from .theme import Theme
@@ -57,13 +57,11 @@ class WorkspaceState(PickableState):
     def before_hide(self):
         """Before hiding the workspace"""
         self.last_active_window = None
-        fw = get_foreground_window()
+        fw = get_active_window()
         for w in self.windows:
             w.minimized_by_user = w.is_iconic
-            logger.debug("%s before hide window %s", self, w)
             if fw == w.handle:
                 self.last_active_window = w
-        logger.debug("%s last activated window %s", self, self.last_active_window)
 
     def after_show(self):
         """After showing the workspace"""
@@ -96,7 +94,7 @@ class WorkspaceState(PickableState):
         for window in self.windows:
             window.toggle(show)
         if show:
-            self.sync_windows(self.windows)
+            self.sync_windows()
             if not no_activation:
                 self.after_show()
 
@@ -110,72 +108,65 @@ class WorkspaceState(PickableState):
     def add_window(self, window: Window):
         """Add a window to the workspace"""
         logger.debug("%s add window %s", self, window)
-        self.sync_windows(self.windows.union({window}))
+        window.attrs["workspace_state"] = self
+        window.toggle(self.showing)
+        if window in self.windows:
+            return
+        self.windows.add(window)
+        self.sync_windows()
 
     def remove_window(self, window: Window):
         """Remove a window from the workspace"""
         logger.debug("%s remove window %s", self, window)
-        self.sync_windows(self.windows.difference({window}))
+        if window not in self.windows:
+            return
+        self.windows.remove(window)
+        self.sync_windows()
 
     def add_windows(self, windows: Set[Window]):
         """Add windows to the workspace"""
         logger.debug("%s add windows %s", self, windows)
-        self.sync_windows(self.windows.union(windows))
+        self.windows = self.windows.union(windows)
+        self.sync_windows()
 
     def remove_windows(self, windows: Window):
         """Remove windows from the workspace"""
         logger.debug("%s remove windows %s", self, windows)
-        self.sync_windows(self.windows.difference(windows))
+        self.windows = self.windows.difference(windows)
+        self.sync_windows()
 
     def has_window(self, window: Window):
         """Check if the workspace has the window"""
         return window in self.windows
 
-    def sync_windows(self, incoming_windows: Set[Window]) -> bool:
+    def sync_windows(self) -> bool:
         """Sync the internal windows list to the incoming windows list"""
-        # make sure windows are still valid
-        incoming_windows = { w for w in incoming_windows if w.exists() }
-        # update the internal windows list
-        changed = self.windows != incoming_windows
-        self.windows = incoming_windows
-        # process the tilable windows
-        incoming_tilable_windows = {
-            w for w in incoming_windows
-            if w.is_tilable and w.is_visible and not w.is_iconic and self.config.is_window_tilable(w)
-        }
-        # remove windows that are not in the incoming list
+        logger.debug("%s sync windows", self)
+        tilable_windows = [w for w in self.tilable_windows if w.manageable and w.tilable and w in self.windows]
+        new_tilable_windows_set = {w for w in self.windows if w.manageable and w.tilable and w not in tilable_windows}
+
         new_tilable_windows = []
-        for w in self.tilable_windows:
-            # window does not exist anymore, ingore it
-            if w not in incoming_tilable_windows:
-                continue
-            # put the window back if it is in the incoming list
-            new_tilable_windows.append(w)
-            incoming_tilable_windows.remove(w)
-        # now, only new windows are in the set
-        new_tilable_portion = []
         # extract predefined-order windows and put them into the new_windows list
         if self.config.init_exe_sequence:
             for [exe, title] in self.config.init_exe_sequence:
-                for w in incoming_tilable_windows:
+                for w in new_tilable_windows_set.copy():
                     if exe.lower() == path.basename(w.exe).lower() and title in w.title.lower():
-                        new_tilable_portion.append(w)
-                        incoming_tilable_windows.remove(w)
-        # add the rest new windows to the new_windows list
-        new_tilable_portion += list(incoming_tilable_windows)
+                        new_tilable_windows.append(w)
+                        new_tilable_windows_set.remove(w)
+        
+        # append the rest new windows
+        new_tilable_windows += list(new_tilable_windows_set)
         # append or prepend new_windows based on the theme setting
         if self.theme.new_window_as_master:
-            new_tilable_windows = new_tilable_portion + new_tilable_windows
+            tilable_windows = new_tilable_windows + tilable_windows
         else:
-            new_tilable_windows += new_tilable_portion
-        if new_tilable_windows == self.tilable_windows:
+            tilable_windows += new_tilable_windows
+        if tilable_windows == self.tilable_windows:
             self.restrict()
         else:
-            changed = True
-            self.tilable_windows = new_tilable_windows
+            self.tilable_windows = tilable_windows
             self.arrange()
-        logger.debug("%s sync windows, total %d, %s", self, len(incoming_windows), "changed" if changed else "unchanged")
-        return changed
+        logger.debug("%s sync windows, total: %d, tilable: %d", self, len(self.windows), len(self.tilable_windows))
 
     def arrange(self):
         """Arrange windows based on the theme
