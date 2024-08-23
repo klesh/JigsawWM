@@ -142,8 +142,12 @@ class WorkspaceState(PickableState):
     def sync_windows(self) -> bool:
         """Sync the internal windows list to the incoming windows list"""
         logger.debug("%s sync windows", self)
-        tilable_windows = [w for w in self.tilable_windows if w.manageable and w.tilable and w in self.windows]
-        new_tilable_windows_set = {w for w in self.windows if w.manageable and w.tilable and w not in tilable_windows}
+
+        def _check_tilable(w: Window):
+            return w.manageable and w.tilable and not w.is_iconic
+
+        tilable_windows = [w for w in self.tilable_windows if _check_tilable(w) and w in self.windows]
+        new_tilable_windows_set = {w for w in self.windows if _check_tilable(w) and w not in tilable_windows}
 
         new_tilable_windows = []
         # extract predefined-order windows and put them into the new_windows list
