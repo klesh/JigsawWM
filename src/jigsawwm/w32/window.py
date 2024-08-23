@@ -190,7 +190,10 @@ class Window:
     @property
     def is_fullscreen(self) -> bool:
         """Check if window is fullscreen"""
-        mr = get_monitor_from_window(self.handle).get_rect()
+        m = get_monitor_from_window(self.handle)
+        if m is None: # window is moved outside of monitors
+            return False
+        mr = m.get_rect()
         wr = self.get_rect()
         return mr.top == wr.top and mr.left == wr.left and mr.right == wr.right and mr.bottom == wr.bottom
 
@@ -373,6 +376,7 @@ class Window:
 
     def restrict(self):
         """Restrict the window to the restricted rect"""
+        logger.debug("restricting %s", self)
         if self.restored_once and not self.is_restored:
             # user intentionally maximize the window, don't restrict it
             return
