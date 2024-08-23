@@ -197,21 +197,22 @@ class WindowManagerCore:
 
     def try_swapping_window(self, window: Window) -> Optional[Tuple[Window, MonitorState]]:
         """Check if the window is being reordered"""
-        if not window.tilable:
-            return
         logger.info("try swapping windows")
         monitor_state: MonitorState = window.attrs[MONITOR_STATE]
-        window_index = -1
-        try:
-            window_index = monitor_state.tilable_windows.index(window)
-        except ValueError:
-            return
         target_monitor_state = self.virtdesk_state.monitor_state_from_cursor()
         logger.info("target monitor: %s", target_monitor_state.monitor)
         # window being dragged to another monitor
         if target_monitor_state != monitor_state:
+            logger.debug("move window %s to another monitor", window)
             monitor_state.remove_window(window)
             target_monitor_state.add_window(window)
+            return
+        if not window.tilable:
+            return False
+        window_index = -1
+        try:
+            window_index = monitor_state.tilable_windows.index(window)
+        except ValueError:
             return
         target_window = None
         target_window_index = -1
@@ -259,7 +260,7 @@ class WindowManagerCore:
                 if PREFERRED_MONITOR_NAME not in window.attrs:
                     window.attrs[PREFERRED_MONITOR_NAME] = (
                         get_monitor_from_window(window.handle)
-                        or self.virtdesk_state.monitor_state_from_cursor()
+                        or self.virtdesk_state.monitor_state_from_cursor().monitor
                     ).name
                 monitor_state = self.virtdesk_state.get_monitor_state_by_name(window.attrs[PREFERRED_MONITOR_NAME])
                 if PREFERRED_WORKSPACE_INDEX not in window.attrs:
