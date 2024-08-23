@@ -1,9 +1,8 @@
 """Virtual Desktop State module"""
 import logging
-from typing import Dict, Optional, Tuple
-from ctypes.wintypes import HWND
+from typing import Dict
 
-from jigsawwm.w32.monitor import Monitor, get_monitors, monitor_from_cursor
+from jigsawwm.w32.monitor import Monitor, get_monitors, monitor_from_cursor, monitor_from_window
 from jigsawwm.w32.window import Window
 
 from .config import WmConfig
@@ -37,7 +36,7 @@ class VirtDeskState(PickableState):
         for monitor_state in self.monitor_states.values():
             monitor_state.update_config(config)
 
-    def get_monitor_state(self, monitor: Monitor) -> MonitorState:
+    def monitor_state(self, monitor: Monitor) -> MonitorState:
         """Retrieves the monitor state for the specified monitor in the virtual desktop
 
         :param Monitor monitor: monitor
@@ -50,7 +49,7 @@ class VirtDeskState(PickableState):
             self.monitor_states[monitor] = monitor_state
         return monitor_state
 
-    def get_monitor_state_by_name(self, monitor_name: str) -> MonitorState:
+    def monitor_state_by_name(self, monitor_name: str) -> MonitorState:
         """Retrieves the monitor state for the specified monitor byname in the virtual desktop
 
         :param str monitor_name: monitor_name
@@ -61,34 +60,10 @@ class VirtDeskState(PickableState):
             if monitor.name == monitor_name:
                 return monitor_state
 
-    def find_monitor_of_window(self, window: Window) -> Optional[Monitor]:
-        """Find the monitor state of the monitor that contains the window
-
-        :param Window window: window
-        :returns: monitor state
-        :rtype: Optional[MonitorState]
-        """
-        for monitor, monitor_state in self.monitor_states.items():
-            if window in monitor_state.windows:
-                return monitor
-        return None
-
-    def find_window_in_hidden_workspaces(self, hwnd: HWND) -> Optional[Tuple[MonitorState, int]] :
-        """Find the MonitorState and workspace index of givin window in the hidden workspaces
-
-        :param Window window: window
-        :returns: monitor state and workspace index
-        :rtype: Optional[str]
-        """
-        for monitor_state in self.monitor_states.values():
-            for workspace_index, workspace_state in enumerate(monitor_state.workspaces):
-                for window in workspace_state.windows:
-                    if window.handle == hwnd:
-                        if workspace_state.showing:
-                            return None
-                        return monitor_state, workspace_index
-        return None
-
     def monitor_state_from_cursor(self) -> MonitorState:
         """Retrieve monitor_state from current cursor"""
-        return self.get_monitor_state(Monitor(monitor_from_cursor()))
+        return self.monitor_state(Monitor(monitor_from_cursor()))
+
+    def monitor_state_from_window(self, window: Window) -> MonitorState:
+        """Retrieve monitor_state from window"""
+        return self.monitor_state(Monitor(monitor_from_window(window.handle)))

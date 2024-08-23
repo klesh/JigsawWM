@@ -262,7 +262,10 @@ class WindowManagerCore:
                         get_monitor_from_window(window.handle)
                         or self.virtdesk_state.monitor_state_from_cursor().monitor
                     ).name
-                monitor_state = self.virtdesk_state.get_monitor_state_by_name(window.attrs[PREFERRED_MONITOR_NAME])
+                monitor_state = (
+                    self.virtdesk_state.monitor_state_by_name(window.attrs[PREFERRED_MONITOR_NAME])
+                    or self.virtdesk_state.monitor_state_from_window(window)
+                )
                 if PREFERRED_WORKSPACE_INDEX not in window.attrs:
                     window.attrs[PREFERRED_WORKSPACE_INDEX] = monitor_state.active_workspace_index
                 monitor_state.add_window(window)
@@ -302,7 +305,7 @@ class WindowManagerCore:
                         if not window.exists():
                             continue
                         monitor = next(filter(lambda m: m.name == window.attrs.get("preferred_monitor"), monitors), self._monitors[0]) # pylint: disable=cell-var-from-loop
-                        virtdesk_state.get_monitor_state(monitor).add_window(window)
+                        virtdesk_state.monitor_state(monitor).add_window(window)
         self._monitors = list(sorted(monitors, key=lambda m: m.name))
 
     def apply_rule_to_window(self, window: Window) -> bool:

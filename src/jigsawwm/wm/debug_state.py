@@ -24,7 +24,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     with open(DEFAULT_STATE_PATH, "rb") as f:
         try:
-            virtdesk_states = pickle.load(f)
+            virtdesk_states, seen_windows, managed_windows = pickle.load(f)
             inspect_virtdesk_states(virtdesk_states)
         except: # pylint: disable=bare-except
             logger.exception("load windows states error", exc_info=True)

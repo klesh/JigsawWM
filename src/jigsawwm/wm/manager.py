@@ -167,7 +167,7 @@ class WindowManager(WindowManagerCore):
         src_idx = monitors.index(src_monitor_state.monitor)
         dst_idx = (src_idx + delta) % len(monitors)
         dst_monitor = monitors[dst_idx]
-        dst_monitor_state = self.virtdesk_state.get_monitor_state(dst_monitor)
+        dst_monitor_state = self.virtdesk_state.monitor_state(dst_monitor)
         return dst_monitor_state
 
     def switch_monitor_by_offset(self, delta: int):
@@ -258,7 +258,7 @@ class WindowManager(WindowManagerCore):
     def switch_workspace(self, workspace_index: int, monitor_name: str = None, hide_splash_in: Optional[float] = None) -> Callable:
         """Switch to a specific workspace"""
         monitor_state = (
-            self.virtdesk_state.get_monitor_state_by_name(monitor_name)
+            self.virtdesk_state.monitor_state_by_name(monitor_name)
             if monitor_name
             else self.virtdesk_state.monitor_state_from_cursor()
         )
