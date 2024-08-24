@@ -109,7 +109,8 @@ class WorkspaceState(PickableState):
         """Add a window to the workspace"""
         logger.debug("%s add window %s", self, window)
         window.attrs["workspace_state"] = self
-        window.toggle(self.showing)
+        if window.is_visible != self.showing:
+            window.toggle(self.showing)
         if window in self.windows:
             return
         self.windows.add(window)
@@ -142,6 +143,8 @@ class WorkspaceState(PickableState):
     def sync_windows(self) -> bool:
         """Sync the internal windows list to the incoming windows list"""
         logger.debug("%s sync windows", self)
+
+        self.windows = {w for w in self.windows if w.exists()}
 
         def _check_tilable(w: Window):
             return w.manageable and w.tilable and not w.is_iconic
