@@ -198,7 +198,12 @@ class WindowManagerCore:
     def try_swapping_window(self, window: Window) -> Optional[Tuple[Window, MonitorState]]:
         """Check if the window is being reordered"""
         logger.info("try swapping windows")
-        monitor_state: MonitorState = window.attrs[MONITOR_STATE]
+        # when dragging chrome tab into a new window, the window will not have MONITOR_STATE
+        monitor_state: MonitorState = (
+            window.attrs[MONITOR_STATE]
+            if MONITOR_STATE in window.attrs
+            else self.virtdesk_state.monitor_state_from_window(window)
+        )
         target_monitor_state = self.virtdesk_state.monitor_state_from_cursor()
         logger.info("target monitor: %s", target_monitor_state.monitor)
         # window being dragged to another monitor
