@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import Callable, List, Optional, Any, Dict
 from os import path
 from functools import cached_property
+from threading import Lock
 
 from . import process
 from .sendinput import send_input, INPUT, INPUTTYPE, KEYBDINPUT, KEYEVENTF
@@ -503,6 +504,9 @@ class Window:
         print("rect         :", rect.left, rect.top, rect.right, rect.bottom, file=file)
         bound = self.get_extended_frame_bounds()
         print("bound        :", bound.left, bound.top, bound.right, bound.bottom, file=file)
+        if self.restricted_rect:
+            r = self.restricted_rect
+            print("restricted   :", r.left, r.top, r.right, r.bottom, file=file)
         print("is_evelated  :", self.is_evelated, file=file)
         print("is_toplevel  :", self.is_toplevel, file=file)
         print("is_cloaked   :", self.is_cloaked, file=file)
@@ -514,6 +518,7 @@ class Window:
         print("dpi_awareness:", self.dpi_awareness.name, file=file)
 
 
+_seen_windows_lock = Lock()
 _seen_windows: Dict[HWND, Window] = {}
 
 def get_seen_windows() -> Dict[HWND, Window]:
@@ -523,14 +528,17 @@ def get_seen_windows() -> Dict[HWND, Window]:
 def replace_seen_windows(data: Dict[HWND, Window]):
     """Replace seen windows"""
     global _seen_windows # pylint: disable=global-statement
-    _seen_windows = data
+    with _seen_windows_lock:
+        _seen_windows = data
 
 def lookup_window(hwnd: Optional[HWND]) -> Optional[Window]:
     """Lookup window"""
     if not hwnd:
         raise ValueError("hwnd is None")
     if hwnd not in _seen_windows:
-        _seen_windows[hwnd] = Window(hwnd)
+        with _seen_windows_lock:
+            if hwnd not in _seen_windows:
+                _seen_windows[hwnd] = Window(hwnd)
     return _seen_windows[hwnd]
 
 def filter_windows(check: Callable[[Window], bool]) -> List[Window]:
@@ -594,10 +602,9 @@ if __name__ == "__main__":
             for wd in filter_windows(lambda w: w.manageable and w.is_visible):
                 print()
                 wd.inspect()
-        elif param == "exe":
+        elif param == "show":
             for wd in filter_windows(lambda w: w.exe_name.lower() == sys.argv[2].lower()):
-                print()
-                wd.inspect()
+                wd.show()
         elif param == "unhide":
             Window(int(sys.argv[2])).show()
     else:
