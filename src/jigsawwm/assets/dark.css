@@ -6,6 +6,25 @@
   font-family: "Microsoft YaHei";
 }
 
+#workspace {
+  border: 1px solid #666666;
+  background-color: #333333;
+  color: #e1e1e1;
+}
+
+#workspace[active=true] {
+  background: #999999;
+}
+
+#workspace_name {
+  font-size: 14pt;
+  font-weight: bold;
+}
+
+#workspace_info {
+  font-size: 8pt;
+}
+
 QPushButton {
   border-width: 1px;
   border-style: solid;
@@ -92,10 +111,10 @@ QScrollBar::sub-page {
   background: rgb(81, 81, 81);
 }
 
-#workspace {
+#monitor {
   margin: 0 5px 5px 5px;
   padding: 5px;
   font-size: 16pt;
   height: 18pt;
-  background: #666666;
+  border-bottom: 1px solid #666666;
 }
