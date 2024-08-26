@@ -1,12 +1,14 @@
 """Window Manager Operations"""
 import logging
 import time
+import pickle
+import os
 from typing import List, Callable, Optional
 from threading import Thread
 
 from jigsawwm import ui
 from jigsawwm.w32 import virtdesk, hook
-from jigsawwm.w32.window import Window, HWND, LONG, DWORD, get_active_window
+from jigsawwm.w32.window import Window, HWND, LONG, DWORD, get_active_window, replace_seen_windows
 from jigsawwm.w32.monitor import get_topo_sorted_monitors
 from jigsawwm.w32.winevent import WinEvent
 
@@ -53,6 +55,26 @@ class WindowManager(WindowManagerCore):
         self._consumer = Thread(target=self._consume_events)
         self._consumer.start()
         self.install_hooks()
+
+    def load_state(self):
+        """Load the windows state"""
+        logger.info("loading state")
+        if os.path.exists(self.DEFAULT_STATE_PATH):
+            with open(self.DEFAULT_STATE_PATH, "rb") as f:
+                try:
+                    virtdesk_states, seen_windows, managed_windows = pickle.load(f)
+                    replace_seen_windows({hwnd: window for hwnd, window in seen_windows.items() if window.exists()})
+                    self._managed_windows = {w for w in managed_windows if w.exists()}
+                    self.virtdesk_states = virtdesk_states
+                    logger.info("load windows states from the last session")
+                except: # pylint: disable=bare-except
+                    logger.exception("load windows states error", exc_info=True)
+                    return
+            for virtdesk_state in self.virtdesk_states.values():
+                virtdesk_state.update_config(self.config)
+        else:
+            logger.info("nothing from the last session")
+        self.sync_windows()
 
     def stop(self):
         """Stop the WindowManagerCore service"""
@@ -118,7 +140,7 @@ class WindowManager(WindowManagerCore):
         dst_index = (src_index + offset) % len(monitor_state.tilable_windows)
         dst_window = monitor_state.tilable_windows[dst_index]
         dst_window.activate()
-        ui.show_windows_splash(monitor_state, dst_window)
+        ui.show_windows_splash(monitor_state, monitor_state.active_workspace_index, dst_window)
         return ui.hide_windows_splash
 
     def swap_by_offset(self, offset: int):
@@ -262,6 +284,7 @@ class WindowManager(WindowManagerCore):
             if monitor_name
             else self.virtdesk_state.monitor_state_from_cursor()
         )
+        ui.show_windows_splash(monitor_state, workspace_index, None)
         self.enqueue(WinEvent.CMD_CALL, self._switch_workspace, monitor_state, workspace_index, hide_splash_in)
         if not hide_splash_in:
             return ui.hide_windows_splash

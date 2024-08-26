@@ -21,7 +21,6 @@ from jigsawwm.w32.window import (
     lookup_window,
     filter_windows,
     get_seen_windows,
-    replace_seen_windows,
 )
 from jigsawwm.w32.winevent import WinEvent
 from jigsawwm.jmk import sysinout, Vk
@@ -62,29 +61,7 @@ class WindowManagerCore:
     ):
         self.config = config
         self.virtdesk_states = {}
-        self.load_state()
         self._queue = SimpleQueue()
-
-    def load_state(self):
-        """Load the windows state"""
-        logger.info("loading state")
-        loaded = False
-        if os.path.exists(self.DEFAULT_STATE_PATH):
-            with open(self.DEFAULT_STATE_PATH, "rb") as f:
-                try:
-                    self.virtdesk_states, seen_windows, managed_windows = pickle.load(f)
-                    replace_seen_windows({hwnd: window for hwnd, window in seen_windows.items() if window.exists()})
-                    self._managed_windows = {w for w in managed_windows if w.exists()}
-                    logger.info("load windows states from the last session")
-                except: # pylint: disable=bare-except
-                    logger.exception("load windows states error", exc_info=True)
-            for virtdesk_state in self.virtdesk_states.values():
-                virtdesk_state.update_config(self.config)
-            logger.info("recover possibly lost windows")
-            loaded = True
-        else:
-            logger.info("nothing from the last session")
-        return loaded
 
     @property
     def virtdesk_state(self) -> VirtDeskState:
@@ -248,7 +225,7 @@ class WindowManagerCore:
         """Synchronize internal windows state to the system state synchronously"""
         # gather all manageable windows
         self.sync_monitors()
-        windows = filter_windows(lambda w: w.manageable and w.is_visible)
+        windows = filter_windows(lambda w: w.handle != ui.instance.winId() and w.manageable and w.is_visible)
         old_windows = self._managed_windows
         # new windows
         new_windows = windows - old_windows
@@ -337,7 +314,6 @@ class WindowManagerCore:
         logger.debug("switch workspace to %d", workspace_index)
         monitor_state.switch_workspace(workspace_index)
         self.save_state()
-        ui.show_windows_splash(monitor_state, None)
         if hide_splash_in:
             logger.debug("hide splash in %s", hide_splash_in)
             workers.submit_with_delay(ui.hide_windows_splash, hide_splash_in)
