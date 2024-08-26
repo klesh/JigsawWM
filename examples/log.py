@@ -25,7 +25,7 @@ if debugging:
 
         loggers = set(debugging.split(","))
         def f(record: logging.LogRecord) -> bool:
-            return any(record.name.startswith(logger) for logger in loggers)
+            return any(record.name.startswith(logger) for logger in loggers) or record.levelno >= logging.INFO
 
         consoleHandler.addFilter(f)
         fileHandler.addFilter(f)

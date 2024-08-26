@@ -1,7 +1,6 @@
 from jmk import hks
 from log import *
 from functools import partial
-from typing import Union,Iterator
 
 from jigsawwm import daemon
 from jigsawwm.tiler import tilers
@@ -89,8 +88,7 @@ hotkeys = [
     ("Win+Ctrl+u", wm.inspect_state),
 ]
 
-
-class WindowManagerService(daemon.Service, daemon.ServiceMenu):
+class WindowManagerService(daemon.Service): # , daemon.ServiceMenu
     """Window Manager Service"""
     name = "Window Manager"
     is_running = False
@@ -107,20 +105,20 @@ class WindowManagerService(daemon.Service, daemon.ServiceMenu):
             hks.unregister(args[0])
         self.is_running = False
 
-    def service_menu_items(self) -> Iterator[Union[daemon.QMenu, daemon.QAction]]:
-        for monitor, monitor_state in wm.virtdesk_state.monitor_states.items():
-            monitor_menu = daemon.QMenu()
-            monitor_menu.setTitle(f"Monitor {monitor.name}")
-            monitor_menu.menuitems = [] # prevent submenu from being garbage collected
-            for workspace_index, workspace in enumerate( monitor_state.workspaces):
-                workspace_act = daemon.QAction()
-                workspace_act.setText(f"Workspace {workspace.name}")
-                workspace_act.triggered.connect(partial(wm.switch_workspace, workspace_index, monitor_name=monitor.name, hide_splash_in=2))
-                workspace_act.setCheckable(True)
-                workspace_act.setChecked(workspace_index == monitor_state.active_workspace_index)
-                monitor_menu.addAction(workspace_act)
-                monitor_menu.menuitems.append(workspace_act)
-            yield monitor_menu
+    # def service_menu_items(self) -> Iterator[Union[daemon.QMenu, daemon.QAction]]:
+    #     for monitor, monitor_state in wm.virtdesk_state.monitor_states.items():
+    #         monitor_menu = daemon.QMenu()
+    #         monitor_menu.setTitle(f"Monitor {monitor.name}")
+    #         monitor_menu.menuitems = [] # prevent submenu from being garbage collected
+    #         for workspace_index, workspace in enumerate( monitor_state.workspaces):
+    #             workspace_act = daemon.QAction()
+    #             workspace_act.setText(f"Workspace {workspace.name}")
+    #             workspace_act.triggered.connect(partial(wm.switch_workspace, workspace_index, monitor_name=monitor.name, hide_splash_in=2))
+    #             workspace_act.setCheckable(True)
+    #             workspace_act.setChecked(workspace_index == monitor_state.active_workspace_index)
+    #             monitor_menu.addAction(workspace_act)
+    #             monitor_menu.menuitems.append(workspace_act)
+    #         yield monitor_menu
 
 
 daemon.register(WindowManagerService)
