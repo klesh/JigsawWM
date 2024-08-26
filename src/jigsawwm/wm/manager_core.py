@@ -76,6 +76,7 @@ class WindowManagerCore:
         return virtdesk_state
 
     def _consume_events(self):
+        event, args, timestamp = None, None, None
         while True:
             try:
                 # wait for the next task
@@ -89,7 +90,7 @@ class WindowManagerCore:
                     # delay for a certain time for windows state to be stable
                     #  case 1: CVR won't be tiled when restored with maximized mode
                     #  case 2: libreoffice is not tiled on first launch
-                    hwnd = args[0]
+                    hwnd = args[0] if len(args) > 0 else None
                     delay = self.is_event_interested(event, hwnd)
                     if delay:
                         tts = delay - (time.time() - timestamp)
@@ -98,7 +99,7 @@ class WindowManagerCore:
                         logger.info("!!! REACT on event %s for window %s", event.name, hwnd)
                         self.sync_windows()
             except: # pylint: disable=bare-except
-                logger.exception("consume_queue error", exc_info=True, stack_info=True)
+                logger.exception("consume_queue error, event: %s, args: %s, ts: %s", event, args, timestamp)
 
     def is_event_interested(self, event: WinEvent, hwnd: HWND) -> float:
         """Check if event is interested"""
@@ -275,25 +276,33 @@ class WindowManagerCore:
     def sync_monitors(self):
         """Sync monitor states"""
         virtdesk_state = self.virtdesk_state
+        old_monitors = set(self._monitors)
         monitors = set(get_monitors())
-        old_monitors = set(virtdesk_state.monitor_states.keys())
+        if old_monitors == monitors:
+            return
+        self._monitors = list(sorted(monitors, key=lambda m: m.name))
+        windows_tobe_rearranged = set()
         # new monitors
         new_monitors = monitors - old_monitors
         if new_monitors:
-            logger.info("new monitor connected: %s", new_monitors)
+            logger.info("new monitor connected: %s rearrange all windows", new_monitors)
+            for ms in virtdesk_state.monitor_states.values():
+                for ws in ms.workspaces:
+                    windows_tobe_rearranged |= ws.windows
         # remove monitor states
         removed_monitors = old_monitors - monitors
         if removed_monitors:
             logger.info("monitor disconnected: %s", removed_monitors)
             for removed_monitor in removed_monitors:
                 removed_state = virtdesk_state.monitor_states.pop(removed_monitor)
-                for workspace in removed_state.workspaces:
-                    for window in workspace.windows:
-                        if not window.exists():
-                            continue
-                        monitor = next(filter(lambda m: m.name == window.attrs.get("preferred_monitor"), monitors), self._monitors[0]) # pylint: disable=cell-var-from-loop
-                        virtdesk_state.monitor_state(monitor).add_window(window)
-        self._monitors = list(sorted(monitors, key=lambda m: m.name))
+                for ws in removed_state.workspaces:
+                    windows_tobe_rearranged |= ws.windows
+        # rearrange windows
+            for window in windows_tobe_rearranged:
+                if not window.exists():
+                    continue
+                monitor = next(filter(lambda m: m.name == window.attrs[PREFERRED_MONITOR_NAME], monitors), self._monitors[0]) # pylint: disable=cell-var-from-loop
+                virtdesk_state.monitor_state(monitor).add_window(window)
 
     def apply_rule_to_window(self, window: Window) -> bool:
         """Check if window is to be tilable"""
@@ -325,6 +334,7 @@ class WindowManagerCore:
 
     def _move_to_workspace(self, window: Window, workspace_index: int):
         monitor_state: MonitorState = window.attrs[MONITOR_STATE]
+        window.attrs[PREFERRED_WORKSPACE_INDEX] = workspace_index
         monitor_state.move_to_workspace(window, workspace_index)
         self.save_state()
 
@@ -345,6 +355,8 @@ class WindowManagerCore:
         self.save_state()
 
     def _move_to_monitor(self, monitor_state: MonitorState, window: Window, dst_monitor_state: MonitorState):
+        window.attrs[PREFERRED_MONITOR_NAME] = dst_monitor_state.monitor.name
+        window.attrs[PREFERRED_WORKSPACE_INDEX] = dst_monitor_state.active_workspace_index
         monitor_state.remove_window(window)
         dst_monitor_state.add_window(window)
         if monitor_state.tilable_windows:
