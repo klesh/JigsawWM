@@ -54,6 +54,7 @@ class WindowManagerCore:
     _consumer: Optional[Thread] = None
     _monitors: List[Monitor] = []
     _managed_windows: Set[Window] = set()
+    _previous_switch_workspace_for_window_activation = 0.0
 
     def __init__(
         self,
@@ -165,6 +166,10 @@ class WindowManagerCore:
         """Try to switch workspace for window activation"""
         # a window belongs to hidden workspace just got activated
         # put your default browser into workspace and then ctrl-click a link, e.g. http://google.com 
+        now = time.time()
+        if now - self._previous_switch_workspace_for_window_activation:
+            return
+        self._previous_switch_workspace_for_window_activation = now
         if window.is_visible or MONITOR_STATE not in window.attrs:
             return
         monitor_state, workspace_state = window.attrs[MONITOR_STATE], window.attrs[WORKSPACE_STATE]
