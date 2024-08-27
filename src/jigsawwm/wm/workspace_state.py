@@ -115,6 +115,10 @@ class WorkspaceState(PickableState):
             return
         self.windows.add(window)
         self.sync_windows()
+        try:
+            return self.tilable_windows.index(window)
+        except ValueError:
+            return 0
 
     def remove_window(self, window: Window):
         """Remove a window from the workspace"""
@@ -143,7 +147,6 @@ class WorkspaceState(PickableState):
     def sync_windows(self) -> bool:
         """Sync the internal windows list to the incoming windows list"""
         logger.debug("%s sync windows", self)
-
         self.windows = {w for w in self.windows if w.exists()}
 
         def _check_tilable(w: Window):
@@ -162,7 +165,8 @@ class WorkspaceState(PickableState):
                         new_tilable_windows_set.remove(w)
         
         # append the rest new windows
-        new_tilable_windows += list(new_tilable_windows_set)
+        default_order = 0 if self.theme.new_window_as_master else len(tilable_windows)
+        new_tilable_windows = sorted(new_tilable_windows_set, key=lambda w: w.attrs.get("preferred_window_order", default_order))
         # append or prepend new_windows based on the theme setting
         if self.theme.new_window_as_master:
             tilable_windows = new_tilable_windows + tilable_windows

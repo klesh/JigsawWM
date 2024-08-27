@@ -27,6 +27,7 @@ from jigsawwm.jmk import sysinout, Vk
 from jigsawwm import ui, workers
 
 from .virtdesk_state import VirtDeskState, MonitorState
+from .workspace_state import WorkspaceState
 from .config import WmConfig
 from .debug_state import inspect_virtdesk_states
 from .theme import Theme
@@ -34,6 +35,7 @@ from .theme import Theme
 logger = logging.getLogger(__name__)
 PREFERRED_MONITOR_NAME = "preferred_monitor_name"
 PREFERRED_WORKSPACE_INDEX = "preferred_workspace_index"
+PREFERRED_WINDOW_ORDER = "preferred_window_order"
 RULE_APPLIED = "rule_applied"
 MONITOR_STATE = "monitor_state"
 WORKSPACE_STATE = "workspace_state"
@@ -54,6 +56,7 @@ class WindowManagerCore:
     _consumer: Optional[Thread] = None
     _monitors: List[Monitor] = []
     _managed_windows: Set[Window] = set()
+    _pid_preferred_workspace: Dict[int, WorkspaceState] = {}
     _previous_switch_workspace_for_window_activation = 0.0
 
     def __init__(
@@ -221,7 +224,7 @@ class WindowManagerCore:
             raise ValueError(f"window has no restricted rect: {window}")
         b = target_window.restricted_rect
         if b is None:
-            raise ValueError("target window has no restricted rect: %s" % target_window)
+            raise ValueError(f"target window has no restricted rect: {target_window}")
         window.set_restrict_rect(b)
         target_window.set_restrict_rect(a)
         self.save_state()
@@ -231,17 +234,23 @@ class WindowManagerCore:
         """Synchronize internal windows state to the system state synchronously"""
         # gather all manageable windows
         self.sync_monitors()
-        windows = filter_windows(lambda w: w.handle != ui.instance.winId() and w.manageable and w.is_visible)
+        windows = set(filter_windows(lambda w: w.handle != ui.instance.winId() and w.manageable and w.is_visible))
         old_windows = self._managed_windows
         # new windows
         new_windows = windows - old_windows
         if new_windows:
             logger.info("new windows appeared: %s", new_windows)
             for window in new_windows:
-                # sometimes the window reappeared after being hidden
-                # if virtdesk_state.find_window_in_hidden_workspaces(window.handle):
-                #     window.hide()
-                #     continue
+                # fusion360 uses multiple top level windows to render the UI, they should be put into the same workspace
+                # if window.is_child:
+                #     workspace = self._pid_preferred_workspace.get(window.pid, None)
+                #     if workspace:
+                #         workspace.add_window(window)
+                #         continue
+                if window.root_window != window:
+                    window.attrs[RULE_APPLIED] = True
+                    window.attrs[PREFERRED_MONITOR_NAME] = window.root_window.attrs[PREFERRED_MONITOR_NAME]
+                    window.attrs[PREFERRED_WORKSPACE_INDEX] = window.root_window.attrs[PREFERRED_WORKSPACE_INDEX]
                 if RULE_APPLIED not in window.attrs:
                     self.apply_rule_to_window(window)
                     window.attrs[RULE_APPLIED] = True
@@ -256,7 +265,8 @@ class WindowManagerCore:
                 )
                 if PREFERRED_WORKSPACE_INDEX not in window.attrs:
                     window.attrs[PREFERRED_WORKSPACE_INDEX] = monitor_state.active_workspace_index
-                monitor_state.add_window(window)
+                window.attrs[PREFERRED_WINDOW_ORDER] = monitor_state.add_window(window)
+                self._pid_preferred_workspace[window.pid] = monitor_state.workspace
         # removed windows
         removed_windows = old_windows - windows
         if removed_windows:
@@ -298,11 +308,16 @@ class WindowManagerCore:
                 for ws in removed_state.workspaces:
                     windows_tobe_rearranged |= ws.windows
         # rearrange windows
-            for window in windows_tobe_rearranged:
-                if not window.exists():
-                    continue
-                monitor = next(filter(lambda m: m.name == window.attrs[PREFERRED_MONITOR_NAME], monitors), self._monitors[0]) # pylint: disable=cell-var-from-loop
-                virtdesk_state.monitor_state(monitor).add_window(window)
+        groups = {}
+        for window in windows_tobe_rearranged:
+            if not window.exists():
+                continue
+            monitor = next(filter(lambda m: m.name == window.attrs[PREFERRED_MONITOR_NAME], monitors), self._monitors[0]) # pylint: disable=cell-var-from-loop
+            if monitor not in groups:
+                groups[monitor] = set()
+            groups[monitor].add(window)
+        for monitor, windows in groups.items():
+            virtdesk_state.monitor_state(monitor).workspace.add_windows(windows)
 
     def apply_rule_to_window(self, window: Window) -> bool:
         """Check if window is to be tilable"""
@@ -322,7 +337,7 @@ class WindowManagerCore:
         """Save the windows state"""
         logger.info("saving state")
         with open(self.DEFAULT_STATE_PATH, "wb") as f:
-            pickle.dump([self.virtdesk_states, get_seen_windows(), self._managed_windows], f)
+            pickle.dump([self.virtdesk_states, get_seen_windows(), self._managed_windows, self._monitors], f)
 
     def _switch_workspace(self, monitor_state: MonitorState, workspace_index: int, hide_splash_in: Optional[float] = None) -> Callable:
         logger.debug("switch workspace to %d", workspace_index)
@@ -335,7 +350,7 @@ class WindowManagerCore:
     def _move_to_workspace(self, window: Window, workspace_index: int):
         monitor_state: MonitorState = window.attrs[MONITOR_STATE]
         window.attrs[PREFERRED_WORKSPACE_INDEX] = workspace_index
-        monitor_state.move_to_workspace(window, workspace_index)
+        window.attrs[PREFERRED_WINDOW_ORDER] = monitor_state.move_to_workspace(window, workspace_index)
         self.save_state()
 
     def _reorder(self, reorderer: Callable[[List[Window], int], None]):
@@ -348,6 +363,8 @@ class WindowManagerCore:
         next_active_window = reorderer(monitor_state.tilable_windows, monitor_state.tilable_windows.index(window))
         monitor_state.arrange()
         (next_active_window or window).activate()
+        for i, w in enumerate(monitor_state.tilable_windows):
+            w.attrs[PREFERRED_WINDOW_ORDER] = i
         self.save_state()
 
     def _set_theme(self, monitor_state: MonitorState, theme: Theme):
@@ -357,8 +374,8 @@ class WindowManagerCore:
     def _move_to_monitor(self, monitor_state: MonitorState, window: Window, dst_monitor_state: MonitorState):
         window.attrs[PREFERRED_MONITOR_NAME] = dst_monitor_state.monitor.name
         window.attrs[PREFERRED_WORKSPACE_INDEX] = dst_monitor_state.active_workspace_index
+        window.attrs[PREFERRED_WINDOW_ORDER] = dst_monitor_state.add_window(window)
         monitor_state.remove_window(window)
-        dst_monitor_state.add_window(window)
         if monitor_state.tilable_windows:
             monitor_state.tilable_windows[0].activate()
         self.save_state()

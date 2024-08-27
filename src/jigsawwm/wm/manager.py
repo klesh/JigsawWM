@@ -7,7 +7,7 @@ from typing import List, Callable, Optional
 from threading import Thread
 
 from jigsawwm import ui
-from jigsawwm.w32 import virtdesk, hook
+from jigsawwm.w32 import hook
 from jigsawwm.w32.window import Window, HWND, LONG, DWORD, get_active_window, replace_seen_windows
 from jigsawwm.w32.monitor import get_topo_sorted_monitors
 from jigsawwm.w32.winevent import WinEvent
@@ -51,6 +51,7 @@ class WindowManager(WindowManagerCore):
     def start(self):
         """Start the WindowManagerCore service"""
         # load windows state from the last session
+        self.load_state()
         self.sync_windows()
         self._consumer = Thread(target=self._consume_events)
         self._consumer.start()
@@ -62,10 +63,11 @@ class WindowManager(WindowManagerCore):
         if os.path.exists(self.DEFAULT_STATE_PATH):
             with open(self.DEFAULT_STATE_PATH, "rb") as f:
                 try:
-                    virtdesk_states, seen_windows, managed_windows = pickle.load(f)
+                    virtdesk_states, seen_windows, managed_windows, monitors = pickle.load(f)
                     replace_seen_windows({hwnd: window for hwnd, window in seen_windows.items() if window.exists()})
                     self._managed_windows = {w for w in managed_windows if w.exists()}
                     self.virtdesk_states = virtdesk_states
+                    self._monitors = monitors
                     logger.info("load windows states from the last session")
                 except: # pylint: disable=bare-except
                     logger.exception("load windows states error", exc_info=True)
@@ -252,16 +254,16 @@ class WindowManager(WindowManagerCore):
         """Move active window to next monitor"""
         self.move_to_monitor_by_offset(+1)
 
-    def move_to_desktop(self, desktop_number: int, window: Optional[Window] = None):
-        """Move active window to another virtual desktop"""
-        virtdesk.move_to_desktop(desktop_number, window)
-        self.sync_windows()
-        self.save_state()
+    # def move_to_desktop(self, desktop_number: int, window: Optional[Window] = None):
+    #     """Move active window to another virtual desktop"""
+    #     virtdesk.move_to_desktop(desktop_number, window)
+    #     self.sync_windows()
+    #     self.save_state()
 
-    def switch_desktop(self, desktop_number: int):
-        """Switch to another virtual desktop"""
-        virtdesk.switch_desktop(desktop_number)
-        self.sync_windows()
+    # def switch_desktop(self, desktop_number: int):
+    #     """Switch to another virtual desktop"""
+    #     virtdesk.switch_desktop(desktop_number)
+    #     self.sync_windows()
 
     def toggle_tilable(self):
         """Toggle the active window between tilable and floating state"""

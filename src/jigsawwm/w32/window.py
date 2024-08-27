@@ -80,7 +80,7 @@ class Window:
             marks += 'R'
         if self.minimized_by_user:
             marks += '_'
-        return f"<Window id={id(self)} exe={self.exe_name} title={self.title[:10]} hwnd={self.handle}{marks}>"
+        return f"<Window id={id(self)} pid={self.pid} exe={self.exe_name} title={self.title[:10]} hwnd={self.handle}{marks}>"
 
     # some windows may change their style after created and there will be no event raised
     # so we need to remember the tilable state to avoid undesirable behavior.
@@ -107,6 +107,11 @@ class Window:
     @manageable.setter
     def manageable(self, value):
         self.user_manageable = value
+
+    @property
+    def is_child(self) -> bool:
+        """Check if window is a child window"""
+        return self.parent_handle or (self.get_exstyle() & WindowExStyle.LAYERED)
 
     @property
     def title(self) -> str:
@@ -160,9 +165,9 @@ class Window:
         """
         pid = DWORD()
         user32.GetWindowThreadProcessId(self.handle, pointer(pid))
-        return pid
+        return pid.value
 
-    @property
+    @cached_property
     def parent_handle(self) -> HWND:
         """Retrieves the parent window handle"""
         return user32.GetParent(self.handle)
@@ -477,6 +482,24 @@ class Window:
             self.restore()
         return self.show()
 
+    @cached_property
+    def root_window(self) -> "Window":
+        """Retrieve the root window"""
+        root_window = self
+        while root_window.parent_handle:
+            root_window = lookup_window(root_window.parent_handle)
+        return root_window
+
+    def find_children(self) -> List["Window"]:
+        """Retrieve the children windows"""
+        # process children windows
+        def find_children(w: Window):
+            children = set(filter_windows(lambda x: x.parent_handle == w.handle))
+            for child in children:
+                children |= find_children(child)
+            return children
+        return find_children(self)
+
     def inspect(self, file=sys.stdout):
         """Inspect window and print the information to the file"""
         if not self.exists():
@@ -538,7 +561,8 @@ def lookup_window(hwnd: Optional[HWND]) -> Optional[Window]:
     if hwnd not in _seen_windows:
         with _seen_windows_lock:
             if hwnd not in _seen_windows:
-                _seen_windows[hwnd] = Window(hwnd)
+                window = Window(hwnd)
+                _seen_windows[hwnd] = window
     return _seen_windows[hwnd]
 
 def filter_windows(check: Callable[[Window], bool]) -> List[Window]:
@@ -602,11 +626,16 @@ if __name__ == "__main__":
             for wd in filter_windows(lambda w: w.manageable and w.is_visible):
                 print()
                 wd.inspect()
-        elif param == "show":
+        elif param == "exe":
             for wd in filter_windows(lambda w: w.exe_name.lower() == sys.argv[2].lower()):
-                wd.show()
+                print()
+                wd.inspect()
         elif param == "unhide":
             Window(int(sys.argv[2])).show()
+        elif param == "layered":
+            for wd in filter_windows(lambda w: w.manageable and w.is_visible and (w.get_exstyle() & WindowExStyle.LAYERED)):
+                print()
+                wd.inspect()
     else:
         time.sleep(2)
         get_active_window().inspect()
