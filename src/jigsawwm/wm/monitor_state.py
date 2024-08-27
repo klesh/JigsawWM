@@ -135,11 +135,11 @@ class MonitorState(PickableState):
             return
         # remove the window from its current workspace
         root = window.root_window
-        children = window.find_children()
+        children = window.find_manageable_children()
         self.workspace.remove_windows(children)
         self.workspace.remove_window(root)
         self.workspaces[workspace_index].add_windows(children)
-        return self.workspace.add_window(window)
+        return self.workspaces[workspace_index].add_window(window)
 
     def sync_windows(self) -> bool:
         """Synchronize managed windows with given actual windows currently visible and arrange them

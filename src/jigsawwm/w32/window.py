@@ -490,13 +490,14 @@ class Window:
             root_window = lookup_window(root_window.parent_handle)
         return root_window
 
-    def find_children(self) -> List["Window"]:
+    def find_manageable_children(self) -> List["Window"]:
         """Retrieve the children windows"""
         # process children windows
-        def find_children(w: Window):
-            children = set(filter_windows(lambda x: x.parent_handle == w.handle))
-            for child in children:
-                children |= find_children(child)
+        def find_children(w: Window, children: set = None) -> set:
+            children = children or set()
+            for child in filter_windows(lambda x: x.parent_handle == w.handle and x.manageable):
+                children.add(child)
+                find_children(child, children)
             return children
         return find_children(self)
 
@@ -627,7 +628,12 @@ if __name__ == "__main__":
                 print()
                 wd.inspect()
         elif param == "exe":
-            for wd in filter_windows(lambda w: w.exe_name.lower() == sys.argv[2].lower()):
+            for wd in filter_windows(
+                lambda w:
+                    w.exe_name.lower() == sys.argv[2].lower()
+                    and w.is_toplevel and not w.parent_handle
+                    and (len(sys.argv) < 4 or (sys.argv[3] == "--invisible" and not w.is_visible))
+            ):
                 print()
                 wd.inspect()
         elif param == "unhide":
