@@ -30,6 +30,9 @@ MANAGEABLE_CLASSNAME_BLACKLIST = {
     "Progman", # desktop background
     "WorkerW",
 }
+MANAGEABLE_EXE_BLACKLIST = {
+    "msedge.exe", # stupid copilot
+}
 SWP_NOACTIVATE = 0x0010
 SET_WINDOW_RECT_FLAG = SWP_NOACTIVATE
 GCL_HICONSM = -34
@@ -260,6 +263,8 @@ class Window:
             return "%s unmanageable: cloaked"
         if self.class_name in MANAGEABLE_CLASSNAME_BLACKLIST:
             return "blacklisted"
+        if self.exe_name in MANAGEABLE_EXE_BLACKLIST:
+            return "exe blacklisted"
         exstyle = self.get_exstyle()
         if WindowExStyle.TRANSPARENT in exstyle:
             return "WindowExStyle.TRANSPARENT"

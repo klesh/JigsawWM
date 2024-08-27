@@ -6,7 +6,6 @@ from functools import partial
 from threading import Lock
 
 from jigsawwm.w32.vk import * # pylint: disable=unused-wildcard-import,wildcard-import
-from jigsawwm import workers
 from jigsawwm.w32.sendinput import send_combination
 
 from .core import * # pylint: disable=wildcard-import, unused-wildcard-import
@@ -29,36 +28,21 @@ class JmkTrigger:
     def trigger(self):
         """Trigger"""
         logger.info("keys triggered: %s", self.keys)
-        self._lock.acquire()
         self.triggerred = True
-
-        def wrapped():
-            try:
-                release_cb = self.callback()
-                if release_cb:
-                    self.release_callback = release_cb
-            finally:
-                self._lock.release()
-
-        workers.submit(wrapped)
+        release_cb = self.callback()
+        if release_cb:
+            self.release_callback = release_cb
 
     def release(self):
         """Release"""
         if not self.triggerred:
             return
         logger.info("keys released: %s", self.keys)
-        self._lock.acquire()
+        if not self.triggerred:
+            return
         self.triggerred = False
-
-        def wrapped():
-            try:
-                if self.release_callback:
-                    workers.submit(self.release_callback)
-            finally:
-                self._lock.release()
-
-        workers.submit(wrapped)
-
+        if self.release_callback:
+            self.release_callback()
 
 class JmkTriggers(JmkHandler):
     """A handler that handles triggers."""

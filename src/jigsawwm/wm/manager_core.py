@@ -249,8 +249,11 @@ class WindowManagerCore:
                 #         continue
                 if window.root_window != window:
                     window.attrs[RULE_APPLIED] = True
-                    window.attrs[PREFERRED_MONITOR_NAME] = window.root_window.attrs[PREFERRED_MONITOR_NAME]
-                    window.attrs[PREFERRED_WORKSPACE_INDEX] = window.root_window.attrs[PREFERRED_WORKSPACE_INDEX]
+                    if PREFERRED_MONITOR_NAME not in window.root_window.attrs:
+                        logger.exception("window %s has no preferred monitor name", window.root_window)
+                    else:
+                        window.attrs[PREFERRED_MONITOR_NAME] = window.root_window.attrs[PREFERRED_MONITOR_NAME]
+                        window.attrs[PREFERRED_WORKSPACE_INDEX] = window.root_window.attrs[PREFERRED_WORKSPACE_INDEX]
                 if RULE_APPLIED not in window.attrs:
                     self.apply_rule_to_window(window)
                     window.attrs[RULE_APPLIED] = True

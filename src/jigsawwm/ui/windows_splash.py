@@ -167,5 +167,26 @@ def fire_shell_window_changed(event, window):
     if shell_windows_changed:
         shell_windows_changed(event, window)
 
-show_windows_splash = instance.show_splash.emit
-hide_windows_splash = instance.hide_splash.emit
+# show_windows_splash = instance.show_splash.emit
+# hide_windows_splash = instance.hide_splash.emit
+
+hide_before_show = False
+showing = False
+
+def show_windows_splash(monitor_state: MonitorState, workspace_index: int, active_window: Optional[Window] = None):
+    global hide_before_show, showing
+    if hide_before_show:
+        hide_before_show = False
+        showing = True
+        return
+    showing = True
+    instance.show_splash.emit(monitor_state, workspace_index, active_window)
+
+def hide_windows_splash():
+    global hide_before_show, showing
+    if not showing:
+        hide_before_show = True
+        return
+    hide_before_show = False
+    showing = False
+    instance.hide_splash.emit()
