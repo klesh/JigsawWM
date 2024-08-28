@@ -201,6 +201,8 @@ class WindowManager(WindowManagerCore):
         dst_monitor_state = self.get_monitor_state_by_offset(delta, src_monitor_state=src_monitor_state)
         src_monitor_state.workspace.before_hide()
         dst_monitor_state.workspace.after_show()
+        ui.show_windows_splash(dst_monitor_state, dst_monitor_state.active_workspace_index, dst_monitor_state.workspace.last_active_window)
+        return ui.hide_windows_splash
 
     def move_to_monitor_by_offset(self, delta: int):
         """Move active window to another monitor by offset"""

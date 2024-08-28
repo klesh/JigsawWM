@@ -51,7 +51,7 @@ class WindowsSplash(Dialog):
         self.root_layout.insertWidget(1, self.workspace_states)
         logger.info("WindowsSplash init")
 
-    @Slot(MonitorState, Window)
+    @Slot(MonitorState, int, Window)
     def show_windows_splash(self, monitor_state: MonitorState, workspace_index: int, active_window: Optional[Window]=None):
         """Show the splash screen"""
         logger.info("WindowsSplash show")
