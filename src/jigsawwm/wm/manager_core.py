@@ -124,10 +124,9 @@ class WindowManagerCore:
         if not window.manageable:
             return False
         # # filter by event
-        if event == WinEvent.EVENT_SYSTEM_FOREGROUND:
-            self.try_switch_workspace_for_window_activation(window)
-            return False
-        elif event == WinEvent.EVENT_OBJECT_SHOW or event == WinEvent.EVENT_OBJECT_UNCLOAKED:
+        if event == WinEvent.EVENT_OBJECT_SHOW or event == WinEvent.EVENT_OBJECT_UNCLOAKED:
+            if self.try_switch_workspace_for_window_activation(window):
+                return False
             if window in self._managed_windows:
                 return False
         elif event == WinEvent.EVENT_OBJECT_HIDE: # same as above
@@ -171,15 +170,20 @@ class WindowManagerCore:
         # a window belongs to hidden workspace just got activated
         # put your default browser into workspace and then ctrl-click a link, e.g. http://google.com 
         now = time.time()
-        if now - self._previous_switch_workspace_for_window_activation:
+        elapsed = now - self._previous_switch_workspace_for_window_activation
+        if elapsed < 1:
+            # some app might use multiple top level windows, like fusion360 which
+            # might cause the event to be triggered multiple times
+            logger.warning("workspace switching happened too frequently, possible loop")
             return
-        self._previous_switch_workspace_for_window_activation = now
-        if window.is_visible or MONITOR_STATE not in window.attrs:
+        if MONITOR_STATE not in window.attrs:
             return
         monitor_state, workspace_state = window.attrs[MONITOR_STATE], window.attrs[WORKSPACE_STATE]
         if not workspace_state.showing:
+            self._previous_switch_workspace_for_window_activation = now
             monitor_state.switch_workspace_by_name(workspace_state.name, no_activation=True)
             logger.info("switch to workspace %s due window %s got activated", workspace_state, window)
+            return True
 
     def try_swapping_window(self, window: Window) -> Optional[Tuple[Window, MonitorState]]:
         """Check if the window is being reordered"""
