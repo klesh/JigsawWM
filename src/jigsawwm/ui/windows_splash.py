@@ -28,6 +28,7 @@ class WindowsSplash(Dialog):
     windows: List[Window]
     shellhook_msgid = 0
     created_windows = set()
+    show_counter = 0
 
     def __init__(self):
         super().__init__()
@@ -124,11 +125,19 @@ class WindowsSplash(Dialog):
         x = rect.x() + (rect.width() - w) // 2
         y = rect.y() + (rect.height()) // 3
         self.setGeometry(x, y, w, h)
+        self.show_counter += 1
+        if self.show_counter % 2 == 0:
+            logger.info("ignore show_windows_splash due to hide_before_show")
+            return
         self.show()
 
     @Slot()
     def hide_windows_splash(self):
         """Hide the splash screen"""
+        self.show_counter += 1
+        if self.show_counter % 2 == 1:
+            logger.info("ignore hide_windows_splash due to already hidden")
+            return
         logger.info("WindowsSplash hide")
         self.hide()
 
@@ -167,26 +176,5 @@ def fire_shell_window_changed(event, window):
     if shell_windows_changed:
         shell_windows_changed(event, window)
 
-# show_windows_splash = instance.show_splash.emit
-# hide_windows_splash = instance.hide_splash.emit
-
-hide_before_show = False
-showing = False
-
-def show_windows_splash(monitor_state: MonitorState, workspace_index: int, active_window: Optional[Window] = None):
-    global hide_before_show, showing
-    if hide_before_show:
-        hide_before_show = False
-        showing = True
-        return
-    showing = True
-    instance.show_splash.emit(monitor_state, workspace_index, active_window)
-
-def hide_windows_splash():
-    global hide_before_show, showing
-    if not showing:
-        hide_before_show = True
-        return
-    hide_before_show = False
-    showing = False
-    instance.hide_splash.emit()
+show_windows_splash = instance.show_splash.emit
+hide_windows_splash = instance.hide_splash.emit
