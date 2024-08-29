@@ -359,7 +359,7 @@ class Window:
 
         :param rect: RECT with top/left/bottom/right properties
         """
-        logger.debug("set rect to %s for %s", repr_rect(rect), self.title)
+        logger.debug("%s set rect to %s", self, repr_rect(rect))
         x, y, w, h = rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top
         if not user32.SetWindowPos(self.handle, None, x, y, w, h, SET_WINDOW_RECT_FLAG):
             raise WinError(get_last_error())
@@ -387,14 +387,13 @@ class Window:
 
     def restrict(self):
         """Restrict the window to the restricted rect"""
-        logger.debug("restricting %s", self)
         if self.restricted_actual_rect:
+            logger.debug("%s restricting to %s", self, self.restricted_actual_rect)
             r1 = self.restricted_actual_rect
             r2 = self.get_rect()
             if r1.left == r2.left and r1.top == r2.top and r1.right == r2.right and r1.bottom == r2.bottom:
                 return
             self.set_rect(self.compensated_rect or self.restricted_rect)
-            logger.debug("restrict to %s for %s", repr_rect(self.restricted_rect), self.title)
 
     def unrestrict(self):
         """Unrestrict the window"""
@@ -454,7 +453,6 @@ class Window:
             new_fore_window = user32.GetForegroundWindow()
             retry -= 1
             time.sleep(0.01)
-        logger.debug("set_active_window: %s", new_fore_window == self.handle)
         # detach input thread
         if uf:
             user32.AttachThreadInput(our_thread_id, fore_thread_id, False)
@@ -475,15 +473,16 @@ class Window:
 
     def toggle(self, show: bool):
         """Toggle window visibility"""
-        logger.debug("toggle window %s showing to %s", self, show)
-        x, y = 100000, 100000
+        logger.debug("%s toggle showing to %s", self, show)
+        x, y = 10000, 10000
         try:
             r = self.get_rect()
             if show:
                 if r.left >= x:
                     self.set_rect(RECT(r.left-x, r.top-y, r.right-x, r.bottom-y))
             else:
-                self.set_rect(RECT(r.left+x, r.top+y, r.right+x, r.bottom+y))
+                if r.right < x:
+                    self.set_rect(RECT(r.left+x, r.top+y, r.right+x, r.bottom+y))
         except:
             logger.exception("toggle %s failed", self)
 
@@ -653,7 +652,7 @@ if __name__ == "__main__":
         elif param == "fix":
             for wd in filter_windows(
                 lambda w:
-                    w.manageable and w.get_rect().right > 10000
+                    w.manageable and w.get_rect().right > 1000 
             ):
                 wd.set_rect(RECT(100, 100, 500, 600))
                 wd.inspect()
