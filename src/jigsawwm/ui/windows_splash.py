@@ -135,9 +135,6 @@ class WindowsSplash(Dialog):
     def hide_windows_splash(self):
         """Hide the splash screen"""
         self.show_counter += 1
-        if self.show_counter % 2 == 1:
-            logger.info("ignore hide_windows_splash due to already hidden")
-            return
         logger.info("WindowsSplash hide")
         self.hide()
 
