@@ -650,20 +650,12 @@ if __name__ == "__main__":
             for wd in filter_windows(lambda w: w.manageable and w.is_visible):
                 print()
                 wd.inspect()
-        elif param == "exe":
+        elif param == "fix":
             for wd in filter_windows(
                 lambda w:
-                    w.exe_name.lower() == sys.argv[2].lower()
-                    and w.is_toplevel and not w.parent_handle
-                    and (len(sys.argv) < 4 or (sys.argv[3] == "--invisible" and not w.is_visible))
+                    w.manageable and w.get_rect().right > 10000
             ):
-                print()
-                wd.inspect()
-        elif param == "unhide":
-            Window(int(sys.argv[2])).show()
-        elif param == "layered":
-            for wd in filter_windows(lambda w: w.manageable and w.is_visible and (w.get_exstyle() & WindowExStyle.LAYERED)):
-                print()
+                wd.set_rect(RECT(100, 100, 500, 600))
                 wd.inspect()
     else:
         time.sleep(2)
