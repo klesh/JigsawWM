@@ -149,10 +149,3 @@ class MonitorState(PickableState):
         :param Set[Window] windows: latest visible windows
         """
         self.workspace.sync_windows()
-
-    def unhide_workspaces(self):
-        """Unhide all workspaces of the monitor"""
-        logger.debug("%s unhide workspaces", self)
-        for workspace in self.workspaces:
-            for window in workspace.windows:
-                window.show()

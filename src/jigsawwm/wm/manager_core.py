@@ -94,7 +94,7 @@ class WindowManagerCore:
                         logger.info("!!! REACT on event %s for window %s", event.name, hwnd)
                         self.sync_windows()
             except: # pylint: disable=bare-except
-                logger.exception("consume_queue error, event: %s, args: %s, ts: %s", event, args, timestamp)
+                logger.exception("consume_queue error, event: %s, args: %s, ts: %s", event.name, args, timestamp)
 
     def is_event_interested(self, event: WinEvent, hwnd: HWND) -> float:
         """Check if event is interested"""
@@ -116,9 +116,10 @@ class WindowManagerCore:
         if not window.manageable:
             return False
         # # filter by event
-        if event == WinEvent.EVENT_OBJECT_SHOW or event == WinEvent.EVENT_OBJECT_UNCLOAKED:
+        if event == WinEvent.EVENT_SYSTEM_FOREGROUND:
             if self.try_switch_workspace_for_window_activation(window):
                 return False
+        if event == WinEvent.EVENT_OBJECT_SHOW or event == WinEvent.EVENT_OBJECT_UNCLOAKED:
             if window in self._managed_windows:
                 return False
         elif event == WinEvent.EVENT_OBJECT_HIDE: # same as above
@@ -264,7 +265,7 @@ class WindowManagerCore:
                     logger.debug("window %s has no preferred workspace index", window)
                     window.attrs[PREFERRED_WORKSPACE_INDEX] = monitor_state.active_workspace_index
                 logger.debug("adding window %s to %s", window, monitor_state)
-                window.attrs[PREFERRED_WINDOW_ORDER] = monitor_state.add_window(window)
+                monitor_state.add_window(window)
         # removed windows
         removed_windows = old_windows - windows
         if removed_windows:
@@ -306,16 +307,15 @@ class WindowManagerCore:
                 for ws in removed_state.workspaces:
                     windows_tobe_rearranged |= ws.windows
         # rearrange windows
-        groups = {}
+        groups = {monitor: set() for monitor in monitors}
         for window in windows_tobe_rearranged:
             if not window.exists():
                 continue
             monitor = next(filter(lambda m: m.name == window.attrs[PREFERRED_MONITOR_NAME], monitors), self._monitors[0]) # pylint: disable=cell-var-from-loop
-            if monitor not in groups:
-                groups[monitor] = set()
             groups[monitor].add(window)
         for monitor, windows in groups.items():
-            virtdesk_state.monitor_state(monitor).workspace.add_windows(windows)
+            for window in windows:
+                virtdesk_state.monitor_state(monitor).add_window(window)
 
     def apply_rule_to_window(self, window: Window) -> bool:
         """Check if window is to be tilable"""
@@ -348,7 +348,7 @@ class WindowManagerCore:
     def _move_to_workspace(self, window: Window, workspace_index: int):
         monitor_state: MonitorState = window.attrs[MONITOR_STATE]
         window.attrs[PREFERRED_WORKSPACE_INDEX] = workspace_index
-        window.attrs[PREFERRED_WINDOW_ORDER] = monitor_state.move_to_workspace(window, workspace_index)
+        monitor_state.move_to_workspace(window, workspace_index)
         self.save_state()
 
     def _reorder(self, reorderer: Callable[[List[Window], int], None]):
@@ -361,8 +361,6 @@ class WindowManagerCore:
         next_active_window = reorderer(monitor_state.tilable_windows, monitor_state.tilable_windows.index(window))
         monitor_state.arrange()
         (next_active_window or window).activate()
-        for i, w in enumerate(monitor_state.tilable_windows):
-            w.attrs[PREFERRED_WINDOW_ORDER] = i
         self.save_state()
 
     def _set_theme(self, monitor_state: MonitorState, theme: Theme):
@@ -372,7 +370,7 @@ class WindowManagerCore:
     def _move_to_monitor(self, monitor_state: MonitorState, window: Window, dst_monitor_state: MonitorState):
         window.attrs[PREFERRED_MONITOR_NAME] = dst_monitor_state.monitor.name
         window.attrs[PREFERRED_WORKSPACE_INDEX] = dst_monitor_state.active_workspace_index
-        window.attrs[PREFERRED_WINDOW_ORDER] = dst_monitor_state.add_window(window)
+        dst_monitor_state.add_window(window)
         monitor_state.remove_window(window)
         if monitor_state.tilable_windows:
             monitor_state.tilable_windows[0].activate()

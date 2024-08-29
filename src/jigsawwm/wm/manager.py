@@ -296,6 +296,7 @@ class WindowManager(WindowManagerCore):
     def unhide_workspaces(self):
         """Unhide all workspaces"""
         for virtdesk_state in self.virtdesk_states.values():
-            for monitor_state in virtdesk_state.monitor_states.values():
-                logger.info("unhiding monitor %s", monitor_state.monitor)
-                monitor_state.unhide_workspaces()
+            for ms in virtdesk_state.monitor_states.values():
+                for ws in ms.workspaces:
+                    for w in ws.windows:
+                        w.toggle(True)

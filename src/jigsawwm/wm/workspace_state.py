@@ -4,12 +4,12 @@ from typing import List, Set, Optional
 from os import path
 
 from jigsawwm.w32.monitor import Monitor, set_cursor_pos
-from jigsawwm.w32.window import Window, get_active_window, RECT
+from jigsawwm.w32.window import Window, get_active_window, RECT, activate_taskbar
 
 from .config import WmConfig
 from .theme import Theme
 from .pickable_state import PickableState
-from .const import WORKSPACE_STATE, PREFERRED_WORKSPACE_INDEX
+from .const import WORKSPACE_STATE, PREFERRED_WORKSPACE_INDEX, PREFERRED_WINDOW_ORDER
 
 logger = logging.getLogger(__name__)
 
@@ -53,17 +53,14 @@ class WorkspaceState(PickableState):
         self.tilable_windows = [ w for w in self.tilable_windows if w.exists() ]
         for window in self.windows:
             if window.exists() and not self.showing:
-                window.hide()
+                window.toggle(False)
 
     def before_hide(self):
         """Before hiding the workspace"""
         self.last_active_window = None
         fw = get_active_window()
-        for w in self.windows:
-            w.minimized_by_user = w.is_iconic
-            w.hidden_by_user = not w.is_visible
-            if fw == w:
-                self.last_active_window = w
+        if fw in self.windows:
+            self.last_active_window = fw
 
     def after_show(self):
         """After showing the workspace"""
@@ -86,6 +83,7 @@ class WorkspaceState(PickableState):
                 rect.top + (rect.bottom - rect.top) / 2,
             )
             set_cursor_pos(x, y)
+            activate_taskbar()
 
     def toggle(self, show: bool, no_activation: bool = False):
         """Toggle all windows in the workspace"""
@@ -99,6 +97,8 @@ class WorkspaceState(PickableState):
             self.sync_windows()
             if not no_activation:
                 self.after_show()
+            # else:
+            #     activate_taskbar()
 
     def set_theme(self, theme: Theme):
         """Set theme for the workspace"""
@@ -111,16 +111,12 @@ class WorkspaceState(PickableState):
         """Add a window to the workspace"""
         logger.debug("%s add window %s", self, window)
         window.attrs[WORKSPACE_STATE] = self
-        if window.is_visible != self.showing:
-            window.toggle(self.showing)
+        window.toggle(self.showing)
         if window in self.windows:
             return
         self.windows.add(window)
-        self.sync_windows()
-        try:
-            return self.tilable_windows.index(window)
-        except ValueError:
-            return 0
+        if self.showing:
+            self.sync_windows()
 
     def remove_window(self, window: Window):
         """Remove a window from the workspace"""
@@ -212,6 +208,7 @@ class WorkspaceState(PickableState):
             rect = RECT(left, top, right, bottom)
             window.set_restrict_rect(rect)
             i += 1
+            window.attrs[PREFERRED_WINDOW_ORDER] = i
 
     def restrict(self):
         """Restrict all managed windows to their specified rect"""

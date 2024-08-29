@@ -5,7 +5,7 @@ import time
 from ctypes import * # pylint: disable=wildcard-import,unused-wildcard-import
 from ctypes.wintypes import * # pylint: disable=wildcard-import,unused-wildcard-import
 from dataclasses import dataclass, field
-from typing import Callable, List, Optional, Any, Dict
+from typing import Callable, List, Optional, Any, Dict, Set
 from os import path
 from functools import cached_property
 from threading import Lock
@@ -63,8 +63,6 @@ class Window:
     restricted_actual_rect = None
     attrs: dict = field(default_factory=dict)
     restored_once = False
-    minimized_by_user = False
-    hidden_by_user = False
     user_manageable = None
     unmanageable_reason: Optional[str] = None
 
@@ -86,10 +84,6 @@ class Window:
             marks += 'M'
         if self.restricted_rect:
             marks += 'R'
-        if self.minimized_by_user:
-            marks += '_'
-        if self.hidden_by_user:
-            marks += 'x'
         return f"<Window id={id(self)} pid={self.pid} exe={self.exe_name} title={self.title[:10]} hwnd={self.handle}{marks}>"
 
     # some windows may change their style after created and there will be no event raised
@@ -266,8 +260,10 @@ class Window:
         """Check if window is a app window which could be managed"""
         if not self.is_toplevel:
             return "not a top-level window"
+        if not self.is_root_window:
+            return "not a root window"
         if self.is_cloaked:
-            return "%s unmanageable: cloaked"
+            return "%s cloaked"
         if self.class_name in MANAGEABLE_CLASSNAME_BLACKLIST:
             return "blacklisted"
         if self.exe_name in MANAGEABLE_EXE_BLACKLIST:
@@ -370,9 +366,6 @@ class Window:
 
     def set_restrict_rect(self, rect: RECT):
         """Set the restricted rect"""
-        if not self.is_restored:
-            self.restore()
-            self.restored_once = True
         self.set_rect(rect)
         self.restricted_rect = rect
         self.compensated_rect = None
@@ -395,10 +388,6 @@ class Window:
     def restrict(self):
         """Restrict the window to the restricted rect"""
         logger.debug("restricting %s", self)
-        if self.restored_once and not self.is_restored:
-            # user intentionally maximize the window, don't restrict it
-            return
-        self.restored_once = True
         if self.restricted_actual_rect:
             r1 = self.restricted_actual_rect
             r2 = self.get_rect()
@@ -422,13 +411,14 @@ class Window:
         rect.bottom -= margin
         self.set_rect(rect)
 
-    def activate(self) -> bool:
+    def activate(self, move_cursor=True) -> bool:
         """Brings the thread that created current window into the foreground and activates the window"""
         # move cursor to the center of the window
-        rect = self.get_rect()
-        x = rect.left + (rect.right - rect.left) / 2
-        y = rect.top + (rect.bottom - rect.top) / 2
-        user32.SetCursorPos(int(x), int(y))
+        if move_cursor:
+            rect = self.get_rect()
+            x = rect.left + (rect.right - rect.left) / 2
+            y = rect.top + (rect.bottom - rect.top) / 2
+            user32.SetCursorPos(int(x), int(y))
         # activation
         # simple way
         if user32.SetForegroundWindow(self.handle):
@@ -485,16 +475,17 @@ class Window:
 
     def toggle(self, show: bool):
         """Toggle window visibility"""
-        # fusion360 object selection window not functioning properly after hidden and show, unless minimized then restored
-        # notepad status bar not positioning properly unless it get restored before show
-        if not show:
-            return self.hide()
-        elif not self.minimized_by_user and self.exe_name in {"Fusion360.exe"}:
-            self.minimize()
-            self.restore()
-        if not self.hidden_by_user:
-            return self.show()
-        logger.debug("window %s was hidden by user")
+        logger.debug("toggle window %s showing to %s", self, show)
+        x, y = 100000, 100000
+        try:
+            r = self.get_rect()
+            if show:
+                if r.left >= x:
+                    self.set_rect(RECT(r.left-x, r.top-y, r.right-x, r.bottom-y))
+            else:
+                self.set_rect(RECT(r.left+x, r.top+y, r.right+x, r.bottom+y))
+        except:
+            logger.exception("toggle %s failed", self)
 
     @cached_property
     def root_window(self) -> "Window":
@@ -503,6 +494,11 @@ class Window:
         while root_window.parent_handle:
             root_window = lookup_window(root_window.parent_handle)
         return root_window
+
+    @cached_property
+    def is_root_window(self) -> bool:
+        """Check if window is a root window"""
+        return not self.parent_handle
 
     def find_manageable_children(self) -> List["Window"]:
         """Retrieve the children windows"""
@@ -580,7 +576,7 @@ def lookup_window(hwnd: Optional[HWND]) -> Optional[Window]:
                 _seen_windows[hwnd] = window
     return _seen_windows[hwnd]
 
-def filter_windows(check: Callable[[Window], bool]) -> List[Window]:
+def filter_windows(check: Callable[[Window], bool]) -> Set[Window]:
     """Filter app windows of the current desktop"""
 
     windows = set()
@@ -591,6 +587,7 @@ def filter_windows(check: Callable[[Window], bool]) -> List[Window]:
             if check(window):
                 windows.add(window)
         except StopIteration:
+            windows.add(window)
             return False
         return True
 
@@ -599,6 +596,13 @@ def filter_windows(check: Callable[[Window], bool]) -> List[Window]:
         if last_error:
             raise WinError(last_error)
     return windows
+
+def find_window(cb) -> Optional[Window]:
+    """Find the first window that matches the condition"""
+    def check(window):
+        if cb(window):
+            raise StopIteration
+    return next(iter(filter_windows(check)), None) 
 
 def get_window_from_pos(x, y: int) -> Optional[Window]:
     """Retrieves the window at the specified position"""
@@ -611,6 +615,11 @@ def get_active_window() -> Optional[Window]:
     hwnd = user32.GetForegroundWindow()
     if hwnd:
         return lookup_window(hwnd)
+
+def activate_taskbar():
+    """Activate the taskbar"""
+    find_window(lambda w: w.class_name == "Shell_TrayWnd").activate()
+
 
 ###
 ### helper functions
