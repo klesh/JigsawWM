@@ -29,9 +29,13 @@ MANAGEABLE_CLASSNAME_BLACKLIST = {
     "Shell_SecondaryTrayWnd",
     "Progman", # desktop background
     "WorkerW",
+    "IME",
+    "Default IME",
+    "MSCTFIME UI",
 }
 MANAGEABLE_EXE_BLACKLIST = {
     "msedge.exe", # stupid copilot
+    "msedgewebview2.exe", # this shit would display a invisible widow and hide it right away, what the heck
 }
 SWP_NOACTIVATE = 0x0010
 SET_WINDOW_RECT_FLAG = SWP_NOACTIVATE
@@ -60,6 +64,7 @@ class Window:
     attrs: dict = field(default_factory=dict)
     restored_once = False
     minimized_by_user = False
+    hidden_by_user = False
     user_manageable = None
     unmanageable_reason: Optional[str] = None
 
@@ -83,6 +88,8 @@ class Window:
             marks += 'R'
         if self.minimized_by_user:
             marks += '_'
+        if self.hidden_by_user:
+            marks += 'x'
         return f"<Window id={id(self)} pid={self.pid} exe={self.exe_name} title={self.title[:10]} hwnd={self.handle}{marks}>"
 
     # some windows may change their style after created and there will be no event raised
@@ -485,7 +492,9 @@ class Window:
         elif not self.minimized_by_user and self.exe_name in {"Fusion360.exe"}:
             self.minimize()
             self.restore()
-        return self.show()
+        if not self.hidden_by_user:
+            return self.show()
+        logger.debug("window %s was hidden by user")
 
     @cached_property
     def root_window(self) -> "Window":
