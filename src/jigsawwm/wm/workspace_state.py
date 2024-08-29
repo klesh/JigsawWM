@@ -60,6 +60,7 @@ class WorkspaceState(PickableState):
         fw = get_active_window()
         for w in self.windows:
             w.minimized_by_user = w.is_iconic
+            w.hidden_by_user = not w.is_visible
             if fw == w:
                 self.last_active_window = w
 
