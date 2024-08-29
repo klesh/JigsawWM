@@ -242,11 +242,11 @@ class WindowManager(WindowManagerCore):
 
     def prev_monitor(self):
         """Switch to previous monitor"""
-        self.switch_monitor_by_offset(-1)
+        return self.switch_monitor_by_offset(-1)
 
     def next_monitor(self):
         """Switch to next monitor"""
-        self.switch_monitor_by_offset(+1)
+        return self.switch_monitor_by_offset(+1)
 
     def move_to_prev_monitor(self):
         """Move active window to previous monitor"""
