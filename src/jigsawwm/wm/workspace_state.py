@@ -9,6 +9,7 @@ from jigsawwm.w32.window import Window, get_active_window, RECT
 from .config import WmConfig
 from .theme import Theme
 from .pickable_state import PickableState
+from .const import WORKSPACE_STATE, PREFERRED_WORKSPACE_INDEX
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +110,7 @@ class WorkspaceState(PickableState):
     def add_window(self, window: Window):
         """Add a window to the workspace"""
         logger.debug("%s add window %s", self, window)
-        window.attrs["workspace_state"] = self
+        window.attrs[WORKSPACE_STATE] = self
         if window.is_visible != self.showing:
             window.toggle(self.showing)
         if window in self.windows:
@@ -167,7 +168,7 @@ class WorkspaceState(PickableState):
         
         # append the rest new windows
         default_order = 0 if self.theme.new_window_as_master else len(tilable_windows)
-        new_tilable_windows = sorted(new_tilable_windows_set, key=lambda w: w.attrs.get("preferred_window_order", default_order))
+        new_tilable_windows = sorted(new_tilable_windows_set, key=lambda w: w.attrs.get(PREFERRED_WORKSPACE_INDEX, default_order))
         # append or prepend new_windows based on the theme setting
         if self.theme.new_window_as_master:
             tilable_windows = new_tilable_windows + tilable_windows

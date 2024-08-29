@@ -9,6 +9,7 @@ from .config import WmConfig
 from .theme import Theme
 from .workspace_state import WorkspaceState
 from .pickable_state import PickableState
+from .const import PREFERRED_WORKSPACE_INDEX, MONITOR_STATE
 
 logger = logging.getLogger(__name__)
 
@@ -91,8 +92,8 @@ class MonitorState(PickableState):
 
     def add_window(self, window: Window):
         """Add a window to the active workspace of the monitor"""
-        window.attrs["monitor_state"] = self
-        self.workspace.add_window(window)
+        window.attrs[MONITOR_STATE] = self
+        self.workspaces[window.attrs[PREFERRED_WORKSPACE_INDEX]].add_window(window)
 
     def remove_window(self, window: Window):
         """Remove a window from the active workspace of the monitor"""

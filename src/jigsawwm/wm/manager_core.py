@@ -27,19 +27,12 @@ from jigsawwm.jmk import sysinout, Vk
 from jigsawwm import ui, workers
 
 from .virtdesk_state import VirtDeskState, MonitorState
-from .workspace_state import WorkspaceState
 from .config import WmConfig
 from .debug_state import inspect_virtdesk_states
 from .theme import Theme
+from .const import *
 
 logger = logging.getLogger(__name__)
-PREFERRED_MONITOR_NAME = "preferred_monitor_name"
-PREFERRED_WORKSPACE_INDEX = "preferred_workspace_index"
-PREFERRED_WINDOW_ORDER = "preferred_window_order"
-RULE_APPLIED = "rule_applied"
-MONITOR_STATE = "monitor_state"
-WORKSPACE_STATE = "workspace_state"
-
 class WindowManagerCore:
     """
     WindowManagerCore processes the event queue for the Manager, handling all necessary operations.
@@ -56,7 +49,6 @@ class WindowManagerCore:
     _consumer: Optional[Thread] = None
     _monitors: List[Monitor] = []
     _managed_windows: Set[Window] = set()
-    _pid_preferred_workspace: Dict[int, WorkspaceState] = {}
     _previous_switch_workspace_for_window_activation = 0.0
 
     def __init__(
@@ -176,7 +168,7 @@ class WindowManagerCore:
             # might cause the event to be triggered multiple times
             logger.warning("workspace switching happened too frequently, possible loop")
             return
-        if MONITOR_STATE not in window.attrs:
+        if MONITOR_STATE not in window.attrs or window.manageable is False:
             return
         monitor_state, workspace_state = window.attrs[MONITOR_STATE], window.attrs[WORKSPACE_STATE]
         if not workspace_state.showing:
@@ -201,6 +193,7 @@ class WindowManagerCore:
             logger.debug("move window %s to another monitor", window)
             monitor_state.remove_window(window)
             target_monitor_state.add_window(window)
+            self.save_state()
             return
         if not window.tilable:
             return False
@@ -245,13 +238,8 @@ class WindowManagerCore:
         if new_windows:
             logger.info("new windows appeared: %s", new_windows)
             for window in new_windows:
-                # fusion360 uses multiple top level windows to render the UI, they should be put into the same workspace
-                # if window.is_child:
-                #     workspace = self._pid_preferred_workspace.get(window.pid, None)
-                #     if workspace:
-                #         workspace.add_window(window)
-                #         continue
                 if window.root_window != window:
+                    logger.debug("window %s is not root window", window)
                     window.attrs[RULE_APPLIED] = True
                     if PREFERRED_MONITOR_NAME not in window.root_window.attrs:
                         logger.exception("window %s has no preferred monitor name", window.root_window)
@@ -259,9 +247,11 @@ class WindowManagerCore:
                         window.attrs[PREFERRED_MONITOR_NAME] = window.root_window.attrs[PREFERRED_MONITOR_NAME]
                         window.attrs[PREFERRED_WORKSPACE_INDEX] = window.root_window.attrs[PREFERRED_WORKSPACE_INDEX]
                 if RULE_APPLIED not in window.attrs:
+                    logger.debug("applying rule to window %s", window)
                     self.apply_rule_to_window(window)
                     window.attrs[RULE_APPLIED] = True
                 if PREFERRED_MONITOR_NAME not in window.attrs:
+                    logger.debug("window %s has no preferred monitor name", window)
                     window.attrs[PREFERRED_MONITOR_NAME] = (
                         get_monitor_from_window(window.handle)
                         or self.virtdesk_state.monitor_state_from_cursor().monitor
@@ -271,16 +261,17 @@ class WindowManagerCore:
                     or self.virtdesk_state.monitor_state_from_window(window)
                 )
                 if PREFERRED_WORKSPACE_INDEX not in window.attrs:
+                    logger.debug("window %s has no preferred workspace index", window)
                     window.attrs[PREFERRED_WORKSPACE_INDEX] = monitor_state.active_workspace_index
+                logger.debug("adding window %s to %s", window, monitor_state)
                 window.attrs[PREFERRED_WINDOW_ORDER] = monitor_state.add_window(window)
-                self._pid_preferred_workspace[window.pid] = monitor_state.workspace
         # removed windows
         removed_windows = old_windows - windows
         if removed_windows:
             logger.info("window disappeared: %s", removed_windows)
             for window in removed_windows:
-                monitor_state: MonitorState = window.attrs[MONITOR_STATE]
-                monitor_state.remove_window(window)
+                workspace_state: MonitorState = window.attrs[WORKSPACE_STATE]
+                workspace_state.remove_window(window)
         if new_windows or removed_windows:
             # change
             self.save_state()

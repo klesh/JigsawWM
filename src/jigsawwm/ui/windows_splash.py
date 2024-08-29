@@ -59,6 +59,10 @@ class WindowsSplash(Dialog):
         self.monitor_state.setText(f"Monitor: {monitor_state.monitor.name}")
         # workspaces
         self.deleteDirectChildren(self.workspace_states)
+        if workspace_index == -1:
+            workspace_index = monitor_state.active_workspace_index
+        if active_window is None:
+            active_window = monitor_state.workspaces[workspace_index].last_active_window
         for i, workspace in enumerate(monitor_state.workspaces):
             widget = QWidget()
             widget.setObjectName("workspace")

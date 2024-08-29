@@ -214,6 +214,15 @@ class ServiceMenu:
     def service_menu_items(self) -> Iterator[Union[QMenu, QAction]]:
         """Return the submenu items"""
 
+
+class TrayIconTriggerred:
+    """TrayIconTriggerred is a kind of Service that has submenu items"""
+
+    @abc.abstractmethod
+    def trayicon_triggerred(self) -> Iterator[Union[QMenu, QAction]]:
+        """Return the submenu items"""
+
+
 class Daemon:
     """JigsawWM Daemon serivce, you must inherite this class and override the `setup` function
     to configurate the Manager.
@@ -244,18 +253,28 @@ class Daemon:
         for job in self.jobs:
             if job.autorun:
                 if isinstance(job, Task) and self.skip_tasks:
-                    logger.info(f"skip autorun tasks {job.name}")
+                    logger.info("skip autorun tasks %s", job.name)
                 else:
                     logger.info("autorun %s", job.name)
                     job.launch()
-        self.trayicon.activated.connect(self.update_traymenu)
-        self.update_traymenu()
+        self.trayicon.activated.connect(self.trayicon_activated)
         self.trayicon.show()
         if self.skip_tasks:
             self.trayicon.showMessage("JigsawWM", "skip autorun tasks", QSystemTrayIcon.Information)
 
-    def update_traymenu(self):
+    def trayicon_activated(self, reason: QSystemTrayIcon.ActivationReason):
         """Update traymenu"""
+        logger.info("trayicon activated, reason: %s", reason)
+        if reason == QSystemTrayIcon.ActivationReason.Trigger:
+            for job in self.jobs:
+                if isinstance(job, TrayIconTriggerred):
+                    try:
+                        job.trayicon_triggerred()
+                    except StopIteration:
+                        return
+                    except:
+                        logger.exception("trayicon_triggerred", exc_info=True, stack_info=True)
+            return
         self.traymenu.clear()
         self.menuitems.clear()
         # tasks

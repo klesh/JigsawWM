@@ -136,13 +136,12 @@ class WindowManager(WindowManagerCore):
                 window = monitor_state.tilable_windows[0]
             else:
                 return
-        monitor_state: MonitorState = window.attrs["monitor_state"]
-        monitor_state: MonitorState = window.attrs["monitor_state"]
+        monitor_state: MonitorState = window.attrs[MONITOR_STATE]
         src_index = monitor_state.tilable_windows.index(window)
         dst_index = (src_index + offset) % len(monitor_state.tilable_windows)
         dst_window = monitor_state.tilable_windows[dst_index]
         dst_window.activate()
-        ui.show_windows_splash(monitor_state, monitor_state.active_workspace_index, dst_window)
+        ui.show_windows_splash(monitor_state, -1, dst_window)
         return ui.hide_windows_splash
 
     def swap_by_offset(self, offset: int):
@@ -180,7 +179,7 @@ class WindowManager(WindowManagerCore):
         theme_index = self.config.get_theme_index(monitor_state.theme.name)
         theme = self.config.themes[(theme_index + delta) % len(self.config.themes)]
         self.enqueue(WinEvent.CMD_CALL, self._set_theme, monitor_state, theme)
-        ui.show_windows_splash(self.virtdesk_state.monitor_state_from_cursor(), None)
+        ui.show_windows_splash(self.virtdesk_state.monitor_state_from_cursor(), -1, None)
         return ui.hide_windows_splash
 
     def get_monitor_state_by_offset(self, delta: int, src_monitor_state: Optional[MonitorState]=None) -> MonitorState:
@@ -201,7 +200,7 @@ class WindowManager(WindowManagerCore):
         dst_monitor_state = self.get_monitor_state_by_offset(delta, src_monitor_state=src_monitor_state)
         src_monitor_state.workspace.before_hide()
         dst_monitor_state.workspace.after_show()
-        ui.show_windows_splash(dst_monitor_state, dst_monitor_state.active_workspace_index, dst_monitor_state.workspace.last_active_window)
+        ui.show_windows_splash(dst_monitor_state, -1, None)
         return ui.hide_windows_splash
 
     def move_to_monitor_by_offset(self, delta: int):
@@ -288,7 +287,8 @@ class WindowManager(WindowManagerCore):
             if monitor_name
             else self.virtdesk_state.monitor_state_from_cursor()
         )
-        ui.show_windows_splash(monitor_state, workspace_index, None)
+        window = monitor_state.workspaces[workspace_index].last_active_window
+        ui.show_windows_splash(monitor_state, workspace_index, window)
         self.enqueue(WinEvent.CMD_CALL, self._switch_workspace, monitor_state, workspace_index, hide_splash_in)
         if not hide_splash_in:
             return ui.hide_windows_splash
