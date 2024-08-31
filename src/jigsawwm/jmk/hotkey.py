@@ -1,17 +1,15 @@
 """Hotkey handler for JigsawWM."""
 import logging
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple, Set
 
-from jigsawwm.w32.vk import Vk
-
-from .shared import * # pylint: disable=wildcard-import, unused-wildcard-import
+from .shared import JmkEvent, JmkTrigger, JmkTriggers, JmkCombination, Modifers, Vk
 
 logger = logging.getLogger(__name__)
 
 
 class JmkHotkeys(JmkTriggers):
     """A handler that handles hotkeys."""
-    pressed_modifiers: typing.Set[Vk]
+    pressed_modifiers: Set[Vk]
     resend: Optional[JmkEvent] = None
 
     def __init__(
@@ -22,14 +20,14 @@ class JmkHotkeys(JmkTriggers):
         super().__init__(next_handler, hotkeys)
         self.pressed_modifiers = set()
 
-    def check_comb(self, comb: typing.List[Vk]):
+    def check_comb(self, comb: List[Vk]):
         for key in comb[:-1]:
             if key not in Modifers:
                 raise TypeError("hotkey keys must be a list of Modifers and a Vk")
             if comb[-1] in Modifers:
                 raise TypeError("hotkey keys must be a list of Modifers and a Vk")
 
-    def find_hotkey(self, evt: JmkEvent) -> typing.Optional[JmkTrigger]:
+    def find_hotkey(self, evt: JmkEvent) -> Optional[JmkTrigger]:
         """Find a hotkey that matches the current pressed keys."""
         pressed_keys = self.pressed_modifiers.copy()
         pressed_keys.add(evt.vk)

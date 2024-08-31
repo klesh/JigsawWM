@@ -1,18 +1,38 @@
 """shared functions and classes for jmk"""
 import logging
 import typing
-from dataclasses import dataclass
+import time
+from dataclasses import dataclass, field
 from functools import partial
 from threading import Lock
 
 from jigsawwm.w32.vk import * # pylint: disable=unused-wildcard-import,wildcard-import
 from jigsawwm.w32.sendinput import send_combination
 
-from .core import * # pylint: disable=wildcard-import, unused-wildcard-import
 
 
 logger = logging.getLogger(__name__)
 JmkCombination = typing.Union[typing.List[Vk], str]
+
+@dataclass
+class JmkEvent:
+    """A jmk event that contains the key/button, pressed state,
+    system state(does it came from the OS) and extra data"""
+
+    vk: Vk
+    pressed: bool
+    system: bool = False
+    flags: int = 0
+    extra: int = 0
+    time: float = field(default_factory=time.time)
+
+    def __repr__(self) -> str:
+        evt = 'down' if self.pressed else 'up'
+        src = 'sys' if self.system else 'sim'
+        return f"JmkEvent({self.vk.name}, {evt}, {src}, {self.flags}, {self.extra})"
+
+
+JmkHandler = typing.Callable[[JmkEvent], bool]
 
 @dataclass
 class JmkTrigger:

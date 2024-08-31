@@ -1,8 +1,10 @@
-from jigsawwm.jmk.hotkey import *
-from jigsawwm.w32.vk import *
+"""Test jigsawwm.jmk.hotkey module."""
+import time
+from jigsawwm.jmk.hotkey import JmkHotkeys, JmkEvent, Vk
 
 
 def test_hotkey(mocker):
+    """Test hotkey registration and trigger."""
     hotkey = JmkHotkeys(mocker.Mock())
     win_alt_a_cb = mocker.Mock()
     hotkey.register([Vk.LWIN, Vk.LMENU, Vk.A], win_alt_a_cb)

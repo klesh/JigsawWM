@@ -2,7 +2,7 @@ from typing import Callable, List, Tuple
 
 from .core import *
 from .hotkey import *
-from .combo import *
+# from .combo import *
 from .sysinout import *
 
 

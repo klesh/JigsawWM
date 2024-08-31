@@ -4,31 +4,11 @@ import logging
 import abc
 import time
 import typing
-from dataclasses import dataclass, field
 
 from jigsawwm.w32.vk import * # pylint: disable=unused-wildcard-import,wildcard-import
-from jigsawwm import workers
+from .shared import JmkEvent, JmkHandler
 
 logger = logging.getLogger(__name__)
-@dataclass
-class JmkEvent:
-    """A jmk event that contains the key/button, pressed state,
-    system state(does it came from the OS) and extra data"""
-
-    vk: Vk
-    pressed: bool
-    system: bool = False
-    flags: int = 0
-    extra: int = 0
-    time: float = field(default_factory=time.time)
-
-    def __repr__(self) -> str:
-        evt = 'down' if self.pressed else 'up'
-        src = 'sys' if self.system else 'sim'
-        return f"JmkEvent({self.vk.name}, {evt}, {src}, {self.flags}, {self.extra})"
-
-
-JmkHandler = typing.Callable[[JmkEvent], bool]
 
 class JmkLayerKey(JmkHandler):
     """A key handler that can be used in a layer"""
@@ -80,7 +60,7 @@ class JmkKey(JmkLayerKey):
                 for key in reversed(self.keys_or_func):
                     self.state.next_handler(JmkEvent(key, evt.pressed))
         elif not evt.pressed:
-            workers.submit(self.keys_or_func)
+            self.keys_or_func()
         return self.swallow
 
 
@@ -123,6 +103,7 @@ class JmkTapHold(JmkLayerKey):
         term: float = 0.2,
         quick_tap_term: float = 0.2,
     ):
+        super().__init__()
         self.tap = tap
         self.hold = hold
         self.on_hold_down = on_hold_down
@@ -149,7 +130,7 @@ class JmkTapHold(JmkLayerKey):
         logger.debug("%s hold down", self)
         if self.on_hold_down:
             logger.debug("%s on_hold_down", self)
-            workers.submit(self.on_hold_down)
+            self.on_hold_down()
         if self.hold:
             if isinstance(self.hold, Vk):
                 evt = JmkEvent(self.hold, True)
@@ -167,7 +148,7 @@ class JmkTapHold(JmkLayerKey):
         logger.debug("%s hold up", self)
         if self.on_hold_up:
             logger.debug("%s on_hold_up", self)
-            workers.submit(self.on_hold_up)
+            self.on_hold_up()
         if self.hold:
             if isinstance(self.hold, Vk):
                 evt = JmkEvent(self.hold, False)
@@ -190,7 +171,7 @@ class JmkTapHold(JmkLayerKey):
             self.state.next_handler(evt_up)
         if self.on_tap:
             logger.debug("%s on_tap", self)
-            workers.submit(self.on_tap)
+            self.on_tap()
         self.last_tapped_at = time.time()
         self.flush_resend()
 
@@ -279,6 +260,7 @@ class JmkCore(JmkHandler):
         next_handler: JmkHandler,
         layers: typing.List[JmkLayer] = None,
     ):
+        super().__init__()
         if len(layers) < 1:
             raise ValueError("layers must have at least one layer")
         self.layers = [{}]

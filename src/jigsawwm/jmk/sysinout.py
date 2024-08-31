@@ -1,3 +1,4 @@
+"""System input/output interfacing"""
 import os.path
 import re
 from ctypes.wintypes import DWORD, HWND, LONG
@@ -7,11 +8,10 @@ from typing import List, Set, Union
 from jigsawwm.w32 import hook
 from jigsawwm.w32.sendinput import is_synthesized, send_input, vk_to_input
 from jigsawwm.w32.window import Window, get_foreground_hwnd
-from jigsawwm import workers
+from threading import Thread
 
 from .core import *
 
-q = SimpleQueue()
 state = {}
 
 class SystemInput:
@@ -182,25 +182,25 @@ class SystemOutput(JmkHandler):
     """
 
     always_swallow: bool
+    q: SimpleQueue
 
     def __init__(self, always_swallow: bool = True):
         self.always_swallow = always_swallow
+        self.q = SimpleQueue()
+        self.thread = Thread(target=self.consume_queue)
+        self.thread.start()
 
     def __call__(self, evt: JmkEvent) -> bool:
         if evt.system and not self.always_swallow:
             logger.debug("nil <<< %s", evt)
             return False
         logger.debug("sys <<< %s", evt)
-        q.put(evt)
+        self.q.put(evt)
         return True
 
-
-def consume_queue():
-    """Consume the queue and send input to system"""
-    while True:
-        evt = q.get()
-        state[evt.vk] = evt.pressed
-        send_input(vk_to_input(evt.vk, evt.pressed, flags=evt.flags))
-
-
-workers.submit(consume_queue)
+    def consume_queue(self):
+        """Consume the queue and send input to system"""
+        while True:
+            evt = self.q.get()
+            state[evt.vk] = evt.pressed
+            send_input(vk_to_input(evt.vk, evt.pressed, flags=evt.flags))
