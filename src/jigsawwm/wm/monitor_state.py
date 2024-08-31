@@ -26,6 +26,7 @@ class MonitorState(PickableState):
     config: WmConfig
     monitor: Monitor
     workspaces: List[WorkspaceState]
+    windows: Set[Window]
     active_workspace_index: int
 
     def __init__(self, config: WmConfig, monitor: Monitor):
@@ -70,7 +71,10 @@ class MonitorState(PickableState):
     @property
     def windows(self) -> Set[Window]:
         """Get the windows of the active workspace of the monitor"""
-        return self.workspace.windows
+        windows = set()
+        for ws in self.workspaces:
+            windows |= ws.windows
+        return windows
 
     @property
     def tilable_windows(self) -> List[Window]:
@@ -93,7 +97,13 @@ class MonitorState(PickableState):
     def add_window(self, window: Window):
         """Add a window to the active workspace of the monitor"""
         window.attrs[MONITOR_STATE] = self
-        self.workspaces[window.attrs[PREFERRED_WORKSPACE_INDEX]].add_window(window)
+        self.windows.add(window)
+        ws: WorkspaceState = self.workspaces[window.attrs.get(PREFERRED_WORKSPACE_INDEX) or self.active_workspace_index]
+        ws.add_window(window)
+
+        if PREFERRED_WORKSPACE_INDEX not in window.attrs:
+            logger.debug("window %s has no preferred workspace index, fallback to active workspace", window)
+            window.attrs[PREFERRED_WORKSPACE_INDEX] = self.active_workspace_index
 
     def remove_window(self, window: Window):
         """Remove a window from the active workspace of the monitor"""

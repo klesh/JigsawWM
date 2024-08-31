@@ -2,7 +2,7 @@ import enum
 from ctypes import *
 from ctypes.wintypes import *
 from functools import cached_property
-from typing import Iterator, List, Tuple
+from typing import Iterator, List, Tuple, Set
 import screeninfo
 from dataclasses import dataclass
 import math
@@ -35,19 +35,19 @@ def set_cursor_pos(x: int, y: int):
         raise Exception("failed to set cursor position")
 
 
-def enum_display_monitors() -> List[HMONITOR]:
+def enum_display_monitors() -> Set[HMONITOR]:
     """Returns a List of all monitors. THIS DO NOT RETURN MIRRORING MONITORS
 
     :return: list of monitor handles
     :rtype: List[]
     """
-    hmons = []
+    hmons = {}
 
     @WINFUNCTYPE(BOOL, HMONITOR, HDC, LPRECT, LPARAM)
     def monitor_enum_proc(
         hmon: HMONITOR, hdc: HDC, lprc: LPRECT, lParam: LPARAM
     ) -> BOOL:
-        hmons.append(hmon)
+        hmons.add(hmon)
         return True
 
     if not user32.EnumDisplayMonitors(None, None, monitor_enum_proc, None):

@@ -6,7 +6,7 @@ from typing import List, Set, Union
 
 from jigsawwm.w32 import hook
 from jigsawwm.w32.sendinput import is_synthesized, send_input, vk_to_input
-from jigsawwm.w32.window import Window, get_active_window
+from jigsawwm.w32.window import Window, get_foreground_hwnd
 from jigsawwm import workers
 
 from .core import *
@@ -72,9 +72,10 @@ class SystemInput:
         if self.focused_window and self.focused_window.handle == hwnd:
             logger.debug("focused window not changed, ignore")
             return
-        self.focused_window = get_active_window()
-        if not self.focused_window:
+        hwnd = get_foreground_hwnd()
+        if not hwnd:
             return
+        self.focused_window = Window(hwnd)
         logger.debug("event: %s, the active window: %s", evt.name, hwnd)
         if self.focused_window.is_evelated:
             logger.debug("focused window is elevated, disable jmk")

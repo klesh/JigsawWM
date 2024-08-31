@@ -4,12 +4,12 @@ from typing import List, Set, Optional
 from os import path
 
 from jigsawwm.w32.monitor import Monitor, set_cursor_pos
-from jigsawwm.w32.window import Window, get_active_window, RECT, activate_taskbar
+from jigsawwm.w32.window import Window, get_foreground_hwnd, RECT, activate_taskbar
 
 from .config import WmConfig
 from .theme import Theme
 from .pickable_state import PickableState
-from .const import WORKSPACE_STATE, PREFERRED_WORKSPACE_INDEX, PREFERRED_WINDOW_ORDER
+from .const import WORKSPACE_STATE, PREFERRED_WORKSPACE_INDEX, PREFERRED_WINDOW_INDEX
 
 logger = logging.getLogger(__name__)
 
@@ -58,9 +58,10 @@ class WorkspaceState(PickableState):
     def before_hide(self):
         """Before hiding the workspace"""
         self.last_active_window = None
-        fw = get_active_window()
-        if fw in self.windows:
-            self.last_active_window = fw
+        hwnd = get_foreground_hwnd()
+        for w in self.windows:
+            if hwnd == w.handle:
+                self.last_active_window = w
 
     def after_show(self):
         """After showing the workspace"""
@@ -112,8 +113,6 @@ class WorkspaceState(PickableState):
         logger.debug("%s add window %s", self, window)
         window.attrs[WORKSPACE_STATE] = self
         window.toggle(self.showing)
-        if window in self.windows:
-            return
         self.windows.add(window)
         if self.showing:
             self.sync_windows()
@@ -121,26 +120,11 @@ class WorkspaceState(PickableState):
     def remove_window(self, window: Window):
         """Remove a window from the workspace"""
         logger.debug("%s remove window %s", self, window)
-        if window not in self.windows:
-            return
+        del window.attrs[WORKSPACE_STATE]
+        window.toggle(self.showing)
         self.windows.remove(window)
-        self.sync_windows()
-
-    def add_windows(self, windows: Set[Window]):
-        """Add windows to the workspace"""
-        logger.debug("%s add windows %s", self, windows)
-        self.windows = self.windows.union(windows)
-        self.sync_windows()
-
-    def remove_windows(self, windows: Window):
-        """Remove windows from the workspace"""
-        logger.debug("%s remove windows %s", self, windows)
-        self.windows = self.windows.difference(windows)
-        self.sync_windows()
-
-    def has_window(self, window: Window):
-        """Check if the workspace has the window"""
-        return window in self.windows
+        if self.showing:
+            self.sync_windows()
 
     def sync_windows(self) -> bool:
         """Sync the internal windows list to the incoming windows list"""
@@ -208,7 +192,7 @@ class WorkspaceState(PickableState):
             rect = RECT(left, top, right, bottom)
             window.set_restrict_rect(rect)
             i += 1
-            window.attrs[PREFERRED_WINDOW_ORDER] = i
+            window.attrs[PREFERRED_WINDOW_INDEX] = i
 
     def restrict(self):
         """Restrict all managed windows to their specified rect"""

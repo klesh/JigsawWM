@@ -1,7 +1,7 @@
 
-PREFERRED_MONITOR_NAME = "preferred_monitor_name"
+PREFERRED_MONITOR_INDEX = "preferred_monitor_index"
 PREFERRED_WORKSPACE_INDEX = "preferred_workspace_index"
-PREFERRED_WINDOW_ORDER = "preferred_window_order"
+PREFERRED_WINDOW_INDEX = "preferred_window_index"
 RULE_APPLIED = "rule_applied"
 MONITOR_STATE = "monitor_state"
 WORKSPACE_STATE = "workspace_state"

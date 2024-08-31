@@ -3,24 +3,19 @@ import logging
 import os
 import pickle
 import time
-from typing import Dict, List, Set, Tuple, Optional, Callable
+from typing import Dict, List, Tuple, Optional, Callable
 from queue import SimpleQueue
 from threading import Thread
 
 from jigsawwm.w32.monitor import (
     Monitor,
-    get_monitor_from_window,
-    get_monitors,
     get_cursor_pos,
 )
 from jigsawwm.w32.reg import get_current_desktop_id
 from jigsawwm.w32.window import (
     HWND,
     Window,
-    get_active_window,
-    lookup_window,
-    filter_windows,
-    get_seen_windows,
+    get_foreground_hwnd,
 )
 from jigsawwm.w32.winevent import WinEvent
 from jigsawwm.jmk import sysinout, Vk
@@ -48,7 +43,6 @@ class WindowManagerCore:
     _queue: Optional[SimpleQueue]  = None
     _consumer: Optional[Thread] = None
     _monitors: List[Monitor] = []
-    _managed_windows: Set[Window] = set()
     _previous_switch_workspace_for_window_activation = 0.0
 
     def __init__(
@@ -242,28 +236,19 @@ class WindowManagerCore:
                 if window.root_window != window:
                     logger.debug("window %s is not root window", window)
                     window.attrs[RULE_APPLIED] = True
-                    if PREFERRED_MONITOR_NAME not in window.root_window.attrs:
+                    if PREFERRED_MONITOR_INDEX not in window.root_window.attrs:
                         logger.exception("window %s has no preferred monitor name", window.root_window)
                     else:
-                        window.attrs[PREFERRED_MONITOR_NAME] = window.root_window.attrs[PREFERRED_MONITOR_NAME]
+                        window.attrs[PREFERRED_MONITOR_INDEX] = window.root_window.attrs[PREFERRED_MONITOR_INDEX]
                         window.attrs[PREFERRED_WORKSPACE_INDEX] = window.root_window.attrs[PREFERRED_WORKSPACE_INDEX]
                 if RULE_APPLIED not in window.attrs:
                     logger.debug("applying rule to window %s", window)
                     self.apply_rule_to_window(window)
                     window.attrs[RULE_APPLIED] = True
-                if PREFERRED_MONITOR_NAME not in window.attrs:
-                    logger.debug("window %s has no preferred monitor name", window)
-                    window.attrs[PREFERRED_MONITOR_NAME] = (
-                        get_monitor_from_window(window.handle)
-                        or self.virtdesk_state.monitor_state_from_cursor().monitor
-                    ).name
                 monitor_state = (
-                    self.virtdesk_state.monitor_state_by_name(window.attrs[PREFERRED_MONITOR_NAME])
+                    self.virtdesk_state.monitor_state_by_name(window.attrs[PREFERRED_MONITOR_INDEX])
                     or self.virtdesk_state.monitor_state_from_window(window)
                 )
-                if PREFERRED_WORKSPACE_INDEX not in window.attrs:
-                    logger.debug("window %s has no preferred workspace index", window)
-                    window.attrs[PREFERRED_WORKSPACE_INDEX] = monitor_state.active_workspace_index
                 logger.debug("adding window %s to %s", window, monitor_state)
                 monitor_state.add_window(window)
         # removed windows
@@ -282,54 +267,7 @@ class WindowManagerCore:
             for monitor_state in self.virtdesk_state.monitor_states.values():
                 monitor_state.workspace.sync_windows()
 
-    def sync_monitors(self):
-        """Sync monitor states"""
-        virtdesk_state = self.virtdesk_state
-        old_monitors = set(self._monitors)
-        monitors = set(get_monitors())
-        if old_monitors == monitors:
-            return
-        self._monitors = list(sorted(monitors, key=lambda m: m.name))
-        windows_tobe_rearranged = set()
-        # new monitors
-        new_monitors = monitors - old_monitors
-        if new_monitors:
-            logger.info("new monitor connected: %s rearrange all windows", new_monitors)
-            for ms in virtdesk_state.monitor_states.values():
-                for ws in ms.workspaces:
-                    windows_tobe_rearranged |= ws.windows
-        # remove monitor states
-        removed_monitors = old_monitors - monitors
-        if removed_monitors:
-            logger.info("monitor disconnected: %s", removed_monitors)
-            for removed_monitor in removed_monitors:
-                removed_state = virtdesk_state.monitor_states.pop(removed_monitor)
-                for ws in removed_state.workspaces:
-                    windows_tobe_rearranged |= ws.windows
-        # rearrange windows
-        groups = {monitor: set() for monitor in monitors}
-        for window in windows_tobe_rearranged:
-            if not window.exists():
-                continue
-            monitor = next(filter(lambda m: m.name == window.attrs[PREFERRED_MONITOR_NAME], monitors), self._monitors[0]) # pylint: disable=cell-var-from-loop
-            groups[monitor].add(window)
-        for monitor, windows in groups.items():
-            for window in windows:
-                virtdesk_state.monitor_state(monitor).add_window(window)
 
-    def apply_rule_to_window(self, window: Window) -> bool:
-        """Check if window is to be tilable"""
-        rule = self.config.find_rule_for_window(window)
-        if rule:
-            logger.info("applying rule %s on %s", rule, window)
-            if rule.manageable is not None:
-                window.manageable = rule.manageable
-            if rule.tilable is not None:
-                window.tilable = rule.tilable
-            if rule.to_monitor_index:
-                window.attrs[PREFERRED_MONITOR_NAME] = self._monitors[rule.to_monitor_index % len(self._monitors)].name
-            if rule.to_workspace_index:
-                window.attrs[PREFERRED_WORKSPACE_INDEX] = rule.to_workspace_index
 
     def save_state(self):
         """Save the windows state"""
@@ -352,6 +290,7 @@ class WindowManagerCore:
         self.save_state()
 
     def _reorder(self, reorderer: Callable[[List[Window], int], None]):
+        hwnd = get_foreground_hwnd()
         window = get_active_window()
         if not window.manageable or not window.tilable:
             return
@@ -368,7 +307,7 @@ class WindowManagerCore:
         self.save_state()
 
     def _move_to_monitor(self, monitor_state: MonitorState, window: Window, dst_monitor_state: MonitorState):
-        window.attrs[PREFERRED_MONITOR_NAME] = dst_monitor_state.monitor.name
+        window.attrs[PREFERRED_MONITOR_INDEX] = dst_monitor_state.monitor.name
         window.attrs[PREFERRED_WORKSPACE_INDEX] = dst_monitor_state.active_workspace_index
         dst_monitor_state.add_window(window)
         monitor_state.remove_window(window)
@@ -392,4 +331,4 @@ class WindowManagerCore:
 
     def inspect_active_window(self):
         """Inspect active window"""
-        get_active_window().inspect()
+        Window(get_foreground_hwnd()).inspect()

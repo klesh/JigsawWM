@@ -5,10 +5,9 @@ import time
 from ctypes import * # pylint: disable=wildcard-import,unused-wildcard-import
 from ctypes.wintypes import * # pylint: disable=wildcard-import,unused-wildcard-import
 from dataclasses import dataclass, field
-from typing import Callable, List, Optional, Any, Dict, Set
+from typing import Callable, Optional, Any, Set
 from os import path
 from functools import cached_property
-from threading import Lock
 
 from . import process
 from .sendinput import send_input, INPUT, INPUTTYPE, KEYBDINPUT, KEYEVENTF
@@ -62,8 +61,7 @@ class Window:
     compensated_rect = None
     restricted_actual_rect = None
     attrs: dict = field(default_factory=dict)
-    restored_once = False
-    user_manageable = None
+    untilable_reason: Optional[str] = None
     unmanageable_reason: Optional[str] = None
 
     def __init__(self, hwnd: HWND):
@@ -92,25 +90,52 @@ class Window:
     @cached_property
     def tilable(self) -> bool:
         """Check if window is tilable"""
-        style = self.get_style()
-        return (
-            WindowStyle.SIZEBOX in style
-            and WindowStyle.MAXIMIZEBOX & style and WindowStyle.MINIMIZEBOX & style
-            and self.exe_name not in NOT_TILABLE_EXE_NAMES
-            # and not WindowStyle.MINIMIZE & style
-        )
+        self.untilable_reason = self.check_untilable()
+        return not self.untilable_reason
 
-    @property
+    def check_untilable(self):
+        """Check if window is tilable"""
+        style = self.get_style()
+        if WindowStyle.SIZEBOX not in style:
+            return "SIZEBOX not in style"
+        if WindowStyle.MAXIMIZEBOX & style == 0:
+            return "MAXIMIZEBOX not in style"
+        if WindowStyle.MINIMIZEBOX & style == 0:
+            return "MINIMIZEBOX not in style"
+        if not self.is_root_window:
+            return "not a root window"
+        if self.exe_name in NOT_TILABLE_EXE_NAMES:
+            return "exe_name blacklisted"
+        return None
+
+    @cached_property
     def manageable(self) -> bool:
         """Check if window is manageable"""
-        if self.user_manageable is not None:
-            return self.user_manageable
         self.unmanageable_reason = self.check_unmanageable()
         return not self.unmanageable_reason
 
-    @manageable.setter
-    def manageable(self, value):
-        self.user_manageable = value
+    def check_unmanageable(self) -> str:
+        """Check if window is a app window which could be managed"""
+        if not self.is_visible:
+            return "invisible"
+        if not self.is_toplevel:
+            return "not a top-level window"
+        if not self.is_root_window:
+            return "not a root window"
+        if self.is_cloaked:
+            return "%s cloaked"
+        if self.class_name in MANAGEABLE_CLASSNAME_BLACKLIST:
+            return "blacklisted"
+        if self.exe_name in MANAGEABLE_EXE_BLACKLIST:
+            return "exe blacklisted"
+        exstyle = self.get_exstyle()
+        if WindowExStyle.TRANSPARENT in exstyle:
+            return "WindowExStyle.TRANSPARENT"
+        if process.is_elevated(self.pid):
+            return "admin window"
+        if not self.exe:
+            return "no executable path"
+        return None
 
     @property
     def is_child(self) -> bool:
@@ -256,27 +281,6 @@ class Window:
             handle = user32.GetClassLongPtrW(self.handle, GCL_HICON)
         return handle
 
-    def check_unmanageable(self) -> str:
-        """Check if window is a app window which could be managed"""
-        if not self.is_toplevel:
-            return "not a top-level window"
-        if not self.is_root_window:
-            return "not a root window"
-        if self.is_cloaked:
-            return "%s cloaked"
-        if self.class_name in MANAGEABLE_CLASSNAME_BLACKLIST:
-            return "blacklisted"
-        if self.exe_name in MANAGEABLE_EXE_BLACKLIST:
-            return "exe blacklisted"
-        exstyle = self.get_exstyle()
-        if WindowExStyle.TRANSPARENT in exstyle:
-            return "WindowExStyle.TRANSPARENT"
-        if process.is_elevated(self.pid):
-            return "admin window"
-        if not self.exe:
-            return "no executable path"
-        return None
-
     def get_attr(self, key: str) -> Any:
         """Retrieve attribute"""
         if key not in self.attrs:
@@ -410,10 +414,10 @@ class Window:
         rect.bottom -= margin
         self.set_rect(rect)
 
-    def activate(self, move_cursor=True) -> bool:
+    def activate(self, cursor_follows=True) -> bool:
         """Brings the thread that created current window into the foreground and activates the window"""
         # move cursor to the center of the window
-        if move_cursor:
+        if cursor_follows:
             rect = self.get_rect()
             x = rect.left + (rect.right - rect.left) / 2
             y = rect.top + (rect.bottom - rect.top) / 2
@@ -471,44 +475,45 @@ class Window:
         """Hides the window"""
         self.show_window(ShowWindowCmd.SW_HIDE)
 
+    X_OFFSET = 10000
+    Y_OFFSET = 10000
+
+    @property
+    def is_off(self):
+        return self.get_rect().left >= self.X_OFFSET
+
+    @property
+    def is_on(self):
+        return not self.is_off
+
     def toggle(self, show: bool):
         """Toggle window visibility"""
         logger.debug("%s toggle showing to %s", self, show)
-        x, y = 10000, 10000
-        try:
-            r = self.get_rect()
-            if show:
-                if r.left >= x:
-                    self.set_rect(RECT(r.left-x, r.top-y, r.right-x, r.bottom-y))
-            else:
-                if r.right < x:
-                    self.set_rect(RECT(r.left+x, r.top+y, r.right+x, r.bottom+y))
-        except:
-            logger.exception("toggle %s failed", self)
-
-    @cached_property
-    def root_window(self) -> "Window":
-        """Retrieve the root window"""
-        root_window = self
-        while root_window.parent_handle:
-            root_window = lookup_window(root_window.parent_handle)
-        return root_window
+        if show:
+            if self.is_off:
+                self.set_rect(
+                    RECT(
+                        r.left-self.X_OFFSET,
+                        r.top-self.Y_OFFSET,
+                        r.right-self.Y_OFFSET,
+                        r.bottom-self.Y_OFFSET,
+                    )
+                )
+        else:
+            if self.is_on:
+                self.set_rect(
+                    RECT(
+                        r.left+self.X_OFFSET,
+                        r.top+self.Y_OFFSET,
+                        r.right+self.Y_OFFSET,
+                        r.bottom+self.Y_OFFSET,
+                    )
+                )
 
     @cached_property
     def is_root_window(self) -> bool:
         """Check if window is a root window"""
         return not self.parent_handle
-
-    def find_manageable_children(self) -> List["Window"]:
-        """Retrieve the children windows"""
-        # process children windows
-        def find_children(w: Window, children: set = None) -> set:
-            children = children or set()
-            for child in filter_windows(lambda x: x.parent_handle == w.handle and x.manageable):
-                children.add(child)
-                find_children(child, children)
-            return children
-        return find_children(self)
 
     def inspect(self, file=sys.stdout):
         """Inspect window and print the information to the file"""
@@ -551,74 +556,25 @@ class Window:
         print("dpi_awareness:", self.dpi_awareness.name, file=file)
 
 
-_seen_windows_lock = Lock()
-_seen_windows: Dict[HWND, Window] = {}
-
-def get_seen_windows() -> Dict[HWND, Window]:
-    """Retrieve all windows that ever been seen"""
-    return _seen_windows
-
-def replace_seen_windows(data: Dict[HWND, Window]):
-    """Replace seen windows"""
-    global _seen_windows # pylint: disable=global-statement
-    with _seen_windows_lock:
-        _seen_windows = data
-
-def lookup_window(hwnd: Optional[HWND]) -> Optional[Window]:
-    """Lookup window"""
-    if not hwnd:
-        raise ValueError("hwnd is None")
-    if hwnd not in _seen_windows:
-        with _seen_windows_lock:
-            if hwnd not in _seen_windows:
-                window = Window(hwnd)
-                _seen_windows[hwnd] = window
-    return _seen_windows[hwnd]
-
-def filter_windows(check: Callable[[Window], bool]) -> Set[Window]:
+def filter_windows(cb: Callable[[HWND], Optional[Window]]) -> Set[Window]:
     """Filter app windows of the current desktop"""
-
-    windows = set()
+    result = set()
     @WINFUNCTYPE(BOOL, HWND, LPARAM)
     def enum_windows_proc(hwnd: HWND, _lParam: LPARAM) -> BOOL: # pylint: disable=invalid-name
-        window = lookup_window(hwnd)
-        try:
-            if check(window):
-                windows.add(window)
-        except StopIteration:
-            windows.add(window)
+        window = cb(hwnd)
+        if window is False:
             return False
+        if isinstance(window, Window):
+            result.add(window)
         return True
-
     if not user32.EnumWindows(enum_windows_proc, None):
         last_error = get_last_error()
         if last_error:
             raise WinError(last_error)
-    return windows
+    return result
 
-def find_window(cb) -> Optional[Window]:
-    """Find the first window that matches the condition"""
-    def check(window):
-        if cb(window):
-            raise StopIteration
-    return next(iter(filter_windows(check)), None) 
-
-def get_window_from_pos(x, y: int) -> Optional[Window]:
-    """Retrieves the window at the specified position"""
-    hwnd = user32.WindowFromPoint(POINT(int(x), int(y)))
-    if hwnd:
-        return lookup_window(user32.GetAncestor(hwnd, 2))
-
-def get_active_window() -> Optional[Window]:
-    """Retrieves current activated window"""
-    hwnd = user32.GetForegroundWindow()
-    if hwnd:
-        return lookup_window(hwnd)
-
-def activate_taskbar():
-    """Activate the taskbar"""
-    find_window(lambda w: w.class_name == "Shell_TrayWnd").activate()
-
+def get_foreground_hwnd() -> Optional[HWND]:
+    return user32.GetForegroundWindow()
 
 ###
 ### helper functions
@@ -626,15 +582,15 @@ def activate_taskbar():
 
 def minimize_active_window():
     """Minize active window"""
-    window = get_active_window()
-    if window:
-        window.minimize()
+    hwnd = get_foreground_hwnd(hwnd)
+    if hwnd:
+        Window(hwnd).minimize()
 
 def toggle_maximize_active_window():
     """Maximize/Unmaximize active window"""
-    window = get_active_window()
-    if window:
-        window.toggle_maximize()
+    hwnd = get_foreground_hwnd(hwnd)
+    if hwnd:
+        Window(hwnd).toggle_maximize()
 
 ###
 ### debugging
@@ -644,9 +600,9 @@ if __name__ == "__main__":
     if len(sys.argv)  > 1:
         param = sys.argv[1]
         if param.isdigit():
-            lookup_window(int(param)).inspect()
+            Window(int(param)).inspect()
         elif param == "app":
-            for wd in filter_windows(lambda w: w.manageable and w.is_visible):
+            for wd in filter_windows(lambda hwnd: Window(hwnd) if Window(hwnd).manageable else None):
                 print()
                 wd.inspect()
         elif param == "fix":
@@ -658,4 +614,4 @@ if __name__ == "__main__":
                 wd.inspect()
     else:
         time.sleep(2)
-        get_active_window().inspect()
+        Window(get_foreground_hwnd()).inspect()

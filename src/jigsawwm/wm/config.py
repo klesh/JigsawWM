@@ -15,8 +15,9 @@ class WmRule:
     """WmRule holds the rule for managing windows"""
     exe_regex: Optional[str] = None
     title_regex: Optional[str] = None
-    to_monitor_index: Optional[int] = None
-    to_workspace_index: Optional[int] = None
+    preferred_monitor_index: Optional[int] = None
+    preferred_workspace_index: Optional[int] = None
+    preferred_window_index: Optional[int] = None
     manageable: Optional[bool] = None # managed in workspace
     tilable: Optional[bool] = None # is it tilable in a workspace
 

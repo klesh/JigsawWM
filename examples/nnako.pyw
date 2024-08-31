@@ -109,6 +109,8 @@ wm = WindowManager(
         ],
     force_managed_exe_names=["Lens.exe"],
 
+
+    # TODO: rewrite by using WmRule with preferred window index
     # here the wished initial sequence of applications in order to correctly
     # fill the windows. these applications will not be ignored, so they don't
     # need to be listed within the ignore_exe_names list.
