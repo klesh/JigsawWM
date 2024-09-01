@@ -5,12 +5,8 @@
       "source.organizeImports": "explicit",
       "source.unusedImports": "explicit"
     },
+    "editor.defaultFormatter": "ms-python.black-formatter"
   },
-  "isort.args": [
-    "--profile",
-    "black"
-  ],
-  "python.formatting.provider": "black",
   "python.testing.pytestArgs": [
     "tests"
   ],

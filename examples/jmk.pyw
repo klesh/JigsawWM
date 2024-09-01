@@ -5,7 +5,7 @@ from log import *
 from jigsawwm import daemon
 from jigsawwm.jmk import *
 from jigsawwm.w32.sendinput import send_combination, send_text
-from jigsawwm.w32.vk import Vk
+from jigsawwm.w32.vk import Vk, Vka, parse_key
 from jigsawwm.w32.window import minimize_active_window, toggle_maximize_active_window
 
 #######################
@@ -72,8 +72,8 @@ layers = [
         Vk.OEM_PERIOD: JmkKey(Vk.VOLUME_UP),
         Vka.SLASH: JmkKey(Vk.MEDIA_PLAY_PAUSE),
         Vk.LBUTTON: JmkKey(Vk.MBUTTON),
-        parse_key('['): JmkKey(Vk.WHEEL_UP),
-        parse_key(']'): JmkKey(Vk.WHEEL_DOWN),
+        parse_key("["): JmkKey(Vk.WHEEL_UP),
+        parse_key("]"): JmkKey(Vk.WHEEL_DOWN),
     },
     {  # layer 2
         # tap to send today's date, hold to send now
@@ -162,27 +162,28 @@ combos = [
     ([Vk.LBUTTON, Vk.RBUTTON], Vk.MBUTTON),
 ]
 
-bypass_exe = {
-}
+bypass_exe = {}
 
 
 #######################
 #  setup jmk
 #######################
 
-sysin, jmk, hks, sysout = create_jmk(layers, hotkeys, combos)
+sysin, jmk, hks, sysout = create_jmk(layers, hotkeys)
 
 
 class JmkService(daemon.Service):
+    """JMK service"""
+
     name = "jmk"
     is_running = False
 
     def start(self):
         self.is_running = True
-        sysin.install()
+        sysin.start()
 
     def stop(self):
-        sysin.uninstall()
+        sysin.stop()
         self.is_running = False
 
 
