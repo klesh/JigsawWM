@@ -14,24 +14,22 @@ QUEUE_MSG_CALL = 1
 class ThreadWorker:
     """A worker that runs tasks in a thread pool"""
 
-    executor = ThreadPoolExecutor()
+    stopped = False
+    executor: ThreadPoolExecutor = None
     queue: SimpleQueue = None
 
     def start_worker(self):
         """Start the worker thread"""
-        if self.queue is not None:
-            return
         self.queue = SimpleQueue()
+        self.executor = ThreadPoolExecutor()
         self.executor.submit(self.consume_queue)
 
     def stop_worker(self):
         """Stop the worker thread"""
-        if self.queue is None:
+        if self.stopped:
             return
         self.queue.put((QUEUE_MSG_CLOSE, None))
         self.executor.shutdown()
-        self.executor = None
-        self.queue = None
 
     def enqueue(self, fn: callable, *args):
         """Enqueue a function call"""
@@ -43,6 +41,7 @@ class ThreadWorker:
             msg_type, msg_args = self.queue.get()
             if msg_type == QUEUE_MSG_CLOSE:
                 logger.info("closing system input handler")
+                self.stopped = True
                 break
             if msg_type == QUEUE_MSG_CALL:
                 fn, args = msg_args[0], msg_args[1:]
@@ -67,5 +66,16 @@ class ThreadWorker:
         def wrapped():
             time.sleep(delay)
             self.enqueue(cb, *args)
+
+        self.executor.submit(wrapped)
+
+    def periodic_call(self, interval: float, cb: callable, *args):
+        """Call a function periodically in the consume_queue thread"""
+        logger.info("periodic_call %s %s", interval, cb)
+
+        def wrapped():
+            while not self.stopped:
+                time.sleep(interval)
+                self.enqueue(cb, *args)
 
         self.executor.submit(wrapped)

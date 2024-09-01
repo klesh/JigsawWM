@@ -7,7 +7,7 @@ from typing import List, Set, Union
 
 from jigsawwm.w32 import hook
 from jigsawwm.w32.sendinput import is_synthesized, vk_to_input, send_input
-from jigsawwm.w32.window_cache import Window, WindowCache
+from jigsawwm.w32.window_detector import Window, WindowDetector
 from jigsawwm.worker import ThreadWorker
 
 from .core import JmkHandler, JmkEvent, Vk
@@ -33,12 +33,12 @@ class SystemInput(ThreadWorker, JmkHandler):
     disabled_reason: str = None
     bypass_exe: Set[str] = None
     pressed_key: Set[Vk] = set()
-    window_cache: WindowCache = None
+    window_detector: WindowDetector = None
 
     def __init__(
         self,
         bypass_exe: Set[re.Pattern] = None,
-        window_cache: WindowCache = None,
+        window_cache: WindowDetector = None,
     ):
         self.bypass_exe = {
             "Snipaste.exe",
@@ -48,7 +48,7 @@ class SystemInput(ThreadWorker, JmkHandler):
         if bypass_exe:
             self.bypass_exe |= bypass_exe
         self.pressed_key = set()
-        self.window_cache = window_cache or WindowCache()
+        self.window_detector = window_cache or WindowDetector()
 
     def start(self):
         """Start the system input handler"""
@@ -88,7 +88,7 @@ class SystemInput(ThreadWorker, JmkHandler):
 
     def on_focus_changed(self, hwnd: HWND):
         """Handles the window focus change event"""
-        window = self.window_cache.get_window(hwnd)
+        window = self.window_detector.get_window(hwnd)
         if window.is_elevated:
             logger.info("focused window %s is elevated", window)
             self.disabled = True

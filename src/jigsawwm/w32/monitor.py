@@ -1,11 +1,35 @@
+"""Windows API for monitor management"""
+
 import enum
-from ctypes import *
-from ctypes.wintypes import *
-from functools import cached_property
-from typing import Iterator, List, Tuple, Set
-import screeninfo
-from dataclasses import dataclass
 import math
+import sys
+from ctypes import (
+    WinDLL,
+    WinError,
+    pointer,
+    get_last_error,
+    WINFUNCTYPE,
+    byref,
+    Structure,
+    sizeof,
+)
+from ctypes.wintypes import (
+    POINT,
+    HMONITOR,
+    BOOL,
+    HDC,
+    LPRECT,
+    LPARAM,
+    HWND,
+    ULONG,
+    RECT,
+    DWORD,
+    CHAR,
+)
+from functools import cached_property
+from typing import Tuple, Set
+from dataclasses import dataclass
+import screeninfo
 
 user32 = WinDLL("user32", use_last_error=True)
 shcore = WinDLL("shcore", use_last_error=True)
@@ -21,7 +45,7 @@ def get_cursor_pos() -> POINT:
     :rtype: POINT
     """
     if not user32.GetCursorPos(pointer(_current_pos_ptr)):
-        raise Exception("failed to get cursor position")
+        raise WinError(get_last_error())
     return _current_pos_ptr
 
 
@@ -32,7 +56,7 @@ def set_cursor_pos(x: int, y: int):
     :param y: int
     """
     if not user32.SetCursorPos(int(x), int(y)):
-        raise Exception("failed to set cursor position")
+        raise WinError(get_last_error())
 
 
 def enum_display_monitors() -> Set[HMONITOR]:
@@ -41,11 +65,14 @@ def enum_display_monitors() -> Set[HMONITOR]:
     :return: list of monitor handles
     :rtype: List[]
     """
-    hmons = {}
+    hmons = set()
 
     @WINFUNCTYPE(BOOL, HMONITOR, HDC, LPRECT, LPARAM)
     def monitor_enum_proc(
-        hmon: HMONITOR, hdc: HDC, lprc: LPRECT, lParam: LPARAM
+        hmon: HMONITOR,
+        _hdc: HDC,
+        _lprc: LPRECT,
+        _lparam: LPARAM,
     ) -> BOOL:
         hmons.add(hmon)
         return True
@@ -90,6 +117,8 @@ CCHDEVICENAME = 32
 
 
 class MONITORINFOEX(Structure):
+    """Contains information about a display monitor"""
+
     cbSize: int
     rcMonitor: RECT
     rcWork: RECT
@@ -105,7 +134,9 @@ class MONITORINFOEX(Structure):
     )
 
 
-class DEVICE_SCALE_FACTOR(enum.IntEnum):
+class DeviceScaleFactor(enum.IntEnum):
+    """Device scale factor enum"""
+
     DEVICE_SCALE_FACTOR_INVALID = 0
     SCALE_100_PERCENT = 100
     SCALE_120_PERCENT = 120
@@ -124,8 +155,11 @@ class DEVICE_SCALE_FACTOR(enum.IntEnum):
     SCALE_450_PERCENT = 450
     SCALE_500_PERCENT = 500
 
+
 @dataclass
 class ScreenInfo:
+    """Screen Information"""
+
     width_px: int
     height_px: int
     width_mm: int
@@ -179,12 +213,12 @@ class Monitor:
         :rtype: MONITORINFOEX
         """
         monitor_info = MONITORINFOEX()
-        monitor_info.cbSize = sizeof(monitor_info) # pylint: disable=invalid-name
+        monitor_info.cbSize = sizeof(monitor_info)  # pylint: disable=invalid-name
         if not user32.GetMonitorInfoA(self.handle, pointer(monitor_info)):
             return None
         return monitor_info
 
-    def get_scale_factor(self) -> DEVICE_SCALE_FACTOR:
+    def get_scale_factor(self) -> DeviceScaleFactor:
         """Retrieves monitor scale factor
 
         :returns: scale factor
@@ -193,7 +227,7 @@ class Monitor:
         scale_factor = ULONG()
         if shcore.GetScaleFactorForMonitor(self.handle, byref(scale_factor)) != 0:
             raise WinError(get_last_error())
-        return DEVICE_SCALE_FACTOR(scale_factor.value)
+        return DeviceScaleFactor(scale_factor.value)
 
     def get_screen_info(self) -> ScreenInfo:
         """Retrieves screen information"""
@@ -204,104 +238,48 @@ class Monitor:
                     monitor.height,
                     monitor.width_mm,
                     monitor.height_mm,
-                    ratio=max(monitor.width, monitor.height) / min(monitor.width, monitor.height),
+                    ratio=max(monitor.width, monitor.height)
+                    / min(monitor.width, monitor.height),
                     is_primary=monitor.is_primary,
-                    inch=round(math.sqrt(monitor.width_mm ** 2 + monitor.height_mm ** 2) / 25.4),
+                    inch=round(
+                        math.sqrt(monitor.width_mm**2 + monitor.height_mm**2) / 25.4
+                    ),
                 )
 
-def get_monitors() -> Iterator[Monitor]:
-    """Retrieves all display monitors(mirroring monitors are excluded)
+    def get_monitor_central(self) -> Tuple[int, int]:
+        """Retrieves coordinates of the center of specified monitor"""
+        rect = self.get_info().rcMonitor
+        return (
+            rect.left + (rect.right - rect.left) / 2,
+            rect.top + (rect.bottom - rect.top) / 2,
+        )
 
-    :returns: system monitors
-    :rtype: Iterator[Monitor]
-    """
-    return map(Monitor, enum_display_monitors())
+    def inspect(self, file=sys.stdout):
+        """Prints monitor information and cursor position"""
+        print(file=file)
+        print(self, file=file)
+        print("scale factor     :", self.get_scale_factor())
+        monitor_info = self.get_info()
+        print("device           :", monitor_info.szDevice, file=file)
+        print("screen info      :", self.get_screen_info(), file=file)
+        m = monitor_info.rcWork
+        print(
+            f"monitor workarea : left {m.left} top {m.top}  right {m.right}  bottom {m.bottom}",
+            file=file,
+        )
+        m = monitor_info.rcMonitor
+        print(
+            f"monitor react    : left {m.left} top {m.top}  right {m.right}  bottom {m.bottom}",
+            file=file,
+        )
 
-
-def get_monitor_central(monitor: Monitor) -> Tuple[int, int]:
-    """Retrieves coordinates of the center of specified monitor
-
-    :param Monitor monitor: monitor
-    :returns: X/Y coorindates
-    :rtype: Tuple[int, int]
-    """
-    rect = monitor.get_info().rcMonitor
-    return (
-        rect.left + (rect.right - rect.left) / 2,
-        rect.top + (rect.bottom - rect.top) / 2,
-    )
-
-
-def get_topo_sorted_monitors() -> List[Monitor]:
-    """Sort monitor from left to right, top to bottom by Central Points
-
-    :returns: list of monitors ordered by their central point, X and then Y
-    :rtype: List[Monitor]
-    """
-    return sorted(get_monitors(), key=get_monitor_central)
-
-
-def get_monitor_from_point(x: int, y: int) -> Monitor:
-    """Retrieves monitor from X/Y coordinates
-
-    :param int x: X coordinate
-    :param int y: Y coordinate
-    :returns: Monitor from specified point
-    :rtype: Monitor
-    """
-    return Monitor(monitor_from_point(x, y))
-
-
-def get_monitor_from_cursor() -> Monitor:
-    """Retrieves monitor from cursor
-
-    :returns: Monitor from current cursor
-    :rtype: Monitor
-    """
-    pt = get_cursor_pos()
-    return get_monitor_from_pos(pt.x, pt.y)
-
-def get_monitor_from_pos(x: int, y: int) -> Monitor:
-    """Retrieves monitor from given coordinates
-
-    :returns: Monitor from current cursor
-    :rtype: Monitor
-    """
-    return Monitor(monitor_from_point(x, y))
-
-def get_monitor_from_window(hwnd: HWND) -> Monitor:
-    """Retrieves monitor from window handle
-
-    :param HWND hwnd: window handle
-    :returns: Monitor that owns specified window
-    :rtype: Monitor
-    """
-    if hwnd:
-        hmon = monitor_from_window(hwnd)
-        if hmon:
-            return Monitor(hmon)
-    return None
 
 def inspect_monitors():
     """Prints monitor information and cursor position"""
     p = get_cursor_pos()
     print(f"cursor pos       :  x {p.x} y {p.y}")
-    for monitor in get_topo_sorted_monitors():
-        print()
-        print(monitor)
-        print("scale factor     :", monitor.get_scale_factor())
-        monitor_info = monitor.get_info()
-        print("device           :", monitor_info.szDevice)
-        print("screen info      :", monitor.get_screen_info())
-        m = monitor_info.rcWork
-        print(
-            f"monitor workarea : left {m.left} top {m.top}  right {m.right}  bottom {m.bottom}"
-        )
-        m = monitor_info.rcMonitor
-        print(
-            f"monitor react    : left {m.left} top {m.top}  right {m.right}  bottom {m.bottom}"
-        )
-
+    for monitor in map(Monitor, enum_display_monitors()):
+        monitor.inspect()
 
 
 if __name__ == "__main__":

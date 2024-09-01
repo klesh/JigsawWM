@@ -1,9 +1,10 @@
 """Windows API for window management"""
+
 import logging
 import sys
 import time
-from ctypes import * # pylint: disable=wildcard-import,unused-wildcard-import
-from ctypes.wintypes import * # pylint: disable=wildcard-import,unused-wildcard-import
+from ctypes import *  # pylint: disable=wildcard-import,unused-wildcard-import
+from ctypes.wintypes import *  # pylint: disable=wildcard-import,unused-wildcard-import
 from dataclasses import dataclass, field
 from typing import Callable, Optional, Any, Set
 from os import path
@@ -12,10 +13,14 @@ from functools import cached_property
 from . import process
 from .sendinput import send_input, INPUT, INPUTTYPE, KEYBDINPUT, KEYEVENTF
 from .vk import Vk
-from .monitor import get_monitor_from_window
+
+# from .monitor import get_monitor_from_window
 from .window_structs import (
-  WindowStyle, WindowExStyle, ShowWindowCmd, DwmWindowAttribute,
-  repr_rect
+    WindowStyle,
+    WindowExStyle,
+    ShowWindowCmd,
+    DwmWindowAttribute,
+    repr_rect,
 )
 
 user32 = WinDLL("user32", use_last_error=True)
@@ -24,17 +29,17 @@ dwmapi = WinDLL("dwmapi", use_last_error=True)
 logger = logging.getLogger(__name__)
 
 MANAGEABLE_CLASSNAME_BLACKLIST = {
-    "Shell_TrayWnd", # taskbar
+    "Shell_TrayWnd",  # taskbar
     "Shell_SecondaryTrayWnd",
-    "Progman", # desktop background
+    "Progman",  # desktop background
     "WorkerW",
     "IME",
     "Default IME",
     "MSCTFIME UI",
 }
 MANAGEABLE_EXE_BLACKLIST = {
-    "msedge.exe", # stupid copilot
-    "msedgewebview2.exe", # this shit would display a invisible widow and hide it right away, what the heck
+    "msedge.exe",  # stupid copilot
+    "msedgewebview2.exe",  # this shit would display a invisible widow and hide it right away, what the heck
 }
 SWP_NOACTIVATE = 0x0010
 SET_WINDOW_RECT_FLAG = SWP_NOACTIVATE
@@ -44,9 +49,7 @@ ICON_SMALL = 0
 ICON_BIG = 1
 ICON_SMALL2 = 2
 WM_GETICON = 0x7F
-NOT_TILABLE_EXE_NAMES = {
-    "QuickLook.exe"
-}
+NOT_TILABLE_EXE_NAMES = {"QuickLook.exe"}
 
 
 @dataclass
@@ -75,13 +78,13 @@ class Window:
         return hash(self.handle)
 
     def __repr__(self):
-        marks = ' '
+        marks = " "
         if self.tilable:
-            marks += 'T'
+            marks += "T"
         if self.manageable:
-            marks += 'M'
+            marks += "M"
         if self.restricted_rect:
-            marks += 'R'
+            marks += "R"
         return f"<Window id={id(self)} pid={self.pid} exe={self.exe_name} title={self.title[:10]} hwnd={self.handle}{marks}>"
 
     # some windows may change their style after created and there will be no event raised
@@ -225,15 +228,22 @@ class Window:
     @property
     def is_fullscreen(self) -> bool:
         """Check if window is fullscreen"""
-        m = get_monitor_from_window(self.handle)
-        if m is None: # window is moved outside of monitors
-            return False
-        mr = m.get_rect()
-        wr = self.get_rect()
-        return mr.top == wr.top and mr.left == wr.left and mr.right == wr.right and mr.bottom == wr.bottom
+        return False
+
+    #     m = get_monitor_from_window(self.handle)
+    #     if m is None:  # window is moved outside of monitors
+    #         return False
+    #     mr = m.get_rect()
+    #     wr = self.get_rect()
+    #     return (
+    #         mr.top == wr.top
+    #         and mr.left == wr.left
+    #         and mr.right == wr.right
+    #         and mr.bottom == wr.bottom
+    #     )
 
     @cached_property
-    def is_evelated(self):
+    def is_elevated(self):
         """Check if window is elevated (Administrator)"""
         return process.is_elevated(self.pid)
 
@@ -373,7 +383,10 @@ class Window:
         self.set_rect(rect)
         self.restricted_rect = rect
         self.compensated_rect = None
-        if self.dpi_awareness == process.ProcessDpiAwareness.PROCESS_PER_MONITOR_DPI_AWARE:
+        if (
+            self.dpi_awareness
+            == process.ProcessDpiAwareness.PROCESS_PER_MONITOR_DPI_AWARE
+        ):
             # seems like the `get_extended_frame_bounds` would return physical size
             # for DPI unware window, skip them for now
             # TODO: convert physical size to logical size for DPI unware window
@@ -395,7 +408,12 @@ class Window:
             logger.debug("%s restricting to %s", self, self.restricted_actual_rect)
             r1 = self.restricted_actual_rect
             r2 = self.get_rect()
-            if r1.left == r2.left and r1.top == r2.top and r1.right == r2.right and r1.bottom == r2.bottom:
+            if (
+                r1.left == r2.left
+                and r1.top == r2.top
+                and r1.right == r2.right
+                and r1.bottom == r2.bottom
+            ):
                 return
             self.set_rect(self.compensated_rect or self.restricted_rect)
 
@@ -404,7 +422,7 @@ class Window:
         self.restricted_rect = None
         self.restricted_actual_rect = None
 
-    def shrink(self, margin: int=20):
+    def shrink(self, margin: int = 20):
         """Shrink the window by margin"""
         logger.info("shrink %s by %d", self.title, margin)
         rect = self.get_rect()
@@ -438,7 +456,11 @@ class Window:
             fore_thread_id = user32.GetWindowThreadProcessId(curr_fore_hwnd, None)
             if fore_thread_id and fore_thread_id != our_thread_id:
                 uf = user32.AttachThreadInput(our_thread_id, fore_thread_id, True)
-            if fore_thread_id and target_thread_id and fore_thread_id != target_thread_id:
+            if (
+                fore_thread_id
+                and target_thread_id
+                and fore_thread_id != target_thread_id
+            ):
                 ft = user32.AttachThreadInput(fore_thread_id, target_thread_id, True)
         new_fore_window = None
         retry = 5
@@ -489,24 +511,25 @@ class Window:
     def toggle(self, show: bool):
         """Toggle window visibility"""
         logger.debug("%s toggle showing to %s", self, show)
+        r = self.get_rect()
         if show:
             if self.is_off:
                 self.set_rect(
                     RECT(
-                        r.left-self.X_OFFSET,
-                        r.top-self.Y_OFFSET,
-                        r.right-self.Y_OFFSET,
-                        r.bottom-self.Y_OFFSET,
+                        r.left - self.X_OFFSET,
+                        r.top - self.Y_OFFSET,
+                        r.right - self.Y_OFFSET,
+                        r.bottom - self.Y_OFFSET,
                     )
                 )
         else:
             if self.is_on:
                 self.set_rect(
                     RECT(
-                        r.left+self.X_OFFSET,
-                        r.top+self.Y_OFFSET,
-                        r.right+self.Y_OFFSET,
-                        r.bottom+self.Y_OFFSET,
+                        r.left + self.X_OFFSET,
+                        r.top + self.Y_OFFSET,
+                        r.right + self.Y_OFFSET,
+                        r.bottom + self.Y_OFFSET,
                     )
                 )
 
@@ -541,11 +564,18 @@ class Window:
         rect = self.get_rect()
         print("rect         :", rect.left, rect.top, rect.right, rect.bottom, file=file)
         bound = self.get_extended_frame_bounds()
-        print("bound        :", bound.left, bound.top, bound.right, bound.bottom, file=file)
+        print(
+            "bound        :",
+            bound.left,
+            bound.top,
+            bound.right,
+            bound.bottom,
+            file=file,
+        )
         if self.restricted_rect:
             r = self.restricted_rect
             print("restricted   :", r.left, r.top, r.right, r.bottom, file=file)
-        print("is_evelated  :", self.is_evelated, file=file)
+        print("is_evelated  :", self.is_elevated, file=file)
         print("is_toplevel  :", self.is_toplevel, file=file)
         print("is_cloaked   :", self.is_cloaked, file=file)
         print("is_visible   :", self.is_visible, file=file)
@@ -556,59 +586,69 @@ class Window:
         print("dpi_awareness:", self.dpi_awareness.name, file=file)
 
 
-def filter_windows(cb: Callable[[HWND], Optional[Window]]) -> Set[Window]:
+def filter_windows(cb: Callable[[HWND], Any]) -> Set[Any]:
     """Filter app windows of the current desktop"""
     result = set()
+
     @WINFUNCTYPE(BOOL, HWND, LPARAM)
-    def enum_windows_proc(hwnd: HWND, _lParam: LPARAM) -> BOOL: # pylint: disable=invalid-name
+    def enum_windows_proc(
+        hwnd: HWND, _lparam: LPARAM
+    ) -> BOOL:  # pylint: disable=invalid-name
         window = cb(hwnd)
         if window is False:
             return False
-        if isinstance(window, Window):
-            result.add(window)
+        result.add(window)
         return True
+
     if not user32.EnumWindows(enum_windows_proc, None):
         last_error = get_last_error()
         if last_error:
             raise WinError(last_error)
     return result
 
+
 def get_foreground_hwnd() -> Optional[HWND]:
+    """Get the foreground window handle"""
     return user32.GetForegroundWindow()
+
 
 ###
 ### helper functions
 ###
 
+
 def minimize_active_window():
     """Minize active window"""
-    hwnd = get_foreground_hwnd(hwnd)
+    hwnd = get_foreground_hwnd()
     if hwnd:
         Window(hwnd).minimize()
 
+
 def toggle_maximize_active_window():
     """Maximize/Unmaximize active window"""
-    hwnd = get_foreground_hwnd(hwnd)
+    hwnd = get_foreground_hwnd()
     if hwnd:
         Window(hwnd).toggle_maximize()
+
 
 ###
 ### debugging
 ###
 
 if __name__ == "__main__":
-    if len(sys.argv)  > 1:
+    if len(sys.argv) > 1:
         param = sys.argv[1]
         if param.isdigit():
             Window(int(param)).inspect()
         elif param == "app":
-            for wd in filter_windows(lambda hwnd: Window(hwnd) if Window(hwnd).manageable else None):
+            for wd in filter_windows(
+                lambda hwnd: Window(hwnd) if Window(hwnd).manageable else None
+            ):
                 print()
                 wd.inspect()
         elif param == "fix":
             for wd in filter_windows(
-                lambda w:
-                    w.manageable and w.get_rect().right > 1000 
+                lambda w: w.manageable and w.get_rect().right > 1000
             ):
                 wd.set_rect(RECT(100, 100, 500, 600))
                 wd.inspect()
