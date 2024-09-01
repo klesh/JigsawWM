@@ -1,23 +1,25 @@
 """Hotkey handler for JigsawWM."""
+
 import logging
 from typing import Callable, List, Optional, Tuple, Set
 
-from .shared import JmkEvent, JmkTrigger, JmkTriggers, JmkCombination, Modifers, Vk
+from jigsawwm.w32.vk import Modifers
+from .core import JmkEvent, JmkTrigger, JmkTriggers, JmkCombination, Vk
 
 logger = logging.getLogger(__name__)
 
 
 class JmkHotkeys(JmkTriggers):
     """A handler that handles hotkeys."""
+
     pressed_modifiers: Set[Vk]
     resend: Optional[JmkEvent] = None
 
     def __init__(
         self,
-        next_handler,
         hotkeys: List[Tuple[JmkCombination, Callable, Optional[Callable]]] = None,
     ):
-        super().__init__(next_handler, hotkeys)
+        super().__init__(hotkeys)
         self.pressed_modifiers = set()
 
     def check_comb(self, comb: List[Vk]):
@@ -38,7 +40,7 @@ class JmkHotkeys(JmkTriggers):
         logger.debug("current pressed keys: %s", pressed_keys)
         return hotkey
 
-    def __call__(self, evt: JmkEvent) -> bool:
+    def __call__(self, evt: JmkEvent):
         logger.debug("%s >>> hotkey", evt)
         if evt.pressed:
             if evt.vk in Modifers:
@@ -49,7 +51,7 @@ class JmkHotkeys(JmkTriggers):
                 if hotkey and hotkey.keys[-1] == evt.vk:
                     evt.system = False
                     self.resend = evt
-                    return True
+                    return
         else:
             if evt.vk in self.pressed_modifiers:
                 self.pressed_modifiers.remove(evt.vk)
@@ -67,7 +69,7 @@ class JmkHotkeys(JmkTriggers):
                         self.next_handler(JmkEvent(Vk.NONAME, False))
                     self.resend = None
                     hotkey.trigger()
-                    return True  # maybe let user define whether to swallow
+                    return
                 elif (
                     self.resend
                 ):  # modifier key released first, so we resend previous event
@@ -75,4 +77,4 @@ class JmkHotkeys(JmkTriggers):
                     self.next_handler(self.resend)
                     self.resend = None
 
-        return super().__call__(evt)
+        super().__call__(evt)

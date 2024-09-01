@@ -1,20 +1,153 @@
 """JmkCore is the core of the JMK feature, it handles the key events and dispatches
 them to the registered handlers."""
+
 import logging
 import abc
-import time
 import typing
+import time
+from dataclasses import dataclass, field
+from functools import partial
+from threading import Lock
 
-from jigsawwm.w32.vk import * # pylint: disable=unused-wildcard-import,wildcard-import
-from .shared import JmkEvent, JmkHandler
+from jigsawwm.w32.vk import Vk, parse_combination, expand_combination
+from jigsawwm.w32.sendinput import send_combination
+
 
 logger = logging.getLogger(__name__)
+
+JmkCombination = typing.Union[typing.List[Vk], str]
+JmkDelayCall = typing.Callable[[typing.Callable, float], None]
+
+
+@dataclass
+class JmkEvent:
+    """A jmk event that contains the key/button, pressed state,
+    system state(does it came from the OS) and extra data"""
+
+    vk: Vk
+    pressed: bool
+    system: bool = False
+    flags: int = 0
+    extra: any = 0
+    time: float = field(default_factory=time.time)
+
+    def __repr__(self) -> str:
+        evt = "down" if self.pressed else "up"
+        src = "sys" if self.system else "sim"
+        return f"JmkEvent({self.vk.name}, {evt}, {src}, {self.flags}, {self.extra})"
+
+    def same(self, other: "JmkEvent") -> bool:
+        """Check if two events are the same"""
+        return self.vk == other.vk and self.pressed == other.pressed
+
+
+class JmkHandler:
+    """A handler that handles events"""
+
+    next_handler: "JmkHandler"
+    delay_call: typing.Optional[JmkDelayCall] = None
+
+    def __call__(self, evt: JmkEvent):
+        """Handle the event"""
+
+    def pipe(self, next_handler: "JmkHandler") -> "JmkHandler":
+        """Pipe the handler to the next handler"""
+        next_handler.delay_call = self.delay_call
+        self.next_handler = next_handler
+        return next_handler
+
+
+@dataclass
+class JmkTrigger:
+    """Key trigger"""
+
+    keys: typing.Iterable[Vk]
+    callback: typing.Callable
+    release_callback: typing.Callable = None
+    triggerred: bool = False
+    lit_keys: typing.Set[Vk] = None
+    first_lit_at: float = None
+    _lock: Lock = field(default_factory=Lock)
+
+    def trigger(self):
+        """Trigger"""
+        logger.info("keys triggered: %s", self.keys)
+        self.triggerred = True
+        release_cb = self.callback()
+        if release_cb:
+            self.release_callback = release_cb
+
+    def release(self):
+        """Release"""
+        if not self.triggerred:
+            return
+        logger.info("keys released: %s", self.keys)
+        if not self.triggerred:
+            return
+        self.triggerred = False
+        if self.release_callback:
+            self.release_callback()
+
+
+class JmkTriggers(JmkHandler):
+    """A handler that handles triggers."""
+
+    triggers: typing.Dict[typing.FrozenSet[Vk], JmkTrigger]
+
+    def __init__(
+        self,
+        triggers: typing.List[
+            typing.Tuple[
+                JmkCombination, typing.Callable, typing.Optional[typing.Callable]
+            ]
+        ] = None,
+    ):
+        super().__init__()
+        self.triggers = {}
+        if triggers:
+            for args in triggers:
+                self.register(*args)
+
+    def check_comb(self, comb: typing.List[Vk]):
+        """Check if a combination is valid."""
+
+    def expand_comb(self, comb: JmkCombination) -> typing.List[typing.List[Vk]]:
+        """Expand a combination to a list of combinations."""
+        if isinstance(comb, str):
+            comb = parse_combination(comb)
+        self.check_comb(comb)
+        return expand_combination(comb)
+
+    def register(
+        self,
+        comb: JmkCombination,
+        cb: typing.Union[typing.Callable, str],
+        release_cb: typing.Callable = None,
+    ):
+        """Register a trigger."""
+        if isinstance(cb, str):
+            new_comb = parse_combination(cb)
+            cb = partial(send_combination, *new_comb)
+        for keys in self.expand_comb(comb):
+            if frozenset(keys) in self.triggers:
+                raise ValueError(f"hotkey {keys} already registered")
+            trigger = JmkTrigger(keys, cb, release_cb)
+            self.triggers[frozenset(keys)] = trigger
+
+    def unregister(self, comb: JmkCombination):
+        """Unregister a hotkey."""
+        for keys in self.expand_comb(comb):
+            self.triggers.pop(frozenset(keys))
+
+    def __call__(self, evt: JmkEvent):
+        self.next_handler(evt)
+
 
 class JmkLayerKey(JmkHandler):
     """A key handler that can be used in a layer"""
 
     state: "JmkCore" = None
-    layer: int = None
+    layer: typing.Optional[int] = None
     vk: Vk = None
 
     def __repr__(self):
@@ -24,7 +157,7 @@ class JmkLayerKey(JmkHandler):
         """Intercept other key events"""
 
     @abc.abstractmethod
-    def __call__(self, evt: JmkEvent) -> bool:
+    def __call__(self, evt: JmkEvent):
         """Handle the key event"""
 
 
@@ -37,21 +170,19 @@ class JmkKey(JmkLayerKey):
     """
 
     keys_or_func: typing.Union[typing.List[Vk], typing.Callable]
-    swallow: bool
 
     def __init__(
         self,
         keys_or_func: typing.Union[Vk, str, typing.List[Vk], typing.Callable],
-        swallow: bool = True,
     ):
+        super().__init__()
         if isinstance(keys_or_func, str):
             keys_or_func = parse_combination(keys_or_func)
         if isinstance(keys_or_func, Vk):
             keys_or_func = [keys_or_func]
         self.keys_or_func = keys_or_func
-        self.swallow = swallow
 
-    def __call__(self, evt: JmkEvent) -> bool:
+    def __call__(self, evt: JmkEvent):
         if isinstance(self.keys_or_func, list):
             if evt.pressed:
                 for key in self.keys_or_func:
@@ -61,7 +192,6 @@ class JmkKey(JmkLayerKey):
                     self.state.next_handler(JmkEvent(key, evt.pressed))
         elif not evt.pressed:
             self.keys_or_func()
-        return self.swallow
 
 
 class JmkTapHold(JmkLayerKey):
@@ -118,7 +248,10 @@ class JmkTapHold(JmkLayerKey):
 
     def check_hold(self):
         """Check if the key is hold"""
-        if time.time() - self.pressed > self.term:
+        if (
+            self.pressed > self.last_tapped_at
+            and time.time() - self.pressed > self.term
+        ):
             self.hold_down()
 
     def hold_down(self):
@@ -204,10 +337,10 @@ class JmkTapHold(JmkLayerKey):
         if self.resend:
             for evt in self.resend:
                 logger.debug("%s resend %s >>>", self, evt)
-                self.state(evt) # pylint: disable=not-callable
+                self.state(evt)  # pylint: disable=not-callable
         self.resend.clear()
 
-    def __call__(self, evt: JmkEvent) -> bool:
+    def __call__(self, evt: JmkEvent):
         # quick tap check
         if (
             evt.pressed
@@ -227,6 +360,8 @@ class JmkTapHold(JmkLayerKey):
             if not self.pressed:
                 # initial state
                 self.pressed = evt.time
+                if self.state.delay_call:
+                    self.state.delay_call(self.check_hold, self.term)
             else:
                 self.check_hold()
         else:
@@ -236,7 +371,6 @@ class JmkTapHold(JmkLayerKey):
                 self.hold_up()
             else:
                 self.tap_down_up()
-        return True
 
 
 JmkLayer = typing.Dict[Vk, JmkHandler]
@@ -250,14 +384,12 @@ class JmkCore(JmkHandler):
     :param layers: the layers
     """
 
-    next_handler: JmkHandler
     layers: typing.List[JmkLayer]
     active_layers: typing.Set[int]
     routes: JmkLayer
 
     def __init__(
         self,
-        next_handler: JmkHandler,
         layers: typing.List[JmkLayer] = None,
     ):
         super().__init__()
@@ -269,7 +401,6 @@ class JmkCore(JmkHandler):
                 raise TypeError("layer must be a dict")
             for vk, handler in layer.items():
                 self.register(vk, handler, index)
-        self.next_handler = next_handler
         self.active_layers = {0}
         self.routes = {}
 
@@ -313,7 +444,7 @@ class JmkCore(JmkHandler):
                 return self.layers[i][vk]
             i -= 1
 
-    def __call__(self, evt: JmkEvent) -> bool:
+    def __call__(self, evt: JmkEvent):
         # route is to handle situation that a key is still held down after layer turned off
         route = None
         for vk, rt in self.routes.items():
@@ -321,7 +452,7 @@ class JmkCore(JmkHandler):
                 route = rt
             elif rt.other_key(evt):
                 # key is intercepted by other key, most likely a TapHold
-                return True
+                return
         if route and not evt.pressed:
             self.routes.pop(evt.vk)
         elif not route:
@@ -331,4 +462,4 @@ class JmkCore(JmkHandler):
         if route:
             logger.debug("routing %s to %s", evt, route)
             return route(evt)
-        return self.next_handler(evt)
+        self.next_handler(evt)

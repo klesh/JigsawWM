@@ -1,100 +1,145 @@
 """System input/output interfacing"""
-import os.path
+
 import re
+import logging
+import time
 from ctypes.wintypes import DWORD, HWND, LONG
 from queue import SimpleQueue
+from concurrent.futures.thread import ThreadPoolExecutor
 from typing import List, Set, Union
 
 from jigsawwm.w32 import hook
-from jigsawwm.w32.sendinput import is_synthesized, send_input, vk_to_input
-from jigsawwm.w32.window import Window, get_foreground_hwnd
-from threading import Thread
+from jigsawwm.w32.sendinput import is_synthesized, vk_to_input, send_input
+from jigsawwm.w32.window_cache import Window, WindowCache
 
-from .core import *
+from .core import JmkHandler, JmkEvent, Vk
 
 state = {}
+logger = logging.getLogger(__name__)
 
-class SystemInput:
+JMK_MSG_CLOSE = 0
+JMK_MSG_CALL = 1
+
+
+class SystemInput(JmkHandler):
     """A handler that handles system input events.
 
-    :param next_handler: the next handler in the chain, normally a JmkCore instance
     :param bypass_exe: a list of regular expression patterns that matches the exe path
         some applications (e.g. Windows 10's touch keyboard, emoji input) will not
         work properly, so we need to bypass them
     """
 
     hook_handles: List[hook.HHOOK] = None
-    next_handler: JmkHandler
     focused_window: Window = None
     disabled: bool = False
+    disabled_reason: str = None
     bypass_exe: Set[str] = None
     pressed_key: Set[Vk] = set()
+    queue: SimpleQueue = None
+    window_cache: WindowCache = None
+    threads: ThreadPoolExecutor = None
 
-    def __init__(self, next_handler: JmkHandler, bypass_exe: List[re.Pattern] = None):
+    def __init__(
+        self,
+        bypass_exe: Set[re.Pattern] = None,
+        window_cache: WindowCache = None,
+    ):
         """Initialize a system input handler"""
-        self.next_handler = next_handler
         self.bypass_exe = {
             "Snipaste.exe",
             "TextInputHost.exe",
             "vmplayer.exe",
         }
         if bypass_exe:
-            self.bypass_exe.update(bypass_exe)
+            self.bypass_exe |= bypass_exe
         self.pressed_key = set()
+        self.queue = SimpleQueue()
+        self.window_cache = window_cache or WindowCache()
 
-    def install(self):
+    def start(self):
+        """Start the system input handler"""
+        self.start_worker()
         self.hook_handles = [
-            hook.hook_keyboard(self.input_event_handler),
-            hook.hook_mouse(self.input_event_handler),
+            hook.hook_keyboard(self.input_event),
+            hook.hook_mouse(self.input_event),
             hook.hook_winevent(
-                hook.WinEvent.EVENT_OBJECT_HIDE,
+                hook.WinEvent.EVENT_OBJECT_FOCUS,
                 hook.WinEvent.EVENT_OBJECT_FOCUS,
                 self.winevent,
             ),
         ]
 
-    def uninstall(self):
+    def stop(self):
+        """Stop the system input handler"""
         for hook_handle in self.hook_handles:
             hook.unhook(hook_handle)
+        self.stop_worker()
+
+    def start_worker(self):
+        """Start the worker thread"""
+        if self.threads is not None:
+            return
+        self.threads = ThreadPoolExecutor()
+        self.threads.submit(self.consume_queue)
+
+    def stop_worker(self):
+        """Stop the worker thread"""
+        if self.threads is None:
+            return
+        self.queue.put((JMK_MSG_CLOSE, None))
+        self.threads.shutdown()
+        self.threads = None
+
+    def consume_queue(self):
+        """Consume the queue and call the corresponding function"""
+        while True:
+            msg_type, msg_args = self.queue.get()
+            if msg_type == JMK_MSG_CLOSE:
+                logger.info("closing system input handler")
+                break
+            if msg_type == JMK_MSG_CALL:
+                fn, args = msg_args[0], msg_args[1:]
+                self.try_call(fn, *args)
+            else:
+                logger.error("unknown message type %s", msg_type)
+
+    def try_call(self, fn, *args):
+        """Call a function and log exception if any"""
+        try:
+            fn(*args)
+        except:  # pylint: disable=bare-except
+            logger.exception("error calling %s", fn, exc_info=True, stack_info=True)
+            self.disabled = True
+            self.disabled_reason = f"error calling {fn.__name__}, check logs for detail"
 
     def winevent(
         self,
-        event: hook.WinEvent,
+        _event: hook.WinEvent,
         hwnd: HWND,
-        id_obj: LONG,
-        id_chd: LONG,
-        id_evt_thread: DWORD,
-        time: DWORD,
+        _id_obj: LONG,
+        _id_chd: LONG,
+        _id_evt_thread: DWORD,
+        _time: DWORD,
     ):
-        evt = hook.WinEvent(event)
-        if evt != hook.WinEvent.EVENT_OBJECT_FOCUS:
+        """Handles window events and update the focused window"""
+        self.queue.put((JMK_MSG_CALL, (self.on_focus_changed, hwnd)))
+
+    def on_focus_changed(self, hwnd: HWND):
+        """Handles the window focus change event"""
+        window = self.window_cache.get_window(hwnd)
+        if window.is_elevated:
+            logger.debug("focused window %s is elevated", window)
+            self.disabled = True
+            self.disabled_reason = "elevated window focused"
             return
-        if self.focused_window and self.focused_window.handle == hwnd:
-            logger.debug("focused window not changed, ignore")
-            return
-        hwnd = get_foreground_hwnd()
-        if not hwnd:
-            return
-        self.focused_window = Window(hwnd)
-        logger.debug("event: %s, the active window: %s", evt.name, hwnd)
-        if self.focused_window.is_evelated:
-            logger.debug("focused window is elevated, disable jmk")
+        if self.bypass_exe and window.exe_name.lower() in self.bypass_exe:
+            logger.debug("focused window %s is blacklisted", window)
             self.disabled = True
             return
-        logger.debug("focused window is not elevated")
-        if self.bypass_exe:
-            fwe = self.focused_window.exe
-            if fwe and os.path.basename(fwe) in self.bypass_exe:
-                logger.debug(
-                    "focused window is in bypass list, disable jmk"
-                )
-                self.disabled = True
-                return
-        logger.debug("focused window is not in bypass list")
-        logger.debug("jmk ENABLED!!!")
+        logger.debug("focused window %s is a normal, jmk ENABLED !!!", window)
         self.disabled = False
 
-    def input_event_handler(
+    def input_event(
         self,
         _code: int,
         msgid: Union[hook.KBDLLHOOKMSGID, hook.MSLLHOOKMSGID],
@@ -104,6 +149,10 @@ class SystemInput:
         had been registered
         """
         if is_synthesized(msg):
+            logger.debug("synthesized event %s, skipping", msg)
+            return False
+        if self.disabled:
+            logger.debug("disabled due to %s, skipping %s", self.disabled_reason, msg)
             return False
         # convert keyboard/mouse event to a unified virtual key representation
         vkey, pressed = None, None
@@ -154,53 +203,43 @@ class SystemInput:
                 pressed = False
         # skip events that out of our interest
         if vkey is None or pressed is None:
-            return
+            # logger.debug("unknown event %s, skipping", msg)
+            return False
+        self.queue.put(
+            (JMK_MSG_CALL, (self.on_input, vkey, pressed, msg.flags, msg.dwExtraInfo))
+        )
+        return True
+
+    def on_input(self, vkey: Vk, pressed: bool, flags=0, extra=0):
+        """Handles the keyboard keys/mouse buttons events"""
         # bypass events when disabled unless it's a keyup event of a pressed key
-        if self.disabled and (
-            pressed or (not pressed and vkey not in self.pressed_key)
-        ):
-            return
 
         if pressed:
             self.pressed_key.add(vkey)
         elif vkey in self.pressed_key:
             self.pressed_key.remove(vkey)
-        evt = JmkEvent(
-            vkey, pressed, system=True, flags=msg.flags, extra=msg.dwExtraInfo
-        )
+        evt = JmkEvent(vkey, pressed, system=True, flags=flags, extra=extra)
         logger.debug("sys >>> %s", evt)
-        swallow = self.next_handler(evt)
-        return swallow
+        self.next_handler(evt)
+
+    def delay_call(self, cb: callable, delay: float):
+        """Delay call a function"""
+
+        def wrapped():
+            time.sleep(delay)
+            self.queue.put((JMK_MSG_CALL, (cb,)))
+
+        self.threads.submit(wrapped)
 
 
 class SystemOutput(JmkHandler):
-    """A system output handler that send input to system
+    """A system output handler that send input to system"""
 
-    :param always_swallow: whether to always swallow the event, should be `True`
-        when use as a Mouse/Keyboard transformer to keep the input order as expect,
-        or `False` if you just need to register a system hotkey. default to True
-    """
-
-    always_swallow: bool
-    q: SimpleQueue
-
-    def __init__(self, always_swallow: bool = True):
-        self.always_swallow = always_swallow
-        self.q = SimpleQueue()
-        self.thread = Thread(target=self.consume_queue)
-        self.thread.start()
+    def __init__(self, input_sender=send_input):
+        """Initialize a system output handler"""
+        self.input_sender = input_sender
 
     def __call__(self, evt: JmkEvent) -> bool:
-        if evt.system and not self.always_swallow:
-            logger.debug("nil <<< %s", evt)
-            return False
-        logger.debug("sys <<< %s", evt)
-        self.q.put(evt)
-        return True
-
-    def consume_queue(self):
-        """Consume the queue and send input to system"""
-        while True:
-            evt = self.q.get()
-            state[evt.vk] = evt.pressed
-            send_input(vk_to_input(evt.vk, evt.pressed, flags=evt.flags))
+        logger.debug("%s >>> sys", evt)
+        state[evt.vk] = evt.pressed
+        self.input_sender(vk_to_input(evt.vk, evt.pressed, flags=evt.flags))

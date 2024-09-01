@@ -1,15 +1,18 @@
 """Hotkey handler for JigsawWM."""
+
 import logging
 from typing import Callable, List, Optional, Tuple
 
 from jigsawwm.w32.vk import Vk
 
-from .shared import * # pylint: disable=wildcard-import, unused-wildcard-import
+from .shared import *  # pylint: disable=wildcard-import, unused-wildcard-import
 
 logger = logging.getLogger(__name__)
 
+
 class JmkCombos(JmkTriggers):
     """A handler that handles combos."""
+
     queue: typing.List[JmkEvent]
     term = 0.2
 
@@ -27,7 +30,7 @@ class JmkCombos(JmkTriggers):
         if len(comb) < 2:
             raise TypeError("combo keys must consist of at least two keys")
 
-    def __call__(self, evt: JmkEvent) -> bool:
+    def __call__(self, evt: JmkEvent):
         if evt.pressed:
             for keys in self.triggers:
                 if evt.vk in keys:
@@ -55,5 +58,5 @@ class JmkCombos(JmkTriggers):
                         if not trigger.lit_keys:
                             trigger.release()
                         return True
-                        
+
         return super().__call__(evt)
