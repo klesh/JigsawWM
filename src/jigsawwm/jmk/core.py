@@ -16,7 +16,7 @@ from jigsawwm.w32.sendinput import send_combination
 logger = logging.getLogger(__name__)
 
 JmkCombination = typing.Union[typing.List[Vk], str]
-JmkDelayCall = typing.Callable[[typing.Callable, float], None]
+JmkDelayCall = typing.Callable[[float, typing.Callable, typing.Any], None]
 
 
 @dataclass
@@ -361,7 +361,7 @@ class JmkTapHold(JmkLayerKey):
                 # initial state
                 self.pressed = evt.time
                 if self.state.delay_call:
-                    self.state.delay_call(self.check_hold, self.term)
+                    self.state.delay_call(self.term, self.check_hold)
             else:
                 self.check_hold()
         else:

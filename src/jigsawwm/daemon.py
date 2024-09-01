@@ -11,7 +11,7 @@ from typing import Callable, List, Sequence, TextIO, Union, Iterator
 from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import QMenu, QSystemTrayIcon
 
-from jigsawwm import ui, workers
+from jigsawwm import ui, worker
 from jigsawwm.w32.vk import Vk, get_key_state
 
 # support for Ctrl+C in console
@@ -185,7 +185,7 @@ class ProcessService(Service):
             self._log_file = None
 
 
-class Task(Job):
+class Task(Job, worker.ThreadWorker):
     """Task is a shortlived automation in constrast to Service"""
 
     def condition(self) -> bool:
@@ -202,7 +202,7 @@ class Task(Job):
 
     def launch_anyway(self):
         """Launch the task without checking the condition"""
-        workers.submit(self.run)
+        self.executor.submit(self.run)
 
     @property
     def text(self):

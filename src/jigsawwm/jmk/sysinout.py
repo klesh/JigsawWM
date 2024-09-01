@@ -2,15 +2,13 @@
 
 import re
 import logging
-import time
 from ctypes.wintypes import DWORD, HWND, LONG
-from queue import SimpleQueue
-from concurrent.futures.thread import ThreadPoolExecutor
 from typing import List, Set, Union
 
 from jigsawwm.w32 import hook
 from jigsawwm.w32.sendinput import is_synthesized, vk_to_input, send_input
 from jigsawwm.w32.window_cache import Window, WindowCache
+from jigsawwm.worker import ThreadWorker
 
 from .core import JmkHandler, JmkEvent, Vk
 
@@ -21,7 +19,7 @@ JMK_MSG_CLOSE = 0
 JMK_MSG_CALL = 1
 
 
-class SystemInput(JmkHandler):
+class SystemInput(ThreadWorker, JmkHandler):
     """A handler that handles system input events.
 
     :param bypass_exe: a list of regular expression patterns that matches the exe path
@@ -35,16 +33,13 @@ class SystemInput(JmkHandler):
     disabled_reason: str = None
     bypass_exe: Set[str] = None
     pressed_key: Set[Vk] = set()
-    queue: SimpleQueue = None
     window_cache: WindowCache = None
-    threads: ThreadPoolExecutor = None
 
     def __init__(
         self,
         bypass_exe: Set[re.Pattern] = None,
         window_cache: WindowCache = None,
     ):
-        """Initialize a system input handler"""
         self.bypass_exe = {
             "Snipaste.exe",
             "TextInputHost.exe",
@@ -53,7 +48,6 @@ class SystemInput(JmkHandler):
         if bypass_exe:
             self.bypass_exe |= bypass_exe
         self.pressed_key = set()
-        self.queue = SimpleQueue()
         self.window_cache = window_cache or WindowCache()
 
     def start(self):
@@ -75,42 +69,10 @@ class SystemInput(JmkHandler):
             hook.unhook(hook_handle)
         self.stop_worker()
 
-    def start_worker(self):
-        """Start the worker thread"""
-        if self.threads is not None:
-            return
-        self.threads = ThreadPoolExecutor()
-        self.threads.submit(self.consume_queue)
-
-    def stop_worker(self):
-        """Stop the worker thread"""
-        if self.threads is None:
-            return
-        self.queue.put((JMK_MSG_CLOSE, None))
-        self.threads.shutdown()
-        self.threads = None
-
-    def consume_queue(self):
-        """Consume the queue and call the corresponding function"""
-        while True:
-            msg_type, msg_args = self.queue.get()
-            if msg_type == JMK_MSG_CLOSE:
-                logger.info("closing system input handler")
-                break
-            if msg_type == JMK_MSG_CALL:
-                fn, args = msg_args[0], msg_args[1:]
-                self.try_call(fn, *args)
-            else:
-                logger.error("unknown message type %s", msg_type)
-
-    def try_call(self, fn, *args):
-        """Call a function and log exception if any"""
-        try:
-            fn(*args)
-        except:  # pylint: disable=bare-except
-            logger.exception("error calling %s", fn, exc_info=True, stack_info=True)
-            self.disabled = True
-            self.disabled_reason = f"error calling {fn.__name__}, check logs for detail"
+    def on_consume_queue_error(self, fn: callable, err: Exception):
+        """Handle an error in the consume queue"""
+        self.disabled = True
+        self.disabled_reason = f"error calling {fn.__name__}: %s" % err
 
     def winevent(
         self,
@@ -122,7 +84,7 @@ class SystemInput(JmkHandler):
         _time: DWORD,
     ):
         """Handles window events and update the focused window"""
-        self.queue.put((JMK_MSG_CALL, (self.on_focus_changed, hwnd)))
+        self.enqueue(self.on_focus_changed, hwnd)
 
     def on_focus_changed(self, hwnd: HWND):
         """Handles the window focus change event"""
@@ -205,9 +167,8 @@ class SystemInput(JmkHandler):
         if vkey is None or pressed is None:
             # logger.debug("unknown event %s, skipping", msg)
             return False
-        self.queue.put(
-            (JMK_MSG_CALL, (self.on_input, vkey, pressed, msg.flags, msg.dwExtraInfo))
-        )
+        self.enqueue(self.on_input, vkey, pressed, msg.flags, msg.dwExtraInfo)
+
         return True
 
     def on_input(self, vkey: Vk, pressed: bool, flags=0, extra=0):
@@ -221,15 +182,6 @@ class SystemInput(JmkHandler):
         evt = JmkEvent(vkey, pressed, system=True, flags=flags, extra=extra)
         logger.debug("sys >>> %s", evt)
         self.next_handler(evt)
-
-    def delay_call(self, cb: callable, delay: float):
-        """Delay call a function"""
-
-        def wrapped():
-            time.sleep(delay)
-            self.queue.put((JMK_MSG_CALL, (cb,)))
-
-        self.threads.submit(wrapped)
 
 
 class SystemOutput(JmkHandler):

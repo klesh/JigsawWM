@@ -42,10 +42,12 @@ def test_jmk_sysin_disable_for_admin_windows(mocker):
     sysin.on_focus_changed(456)
     assert sysin.disabled is False
     # key event should be swallowed for user mode window
+    sysin.enqueue = mocker.Mock()
     swallow = sysin.input_event(
         0, hook.KBDLLHOOKMSGID.WM_KEYDOWN, hook.KBDLLHOOKDATA(vkCode=Vk.A)
     )
     assert swallow is True
+    assert sysin.enqueue.call_count == 1
 
 
 def test_jmk_sysout_state(mocker):
