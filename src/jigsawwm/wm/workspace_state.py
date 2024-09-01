@@ -1,179 +1,110 @@
 """WorkspaceState maintins the state of a workspace"""
+
 import logging
-from typing import List, Set, Optional
-from os import path
+from typing import List, Optional, Set
 
-from jigsawwm.w32.monitor import Monitor, set_cursor_pos
-from jigsawwm.w32.window import Window, get_foreground_hwnd, RECT, activate_taskbar
+from jigsawwm.w32.window import Window, RECT
 
-from .config import WmConfig
 from .theme import Theme
 from .pickable_state import PickableState
-from .const import WORKSPACE_STATE, PREFERRED_WORKSPACE_INDEX, PREFERRED_WINDOW_INDEX
+from .const import PREFERRED_WINDOW_INDEX
 
 logger = logging.getLogger(__name__)
 
 
 class WorkspaceState(PickableState):
     """WorkspaceState maintins the state of a workspace"""
-    config: WmConfig
+
+    monitor_index: int
+    index: int
     name: str
-    monitor: Monitor
+    rect: RECT
     theme: Theme
-    tilable_windows: List[Window]
     windows: Set[Window]
-    showing: bool
-    theme_name: str # for restoring
+    tiling_windows: List[Optional[Window]]
+    floating_windows: List[Window]
+    showing: bool = False
     last_active_window: Optional[Window] = None
 
-    def __init__(self, config: WmConfig, name: str, monitor: Monitor):
-        self.config = config
+    def __init__(
+        self, monitor_index: int, index: int, name: str, rect: RECT, theme: Theme
+    ):
+        self.monitor_index = monitor_index
+        self.index = index
         self.name = name
-        self.monitor = monitor
-        self.theme = self.config.get_theme_for_monitor(monitor)
-        self.theme_name = self.theme.name
-        self.tilable_windows = []
-        self.windows = set()
-        self.showing = False
-        self.last_active_window = None
+        self.rect = rect
+        self.theme = theme
+        self.tiling_windows = []
+        self.other_windows = []
 
     def __repr__(self) -> str:
-        return f"<WorkspaceState {self.name} {self.monitor.name}>"
+        return f"<WorkspaceState #{self.monitor_index}.{self.index}>"
 
-    def __getstate__(self):
-        state = super().__getstate__()
-        del state['theme']
-        return state
-
-    def update_config(self, config: WmConfig):
-        """Update the workspace based on configuration"""
-        self.config = config
-        self.theme = self.config.get_theme_by_name(self.theme_name)
-        self.windows = { w for w in self.windows if w.exists() }
-        self.tilable_windows = [ w for w in self.tilable_windows if w.exists() ]
-        for window in self.windows:
-            if window.exists() and not self.showing:
-                window.toggle(False)
-
-    def before_hide(self):
-        """Before hiding the workspace"""
-        self.last_active_window = None
-        hwnd = get_foreground_hwnd()
-        for w in self.windows:
-            if hwnd == w.handle:
-                self.last_active_window = w
-
-    def after_show(self):
-        """After showing the workspace"""
-        if (
-            self.last_active_window
-            and self.last_active_window.exists()
-            and self.last_active_window in self.windows
-            and self.last_active_window.is_visible
-        ):
-            logger.debug("%s activate last active window %s", self, self.last_active_window)
-            self.last_active_window.activate()
-        elif self.tilable_windows:
-            logger.debug("%s activate first tilable window %s", self, self.tilable_windows[0])
-            self.tilable_windows[0].activate()
-        else:
-            logger.debug("%s activate center of the screen", self)
-            rect = self.monitor.get_info().rcWork
-            x, y = (
-                rect.left + (rect.right - rect.left) / 2,
-                rect.top + (rect.bottom - rect.top) / 2,
-            )
-            set_cursor_pos(x, y)
-            activate_taskbar()
-
-    def toggle(self, show: bool, no_activation: bool = False):
+    def toggle(self, show: bool):
         """Toggle all windows in the workspace"""
-        logger.debug("%s toggle show %s activation: %s", self, show, not no_activation)
+        logger.debug("%s toggle show %s", self, show)
         self.showing = show
-        if not show:
-            self.before_hide()
         for window in self.windows:
             window.toggle(show)
-        if show:
-            self.sync_windows()
-            if not no_activation:
-                self.after_show()
-            # else:
-            #     activate_taskbar()
 
     def set_theme(self, theme: Theme):
         """Set theme for the workspace"""
         logger.debug("%s set theme %s", self, theme.name)
         self.theme = theme
-        self.theme_name = theme.name
         self.arrange()
-
-    def add_window(self, window: Window):
-        """Add a window to the workspace"""
-        logger.debug("%s add window %s", self, window)
-        window.attrs[WORKSPACE_STATE] = self
-        window.toggle(self.showing)
-        self.windows.add(window)
-        if self.showing:
-            self.sync_windows()
-
-    def remove_window(self, window: Window):
-        """Remove a window from the workspace"""
-        logger.debug("%s remove window %s", self, window)
-        del window.attrs[WORKSPACE_STATE]
-        window.toggle(self.showing)
-        self.windows.remove(window)
-        if self.showing:
-            self.sync_windows()
 
     def sync_windows(self) -> bool:
         """Sync the internal windows list to the incoming windows list"""
         logger.debug("%s sync windows", self)
-        self.windows = {w for w in self.windows if w.exists()}
-
-        def _check_tilable(w: Window):
-            return w.manageable and w.tilable and not w.is_iconic
-
-        tilable_windows = [w for w in self.tilable_windows if _check_tilable(w) and w in self.windows]
-        new_tilable_windows_set = {w for w in self.windows if _check_tilable(w) and w not in tilable_windows}
-
-        new_tilable_windows = []
-        # extract predefined-order windows and put them into the new_windows list
-        if self.config.init_exe_sequence:
-            for [exe, title] in self.config.init_exe_sequence:
-                for w in new_tilable_windows_set.copy():
-                    if exe.lower() == path.basename(w.exe).lower() and title in w.title.lower():
-                        new_tilable_windows.append(w)
-                        new_tilable_windows_set.remove(w)
-        
-        # append the rest new windows
-        default_order = 0 if self.theme.new_window_as_master else len(tilable_windows)
-        new_tilable_windows = sorted(new_tilable_windows_set, key=lambda w: w.attrs.get(PREFERRED_WORKSPACE_INDEX, default_order))
-        # append or prepend new_windows based on the theme setting
-        if self.theme.new_window_as_master:
-            tilable_windows = new_tilable_windows + tilable_windows
-        else:
-            tilable_windows += new_tilable_windows
-        if tilable_windows == self.tilable_windows:
-            self.restrict()
-        else:
-            self.tilable_windows = tilable_windows
+        tilable_windows, floating_windows = set(), set()
+        for w in self.windows:
+            if w.is_iconic:
+                continue
+            if w.tilable:
+                tilable_windows.add(w)
+            else:
+                floating_windows.add(w)
+        self.floating_windows = self._update_list_from_set(
+            self.floating_windows, floating_windows
+        )
+        tiling_windows = self._update_list_from_set(
+            self.tiling_windows, tilable_windows
+        )
+        if tilable_windows != self.tiling_windows:
+            self.tiling_windows = tiling_windows
             self.arrange()
-        logger.debug("%s sync windows, total: %d, tilable: %d", self, len(self.windows), len(self.tilable_windows))
+
+    def _update_list_from_set(
+        self, windows_list: List[Window], windows_set: Set[Window]
+    ) -> List[Window]:
+        windows_list = [w for w in windows_list if w in windows_set]
+        old_set = set(windows_list)
+        new_set = windows_set - old_set
+        new_list = sorted(new_set, key=lambda w: w.attrs.get(PREFERRED_WINDOW_INDEX, 0))
+        if self.theme.new_window_as_master:
+            windows_list = new_list + windows_list
+        else:
+            windows_list += new_list
+        for i, window in enumerate(windows_list):
+            window.attrs[PREFERRED_WINDOW_INDEX] = i
+        return windows_list
 
     def arrange(self):
         """Arrange windows based on the theme
 
         :param str theme: optional, fallback to theme of the instance
         """
-        logger.debug("%s arrange total %d windows", self, len(self.tilable_windows))
+        logger.debug("%s arrange total %d windows", self, len(self.tiling_windows))
         theme = self.theme
-        wr = self.monitor.get_info().rcWork
+        wr = self.rect
         work_area = (wr.left, wr.top, wr.right, wr.bottom)
-        windows = self.tilable_windows
+        windows = self.tiling_windows
         i = 0
         gap = theme.gap
-        for left, top, right, bottom in theme.layout_tiler(work_area, len(windows)):
+        # tile the first n windows
+        for left, top, right, bottom in theme.layout_tiler(
+            work_area, min(theme.max_tiling_windows, len(windows))
+        ):
             window = windows[i]
             # add gap
             if gap:
@@ -192,12 +123,35 @@ class WorkspaceState(PickableState):
             rect = RECT(left, top, right, bottom)
             window.set_restrict_rect(rect)
             i += 1
-            window.attrs[PREFERRED_WINDOW_INDEX] = i
+        # stack the rest
+        num_rest = len(windows) - i - 1
+        if num_rest <= 0:
+            return
+        x_margin = int((wr.right - wr.left) * 0.1)
+        y_margin = int((wr.bottom - wr.top) * 0.1)
+        left, top, right, bottom = (
+            wr.left + x_margin,
+            wr.top + y_margin,
+            wr.right - x_margin,
+            wr.bottom - y_margin,
+        )
+        x_step, y_step = 40, 40
+        right, bottom = right - x_step * num_rest, bottom - y_step * num_rest
+        while i < len(windows):
+            rect = RECT(left, top, right, bottom)
+            windows[i].set_restrict_rect(rect)
+            left, top, right, bottom = (
+                left + x_step,
+                top + y_step,
+                right + x_step,
+                bottom + y_step,
+            )
+            i += 1
 
     def restrict(self):
         """Restrict all managed windows to their specified rect"""
-        logger.debug("%s restrict total %d windows", self, len(self.tilable_windows))
+        logger.debug("%s restrict total %d windows", self, len(self.tiling_windows))
         if not self.theme.strict:
             return
-        for window in self.tilable_windows:
+        for window in self.tiling_windows:
             window.restrict()

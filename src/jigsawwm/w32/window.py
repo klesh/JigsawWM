@@ -607,28 +607,9 @@ def filter_windows(cb: Callable[[HWND], Any]) -> Set[Any]:
     return result
 
 
-def get_foreground_hwnd() -> Optional[HWND]:
+def get_foreground_window() -> Optional[HWND]:
     """Get the foreground window handle"""
     return user32.GetForegroundWindow()
-
-
-###
-### helper functions
-###
-
-
-def minimize_active_window():
-    """Minize active window"""
-    hwnd = get_foreground_hwnd()
-    if hwnd:
-        Window(hwnd).minimize()
-
-
-def toggle_maximize_active_window():
-    """Maximize/Unmaximize active window"""
-    hwnd = get_foreground_hwnd()
-    if hwnd:
-        Window(hwnd).toggle_maximize()
 
 
 ###
@@ -654,4 +635,4 @@ if __name__ == "__main__":
                 wd.inspect()
     else:
         time.sleep(2)
-        Window(get_foreground_hwnd()).inspect()
+        Window(get_foreground_window()).inspect()

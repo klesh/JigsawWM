@@ -4,9 +4,9 @@ resued between different calls to the same HWND value
 """
 
 from dataclasses import dataclass
-from typing import Set
+from typing import Set, Optional
 from jigsawwm.objectcache import ObjectCache, ChangeDetector
-from .window import HWND, Window, filter_windows
+from .window import HWND, Window, filter_windows, get_foreground_window
 
 
 @dataclass
@@ -49,3 +49,19 @@ class WindowDetector(ObjectCache, ChangeDetector):
             set(map(self.get_window, new_keys)),
             set(map(self.get_window, removed_keys)),
         )
+
+    def foreground_window(self) -> Optional[Window]:
+        """Get the current foreground window"""
+        return self.get_window(get_foreground_window())
+
+    def minimize_active_window(self):
+        """Minize active window"""
+        w = self.foreground_window()
+        if w:
+            w.minimize()
+
+    def toggle_maximize_active_window(self):
+        """Maximize/Unmaximize active window"""
+        w = self.foreground_window()
+        if w:
+            w.toggle_maximize()

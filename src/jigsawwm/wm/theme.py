@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Optional
 
 from jigsawwm.tiler.tilers import *
 from jigsawwm.w32.monitor import Monitor
@@ -16,6 +16,8 @@ class Theme:
     name: str
     # layout tiler
     layout_tiler: LayoutTiler
+    static_layout = False
+    max_tiling_windows = 4
     # unused
     icon_name: Optional[str] = None
     # unused
@@ -26,5 +28,4 @@ class Theme:
     gap: Optional[int] = 0
     # forbid
     strict: Optional[bool] = None
-    hook_ids: List[int] = None
     affinity_index: Optional[Callable[[Monitor], int]] = None

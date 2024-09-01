@@ -1,13 +1,14 @@
 """Splash window for the list of windows and current workspace information."""
+
 import logging
 
 from typing import List, Optional
-from ctypes import * # pylint: disable=wildcard-import,unused-wildcard-import
-from ctypes.wintypes import * # pylint: disable=wildcard-import,unused-wildcard-import
+from ctypes import *  # pylint: disable=wildcard-import,unused-wildcard-import
+from ctypes.wintypes import *  # pylint: disable=wildcard-import,unused-wildcard-import
 
 from PySide6.QtCore import QPoint, Qt, Signal, Slot
 from PySide6.QtGui import QImage
-from PySide6.QtWidgets import QLabel, QSizePolicy, QWidget,QHBoxLayout, QVBoxLayout
+from PySide6.QtWidgets import QLabel, QSizePolicy, QWidget, QHBoxLayout, QVBoxLayout
 
 from jigsawwm.w32.window import Window
 from jigsawwm.wm.monitor_state import MonitorState
@@ -52,7 +53,12 @@ class WindowsSplash(Dialog):
         logger.info("WindowsSplash init")
 
     @Slot(MonitorState, int, Window)
-    def show_windows_splash(self, monitor_state: MonitorState, workspace_index: int, active_window: Optional[Window]=None):
+    def show_windows_splash(
+        self,
+        monitor_state: MonitorState,
+        workspace_index: int,
+        active_window: Optional[Window] = None,
+    ):
         """Show the splash screen"""
         logger.info("WindowsSplash show")
         # monitor
@@ -74,7 +80,9 @@ class WindowsSplash(Dialog):
             ws_name.setSizePolicy(
                 QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
             )
-            ws_name.setAlignment(Qt.AlignmentFlag.AlignHCenter|Qt.AlignmentFlag.AlignBottom)
+            ws_name.setAlignment(
+                Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignBottom
+            )
             widget.layout().addWidget(ws_name)
             # theme
             ws_info = QLabel(workspace.theme_name)
@@ -82,13 +90,15 @@ class WindowsSplash(Dialog):
             ws_info.setSizePolicy(
                 QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
             )
-            ws_info.setAlignment(Qt.AlignmentFlag.AlignHCenter|Qt.AlignmentFlag.AlignTop)
+            ws_info.setAlignment(
+                Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop
+            )
             widget.layout().addWidget(ws_info)
 
             self.workspace_states.layout().addWidget(widget)
         h = self.workspace_states.height()
         w = self.width()
-        tilable_windows = monitor_state.workspaces[workspace_index].tilable_windows
+        tilable_windows = monitor_state.workspaces[workspace_index].tiling_windows
         if self.windows != tilable_windows:
             self.deleteDirectChildren(self.container)
             self.windows = tilable_windows.copy()
@@ -159,6 +169,7 @@ class WindowsSplash(Dialog):
     #                 fire_shell_window_changed("activated", msg.hWnd)
     #     return super().nativeEvent(eventType, message)
 
+
 instance = WindowsSplash()
 
 user32 = WinDLL("user32", use_last_error=True)
@@ -166,16 +177,19 @@ instance.shellhook_msgid = user32.RegisterWindowMessageW("SHELLHOOK")
 user32.RegisterShellHookWindow(instance.winId())
 shell_windows_changed: callable = None
 
+
 def on_shell_window_changed(callback):
     """Registers a callback function to be called when any shell window gets created or destroyed."""
-    global shell_windows_changed # pylint: disable=global-statement
+    global shell_windows_changed  # pylint: disable=global-statement
     shell_windows_changed = callback
+
 
 def fire_shell_window_changed(event, window):
     """Fires the screenChanged event."""
     logger.debug("shell window change event: %s window: %s", event, window)
     if shell_windows_changed:
         shell_windows_changed(event, window)
+
 
 show_windows_splash = instance.show_splash.emit
 hide_windows_splash = instance.hide_splash.emit
