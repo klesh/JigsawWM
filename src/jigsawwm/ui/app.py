@@ -79,6 +79,10 @@ qt_exception_hook = UncaughtHook()
 
 
 if __name__ == "__main__":
+    import signal
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
     for s in app.screens():
         print(s.name(), s.geometry())
-    # app.exec()
+    app.screenAdded.connect(lambda s: print("Screen added", s.name(), s.geometry()))
+    app.screenRemoved.connect(lambda s: print("Screen removed", s.name(), s.geometry()))
+    app.exec()

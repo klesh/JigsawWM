@@ -128,15 +128,15 @@ class SystemInput(JmkHandler):
         """Handles the window focus change event"""
         window = self.window_cache.get_window(hwnd)
         if window.is_elevated:
-            logger.debug("focused window %s is elevated", window)
+            logger.info("focused window %s is elevated", window)
             self.disabled = True
             self.disabled_reason = "elevated window focused"
             return
         if self.bypass_exe and window.exe_name.lower() in self.bypass_exe:
-            logger.debug("focused window %s is blacklisted", window)
+            logger.info("focused window %s is blacklisted", window)
             self.disabled = True
             return
-        logger.debug("focused window %s is a normal, jmk ENABLED !!!", window)
+        logger.info("focused window %s is a normal, jmk ENABLED !!!", window)
         self.disabled = False
 
     def input_event(

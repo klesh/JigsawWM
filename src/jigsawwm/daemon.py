@@ -1,4 +1,5 @@
 """Daemon is the core of JigsawWM, it provides a way to run background services and tasks"""
+
 import abc
 import logging
 import os
@@ -92,6 +93,7 @@ class Service(Job):
 
 class ThreadedService(Service):
     """ThreadedService is a kind of specialized Service that run a function in the background"""
+
     interval_sec = 60
 
     def __init__(self):
@@ -163,8 +165,8 @@ class ProcessService(Service):
             if self.log_path:
                 log_file = open(
                     self.log_path,
-                     "a+" if self.log_append_only else "w+",
-                     encoding="utf-8"
+                    "a+" if self.log_append_only else "w+",
+                    encoding="utf-8",
                 )
                 self._log_file = log_file
             self._process = Popen(
@@ -260,7 +262,9 @@ class Daemon:
         self.trayicon.activated.connect(self.trayicon_activated)
         self.trayicon.show()
         if self.skip_tasks:
-            self.trayicon.showMessage("JigsawWM", "skip autorun tasks", QSystemTrayIcon.Information)
+            self.trayicon.showMessage(
+                "JigsawWM", "skip autorun tasks", QSystemTrayIcon.Information
+            )
 
     def trayicon_activated(self, reason: QSystemTrayIcon.ActivationReason):
         """Update traymenu"""
@@ -272,8 +276,10 @@ class Daemon:
                         job.trayicon_triggerred()
                     except StopIteration:
                         return
-                    except:
-                        logger.exception("trayicon_triggerred", exc_info=True, stack_info=True)
+                    except:  # pylint: disable=bare-except
+                        logger.exception(
+                            "trayicon_triggerred", exc_info=True, stack_info=True
+                        )
             return
         self.traymenu.clear()
         self.menuitems.clear()
