@@ -12,6 +12,7 @@ from jigsawwm.w32 import hook
 from jigsawwm.w32.winevent import WinEvent
 from jigsawwm.w32.reg import get_current_desktop_id
 from jigsawwm.w32.window import Window
+from jigsawwm.w32.monitor import set_cursor_pos
 from jigsawwm.worker import ThreadWorker
 
 from .theme import Theme
@@ -225,22 +226,22 @@ class WindowManager(ThreadWorker):
         if not src_monitor_state:
             src_monitor_state = self.virtdesk_state.monitor_state_from_cursor()
         monitors = self.virtdesk_state.monitor_detector.monitors
-        src_idx = monitors.index(src_monitor_state.monitor)
+        src_idx = src_monitor_state.index
         dst_idx = (src_idx + delta) % len(monitors)
-        dst_monitor = monitors[dst_idx]
-        dst_monitor_state = self.virtdesk_state.monitor_state(dst_monitor)
+        dst_monitor_state = self.virtdesk_state.monitor_state_from_index(dst_idx)
         return dst_monitor_state
 
     def switch_monitor_by_offset(self, delta: int):
         """Switch to another monitor by given offset"""
         logger.debug("switch_monitor_by_offset: %s", delta)
-        src_monitor_state = self.virtdesk_state.monitor_state_from_cursor()
-        dst_monitor_state = self.get_monitor_state_by_offset(
-            delta, src_monitor_state=src_monitor_state
-        )
-        self.splash.show_splash.emit(
-            dst_monitor_state, dst_monitor_state.active_workspace_index, None
-        )
+        srcms = self.virtdesk_state.monitor_state_from_cursor()
+        dstms = self.get_monitor_state_by_offset(delta, src_monitor_state=srcms)
+        self.splash.show_splash.emit(dstms, dstms.active_workspace_index, None)
+        self.virtdesk_state.active_monitor_index = dstms.index
+        if dstms.workspace.last_active_window:
+            dstms.workspace.last_active_window.activate()
+        else:
+            set_cursor_pos(dstms.rect.center_x, dstms.rect.center_y)
         return self.splash.hide_splash.emit
 
     def move_to_monitor_by_offset(self, delta: int):

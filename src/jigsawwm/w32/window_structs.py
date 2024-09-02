@@ -211,6 +211,16 @@ class Rect:
         """Set the y coordinate of the rectangle."""
         self.top = value
 
+    @property
+    def center_x(self) -> int:
+        """Return the x coordinate of the center."""
+        return self.left + self.width // 2
+
+    @property
+    def center_y(self) -> int:
+        """Return the y coordinate of the center."""
+        return self.top + self.height // 2
+
     def contains(self, x: int, y: int):
         """Return True if the point is inside the rectangle."""
         return self.left <= x <= self.right and self.top <= y <= self.bottom

@@ -9,11 +9,15 @@ def inspect_virtdesk_states(virtdesk_states):
     """Inspect the state of the virtual desktops"""
     for vdid, vdstate in virtdesk_states.items():
         logger.info("virt_desk: %s", vdid)
-        for monitor, monitor_state in vdstate.monitor_states.items():
-            logger.info("  monitor: %s", monitor.name)
-            for ws in monitor_state.workspaces:
+        for monitor, ms in vdstate.monitor_states.items():
+            logger.info(
+                "  %s monitor: %s",
+                "*" if ms.index == vdstate.active_monitor_index else " ",
+                monitor.name,
+            )
+            for ws in ms.workspaces:
                 logger.info(
-                    "    workspace: %s %s", ws.name, "showing" if ws.showing else ""
+                    "      %s workspace: %s", ws.name, "*" if ws.showing else " "
                 )
                 for i, win in enumerate(ws.tiling_windows):
                     logger.info(
@@ -24,7 +28,9 @@ def inspect_virtdesk_states(virtdesk_states):
                     )
                 for win in ws.floating_windows:
                     logger.info(
-                        "      %s%s", "*" if ws.last_active_window == win else " ", win
+                        "        %s%s",
+                        "*" if ws.last_active_window == win else " ",
+                        win,
                     )
 
 

@@ -188,6 +188,9 @@ class VirtDeskState:
             return
         ms: MonitorState = window.attrs[MONITOR_STATE]
         self.active_monitor_index = ms.index
+        logger.debug(
+            "set active_monitor_index: %d due to %s", self.active_monitor_index, window
+        )
         ws: WorkspaceState = window.attrs[WORKSPACE_STATE]
         ws.last_active_window = window
         if not ws.showing:
