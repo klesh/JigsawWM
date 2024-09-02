@@ -63,8 +63,8 @@ class WindowManager(ThreadWorker):
         """Start the WindowManagerCore service"""
         # load windows state from the last session
         # self.load_state()
-        self.virtdesk_state.sync_monitors()
-        self.virtdesk_state.sync_windows()
+        self.virtdesk_state.on_monitors_changed()
+        self.virtdesk_state.on_windows_changed()
         self.start_worker()
         self.install_hooks()
 
@@ -151,12 +151,12 @@ class WindowManager(ThreadWorker):
     def on_screen_event(self, ts: float):
         """Handle screen event"""
         self.sleep_till(ts + 0.5)
-        self.virtdesk_state.sync_monitors()
+        self.virtdesk_state.on_monitors_changed()
 
     def on_window_event(self, event: WinEvent, hwnd: HWND, ts: float):
         """Handle the winevent"""
         self.sleep_till(ts + 0.2)
-        self.virtdesk_state.on_window_event(event, hwnd)
+        self.virtdesk_state.handle_window_event(event, hwnd)
 
     def activate_by_offset(self, delta: int) -> Callable:
         """Activate managed window by offset

@@ -27,6 +27,6 @@ def test_try_swapping_windows(mocker):
     vd.monitor_state_from_cursor = mocker.Mock(return_value=ms2)
     ms1.remove_windows = mocker.Mock()
     ms2.add_windows = mocker.Mock()
-    assert vd.try_swapping_window(w1)
+    assert vd.on_moved_or_resized(w1)
     assert ms1.remove_windows.call_count == 1
     assert ms2.add_windows.call_count == 1

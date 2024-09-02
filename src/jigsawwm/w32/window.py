@@ -374,8 +374,15 @@ class Window:
         :param rect: RECT with top/left/bottom/right properties
         """
         logger.debug("%s set rect to %s", self, rect)
-        x, y, w, h = rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top
-        if not user32.SetWindowPos(self.handle, None, x, y, w, h, SET_WINDOW_RECT_FLAG):
+        if not user32.SetWindowPos(
+            self.handle,
+            None,
+            rect.x,
+            rect.y,
+            rect.width,
+            rect.height,
+            SET_WINDOW_RECT_FLAG,
+        ):
             raise WinError(get_last_error())
 
     def set_restrict_rect(self, rect: Rect):
