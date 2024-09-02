@@ -121,8 +121,8 @@ class Window:
         """Check if window is a app window which could be managed"""
         if process.is_elevated(self.pid):
             return "admin window"
-        if not self.is_visible:
-            return "invisible"
+        # if not self.is_visible:
+        #     return "invisible"
         if not self.is_toplevel:
             return "not a top-level window"
         if not self.is_root_window:

@@ -162,37 +162,23 @@ class VirtDeskState:
             self.try_switch_workspace_for_window_activation(window)
             return False
         if (
-            event == WinEvent.EVENT_OBJECT_SHOW
+            event == WinEvent.EVENT_OBJECT_HIDE
+            or event == WinEvent.EVENT_OBJECT_SHOW
             or event == WinEvent.EVENT_OBJECT_UNCLOAKED
         ):
-            if window in self.window_detector.windows:
-                return False
-        elif event == WinEvent.EVENT_OBJECT_HIDE:  # same as above
-            # fix case: toggle chrome fullscreen
-            # window.is_visible is for vscode, it somehow genertes hide event when unfocused
-            if (
-                window not in self.window_detector.windows
-                or window.is_visible
-                or not window.attrs[WORKSPACE_STATE].showing
-            ):
-                return False
-            # if logger.isEnabledFor(logging.DEBUG):
-            #     inspect_virtdesk_states(self.virtdesk_states)
+            pass
         elif event == WinEvent.EVENT_SYSTEM_MOVESIZEEND:
             if self.try_swapping_window(window):
                 return False
             workspace_state.restrict()
             return False
-        elif event == WinEvent.EVENT_SYSTEM_MINIMIZEEND:
-            # if not window.is_visible:
-            #     return False
-            # if logger.isEnabledFor(logging.DEBUG):
-            #     inspect_virtdesk_states(self.virtdesk_states)
-            pass
-        elif event == WinEvent.EVENT_SYSTEM_MINIMIZESTART:
-            # if not window.is_visible:
-            #     return False
-            pass
+        elif (
+            event == WinEvent.EVENT_SYSTEM_MINIMIZESTART
+            or event == WinEvent.EVENT_SYSTEM_MINIMIZEEND
+        ):
+            ws: WorkspaceState = window.attrs[WORKSPACE_STATE]
+            ws.sync_windows()
+            return False
         else:
             if event not in (
                 WinEvent.EVENT_OBJECT_LOCATIONCHANGE,

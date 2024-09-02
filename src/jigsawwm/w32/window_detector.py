@@ -43,13 +43,18 @@ class WindowDetector(ObjectCache, ChangeDetector):
 
     def current_keys(self) -> set:
         """Retrieve all interested keys at the moment"""
-        return filter_windows(lambda hwnd: self.get_window(hwnd).manageable)
+
+        def check(hwnd: HWND):
+            w = self.get_window(hwnd)
+            return w.is_visible and w.manageable
+
+        return filter_windows(check)
 
     def detect_window_changes(self) -> WindowsChange:
         """Detect changes since the previous detection"""
         changed, new_keys, removed_keys = self.detect_changes()
         if changed:
-            self.windows = map(self.get_window, self.previous_keys)
+            self.windows = set(map(self.get_window, self.previous_keys))
         return WindowsChange(
             changed,
             set(map(self.get_window, new_keys)),

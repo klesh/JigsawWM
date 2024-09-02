@@ -70,6 +70,7 @@ class MonitorState:
                 )
         for i, workspace_name in enumerate(workspace_names):
             self.workspaces[i].name = workspace_name
+        self.workspace.toggle(True)
 
     def set_rect(self, rect: Rect):
         """Update the monitor rect"""
