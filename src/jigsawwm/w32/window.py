@@ -610,14 +610,14 @@ def get_foreground_window() -> Optional[HWND]:
     return user32.GetForegroundWindow()
 
 
-def minimize_active_window(self):
+def minimize_active_window():
     """Minize active window"""
     hwnd = get_foreground_window()
     if hwnd:
         Window(hwnd).minimize()
 
 
-def toggle_maximize_active_window(self):
+def toggle_maximize_active_window():
     """Maximize/Unmaximize active window"""
     hwnd = get_foreground_window()
     if hwnd:
