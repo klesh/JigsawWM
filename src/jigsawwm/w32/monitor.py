@@ -31,6 +31,8 @@ from typing import Tuple, Set
 from dataclasses import dataclass
 import screeninfo
 
+from .window_structs import Rect
+
 user32 = WinDLL("user32", use_last_error=True)
 shcore = WinDLL("shcore", use_last_error=True)
 _current_pos_ptr = POINT()
@@ -198,13 +200,21 @@ class Monitor:
         """Retrieves monitor name"""
         return self.get_info().szDevice.decode("utf-8")
 
-    def get_rect(self) -> RECT:
+    def get_rect(self) -> Rect:
         """Retrieves monitor rectangle
 
         :returns: monitor rectangle
-        :rtype: RECT
+        :rtype: Rect
         """
-        return self.get_info().rcMonitor
+        return Rect.from_win_rect(self.get_info().rcMonitor)
+
+    def get_work_rect(self) -> Rect:
+        """Retrieves monitor rectangle
+
+        :returns: monitor rectangle
+        :rtype: Rect
+        """
+        return Rect.from_win_rect(self.get_info().rcWork)
 
     def get_info(self) -> MONITORINFOEX:
         """Retrieves monitor information

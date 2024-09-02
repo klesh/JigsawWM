@@ -1,41 +1,43 @@
 """WorkspaceState maintins the state of a workspace"""
 
 import logging
-from typing import List, Optional, Set
+from typing import List, Optional, Set, Tuple
 
-from jigsawwm.w32.window import Window, RECT
+from jigsawwm.w32.window import Window, Rect
 
 from .theme import Theme
-from .pickable_state import PickableState
 from .const import PREFERRED_WINDOW_INDEX
 
 logger = logging.getLogger(__name__)
 
 
-class WorkspaceState(PickableState):
+class WorkspaceState:
     """WorkspaceState maintins the state of a workspace"""
 
     monitor_index: int
     index: int
     name: str
-    rect: RECT
+    rect: Rect
     theme: Theme
     windows: Set[Window]
     tiling_windows: List[Optional[Window]]
     floating_windows: List[Window]
+    minimized_windows: List[Window]
     showing: bool = False
     last_active_window: Optional[Window] = None
 
     def __init__(
-        self, monitor_index: int, index: int, name: str, rect: RECT, theme: Theme
+        self, monitor_index: int, index: int, name: str, rect: Rect, theme: Theme
     ):
         self.monitor_index = monitor_index
         self.index = index
         self.name = name
         self.rect = rect
         self.theme = theme
+        self.windows = set()
         self.tiling_windows = []
-        self.other_windows = []
+        self.floating_windows = []
+        self.minimized_windows = []
 
     def __repr__(self) -> str:
         return f"<WorkspaceState #{self.monitor_index}.{self.index}>"
@@ -46,6 +48,7 @@ class WorkspaceState(PickableState):
         self.showing = show
         for window in self.windows:
             window.toggle(show)
+        self.arrange()
 
     def set_theme(self, theme: Theme):
         """Set theme for the workspace"""
@@ -53,26 +56,35 @@ class WorkspaceState(PickableState):
         self.theme = theme
         self.arrange()
 
+    def set_rect(self, rect: Rect):
+        """Set the rect of the workspace"""
+        self.rect = rect
+        self.arrange()
+
     def sync_windows(self) -> bool:
         """Sync the internal windows list to the incoming windows list"""
         logger.debug("%s sync windows", self)
-        tilable_windows, floating_windows = set(), set()
-        for w in self.windows:
-            if w.is_iconic:
-                continue
-            if w.tilable:
-                tilable_windows.add(w)
-            else:
-                floating_windows.add(w)
-        self.floating_windows = self._update_list_from_set(
-            self.floating_windows, floating_windows
+        tiling_windows, self.floating_windows, self.minimized_windows = (
+            self._split_windows()
         )
-        tiling_windows = self._update_list_from_set(
-            self.tiling_windows, tilable_windows
-        )
-        if tilable_windows != self.tiling_windows:
+        if tiling_windows != self.tiling_windows:
             self.tiling_windows = tiling_windows
             self.arrange()
+
+    def _split_windows(self) -> Tuple[Set[Window], Set[Window], Set[Window]]:
+        tiling_windows, floating_windows, minimized_windows = set(), set(), set()
+        for w in self.windows:
+            if w.is_iconic:
+                minimized_windows.add(w)
+            elif w.tilable:
+                tiling_windows.add(w)
+            else:
+                floating_windows.add(w)
+        return (
+            self._update_list_from_set(self.tiling_windows, tiling_windows),
+            self._update_list_from_set(self.floating_windows, floating_windows),
+            self._update_list_from_set(self.minimized_windows, minimized_windows),
+        )
 
     def _update_list_from_set(
         self, windows_list: List[Window], windows_set: Set[Window]
@@ -102,9 +114,10 @@ class WorkspaceState(PickableState):
         i = 0
         gap = theme.gap
         # tile the first n windows
-        for left, top, right, bottom in theme.layout_tiler(
-            work_area, min(theme.max_tiling_windows, len(windows))
-        ):
+        n = len(windows)
+        if theme.max_tiling_windows > 0:
+            n = min(theme.max_tiling_windows, n)
+        for left, top, right, bottom in theme.layout_tiler(work_area, n):
             window = windows[i]
             # add gap
             if gap:
@@ -120,33 +133,46 @@ class WorkspaceState(PickableState):
             top += gap
             right -= gap
             bottom -= gap
-            rect = RECT(left, top, right, bottom)
-            window.set_restrict_rect(rect)
+            window.set_restrict_rect(Rect(left, top, right, bottom))
             i += 1
         # stack the rest
         num_rest = len(windows) - i - 1
         if num_rest <= 0:
             return
-        x_margin = int((wr.right - wr.left) * 0.1)
-        y_margin = int((wr.bottom - wr.top) * 0.1)
+        self._stack_the_rest(i, num_rest)
+
+    def _stack_the_rest(self, index: int, num_rest: int):
+        # monitor width and height
+        wr = self.rect
+        mw, mh = wr.right - wr.left, wr.bottom - wr.top
+        # window width and height
+        w = int(mw * self.theme.stacking_window_width)
+        h = int(mh * self.theme.stacking_window_height)
+        # stacking boundaries
+        x_margin = int(mw * self.theme.stacking_margin_x)
+        y_margin = int(mh * self.theme.stacking_margin_y)
         left, top, right, bottom = (
             wr.left + x_margin,
             wr.top + y_margin,
             wr.right - x_margin,
             wr.bottom - y_margin,
         )
-        x_step, y_step = 40, 40
-        right, bottom = right - x_step * num_rest, bottom - y_step * num_rest
-        while i < len(windows):
-            rect = RECT(left, top, right, bottom)
-            windows[i].set_restrict_rect(rect)
-            left, top, right, bottom = (
-                left + x_step,
-                top + y_step,
-                right + x_step,
-                bottom + y_step,
-            )
-            i += 1
+        # final stacking area
+        x_step = min((right - left - w) // num_rest, self.theme.stacking_max_step)
+        y_step = min((bottom - top - h) // num_rest, self.theme.stacking_max_step)
+        bw, wh = x_step * num_rest + w, y_step * num_rest + h
+        x_margin, y_margin = (mw - bw) // 2, (mh - wh) // 2
+        left, top, right, bottom = (
+            wr.left + x_margin,
+            wr.top + y_margin,
+            wr.right - x_margin,
+            wr.bottom - y_margin,
+        )
+        for i in range(index, len(self.tiling_windows)):
+            rect = Rect(left, top, left + w, top + h)
+            self.tiling_windows[i].set_restrict_rect(rect)
+            left += x_step
+            top += y_step
 
     def restrict(self):
         """Restrict all managed windows to their specified rect"""

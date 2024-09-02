@@ -6,7 +6,7 @@ from typing import List, Optional
 from ctypes import *  # pylint: disable=wildcard-import,unused-wildcard-import
 from ctypes.wintypes import *  # pylint: disable=wildcard-import,unused-wildcard-import
 
-from PySide6.QtCore import QPoint, Qt, Signal, Slot
+from PySide6.QtCore import QPoint, Qt, Signal, Slot, QByteArray
 from PySide6.QtGui import QImage
 from PySide6.QtWidgets import QLabel, QSizePolicy, QWidget, QHBoxLayout, QVBoxLayout
 
@@ -19,7 +19,7 @@ from .dialog import Dialog
 logger = logging.getLogger(__name__)
 
 
-class WindowsSplash(Dialog):
+class Splash(Dialog):
     """The window list splash screen."""
 
     show_splash = Signal(MonitorState, int, Window)
@@ -50,7 +50,27 @@ class WindowsSplash(Dialog):
         self.workspace_states.setLayout(QHBoxLayout())
         self.workspace_states.setFixedHeight(100)
         self.root_layout.insertWidget(1, self.workspace_states)
+        self._register_shellhook()
         logger.info("WindowsSplash init")
+
+    def _register_shellhook(self):
+        user32 = WinDLL("user32", use_last_error=True)
+        self.shellhook_msgid = user32.RegisterWindowMessageW("SHELLHOOK")
+        if not user32.RegisterShellHookWindow(self.winId()):
+            raise WinError(get_last_error())
+
+    def nativeEvent(self, eventType: QByteArray | bytes, message: int) -> object:
+        if eventType == "windows_generic_MSG":
+            msg = MSG.from_address(int(message))
+            if msg.message == self.shellhook_msgid:
+                if msg.wParam == 1:
+                    self.created_windows.add(msg.hWnd)
+                    logger.debug("window %s created", msg.hWnd)
+                elif msg.wParam == 2:
+                    logger.debug("window %s destroyed", msg.hWnd)
+                elif msg.wParam == 4:
+                    logger.debug("window %s activated", msg.hWnd)
+        return super().nativeEvent(eventType, message)
 
     @Slot(MonitorState, int, Window)
     def show_windows_splash(
@@ -62,7 +82,7 @@ class WindowsSplash(Dialog):
         """Show the splash screen"""
         logger.info("WindowsSplash show")
         # monitor
-        self.monitor_state.setText(f"Monitor: {monitor_state.monitor.name}")
+        self.monitor_state.setText(f"Monitor: {monitor_state.name}")
         # workspaces
         self.deleteDirectChildren(self.workspace_states)
         if workspace_index == -1:
@@ -85,7 +105,7 @@ class WindowsSplash(Dialog):
             )
             widget.layout().addWidget(ws_name)
             # theme
-            ws_info = QLabel(workspace.theme_name)
+            ws_info = QLabel(workspace.theme.name)
             ws_info.setObjectName("workspace_info")
             ws_info.setSizePolicy(
                 QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
@@ -134,7 +154,7 @@ class WindowsSplash(Dialog):
                     ws_name.setProperty("active", False)
                 ws_name.setStyleSheet("")
         # centering the window
-        r = monitor_state.monitor.get_rect()
+        r = monitor_state.rect
         rect = app.screenAt(QPoint(r.left, r.top)).geometry()
         x = rect.x() + (rect.width() - w) // 2
         y = rect.y() + (rect.height()) // 3
@@ -152,44 +172,14 @@ class WindowsSplash(Dialog):
         logger.info("WindowsSplash hide")
         self.hide()
 
-    # def nativeEvent(self, eventType: QByteArray | bytes, message: int) -> object:
-    #     if eventType == "windows_generic_MSG":
-    #         msg = MSG.from_address(int(message))
-    #         if msg.message == self.shellhook_msgid:
-    #             if msg.wParam == 1:
-    #                 self.created_windows.add(msg.hWnd)
-    #                 fire_shell_window_changed("created", msg.hWnd)
-    #             elif msg.wParam == 2:
-    #                 if msg.hWnd in self.created_windows:
-    #                     self.created_windows.remove(msg.hWnd)
-    #                 else:
-    #                     return
-    #                 fire_shell_window_changed("destroyed", msg.hWnd)
-    #             elif msg.wParam == 4:
-    #                 fire_shell_window_changed("activated", msg.hWnd)
-    #     return super().nativeEvent(eventType, message)
 
+if __name__ == "__main__":
+    import signal
 
-instance = WindowsSplash()
+    logging.basicConfig()
+    logging.getLogger().setLevel(logging.DEBUG)
 
-user32 = WinDLL("user32", use_last_error=True)
-instance.shellhook_msgid = user32.RegisterWindowMessageW("SHELLHOOK")
-user32.RegisterShellHookWindow(instance.winId())
-shell_windows_changed: callable = None
-
-
-def on_shell_window_changed(callback):
-    """Registers a callback function to be called when any shell window gets created or destroyed."""
-    global shell_windows_changed  # pylint: disable=global-statement
-    shell_windows_changed = callback
-
-
-def fire_shell_window_changed(event, window):
-    """Fires the screenChanged event."""
-    logger.debug("shell window change event: %s window: %s", event, window)
-    if shell_windows_changed:
-        shell_windows_changed(event, window)
-
-
-show_windows_splash = instance.show_splash.emit
-hide_windows_splash = instance.hide_splash.emit
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+    Splash()
+    # splash.show()
+    app.exec()

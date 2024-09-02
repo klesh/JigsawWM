@@ -60,6 +60,8 @@ wm = WindowManager(
         Theme(
             name="static_bigscreen_8",
             layout_tiler=tilers.static_bigscreen_8_layout_tiler,
+            static_layout=True,
+            static_windows_count=8,
             strict=True,
             gap=2,
             new_window_as_master=True,
@@ -86,44 +88,42 @@ wm = WindowManager(
         ),
     ],
     ignore_exe_names=[
-        "ApplicationFrameHost.exe", # ?
-#        "chrome.exe",               # Chrome web browser
-#        "Cloudflare WARP.exe",
-#        "cmd.exe",                  # cmd consoles
-#        "EXCEL.EXE",
-        "explorer.exe",             # ?
-#        "freeplane.exe",            # mindmap editor
-#        "javaw.exe",                # mindmap editor
-#        "MediaInfo.exe",
-        "mintty.exe",               # ?
-        "msedge.exe",               # browser
-#        "notepad++.exe",            # text editor
-#        "openvpn-gui.exe",
+        "ApplicationFrameHost.exe",  # ?
+        #        "chrome.exe",               # Chrome web browser
+        #        "Cloudflare WARP.exe",
+        #        "cmd.exe",                  # cmd consoles
+        #        "EXCEL.EXE",
+        "explorer.exe",  # ?
+        #        "freeplane.exe",            # mindmap editor
+        #        "javaw.exe",                # mindmap editor
+        #        "MediaInfo.exe",
+        "mintty.exe",  # ?
+        "msedge.exe",  # browser
+        #        "notepad++.exe",            # text editor
+        #        "openvpn-gui.exe",
         "OUTLOOK.EXE",
         "SnagitCapture.exe",
         "SnagitEditor.exe",
         "SnippingTool.exe",
-#        "Teams.exe",
+        #        "Teams.exe",
         "TOTALCMD.EXE",
-#        "yEd.exe",
-        ],
+        #        "yEd.exe",
+    ],
     force_managed_exe_names=["Lens.exe"],
-
-
     # TODO: rewrite by using WmRule with preferred window index
     # here the wished initial sequence of applications in order to correctly
     # fill the windows. these applications will not be ignored, so they don't
     # need to be listed within the ignore_exe_names list.
     init_exe_sequence=[
-            ["cmd.exe", "nvim"],            # code editor
-            ["cmd.exe", ""],                # debug console
-            ["notepad++.exe", ""],          # general text editor
-            ["javaw.exe", "freeplane"],     # mindmap editor
-            ["chrome.exe", ""],             # internet browser
-            ["Teams.exe", ""],              # messaging
-            ["yEd.exe", ""],                # diagramming
-            ["EXCEL.EXE", ""],              # organizational stuff
-            ],
+        ["cmd.exe", "nvim"],  # code editor
+        ["cmd.exe", ""],  # debug console
+        ["notepad++.exe", ""],  # general text editor
+        ["javaw.exe", "freeplane"],  # mindmap editor
+        ["chrome.exe", ""],  # internet browser
+        ["Teams.exe", ""],  # messaging
+        ["yEd.exe", ""],  # diagramming
+        ["EXCEL.EXE", ""],  # organizational stuff
+    ],
 )
 
 

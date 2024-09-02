@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Set, Optional
 from jigsawwm.objectcache import ObjectCache, ChangeDetector
 from .window import HWND, Window, filter_windows, get_foreground_window
+from .monitor import get_cursor_pos
 
 
 @dataclass
@@ -21,9 +22,12 @@ class WindowsChange:
 class WindowDetector(ObjectCache, ChangeDetector):
     """A cache of all windows"""
 
+    windows: Set[Window]
+
     def __init__(self, vacuum_interval: int = 3600):
         ObjectCache.__init__(self, vacuum_interval=vacuum_interval)
         ChangeDetector.__init__(self)
+        self.windows = set()
 
     def create(self, key: HWND) -> Window:
         """Create a window for the cache based on the HWND value"""
@@ -44,6 +48,8 @@ class WindowDetector(ObjectCache, ChangeDetector):
     def detect_window_changes(self) -> WindowsChange:
         """Detect changes since the previous detection"""
         changed, new_keys, removed_keys = self.detect_changes()
+        if changed:
+            self.windows = map(self.get_window, self.previous_keys)
         return WindowsChange(
             changed,
             set(map(self.get_window, new_keys)),
@@ -54,14 +60,14 @@ class WindowDetector(ObjectCache, ChangeDetector):
         """Get the current foreground window"""
         return self.get_window(get_foreground_window())
 
-    def minimize_active_window(self):
-        """Minize active window"""
-        w = self.foreground_window()
-        if w:
-            w.minimize()
+    def window_restricted_at_cursor(self) -> Optional[Window]:
+        """Get the window under the cursor"""
+        pos = get_cursor_pos()
+        for w in self.windows:
+            if w.restricted_rect and w.restricted_rect.contains(pos.x, pos.y):
+                return w
 
-    def toggle_maximize_active_window(self):
-        """Maximize/Unmaximize active window"""
-        w = self.foreground_window()
-        if w:
-            w.toggle_maximize()
+
+if __name__ == "__main__":
+    window_detector = WindowDetector()
+    print(window_detector.detect_window_changes())

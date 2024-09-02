@@ -1,20 +1,18 @@
 """MonitorState maintains state of a specific Monitor under a Virtual Desktop"""
+
 import logging
-from typing import Set, List
+from typing import List
 
-from jigsawwm.w32.monitor import Monitor
-from jigsawwm.w32.window import Window
+from jigsawwm.w32.window import Window, Rect
 
-from .config import WmConfig
 from .theme import Theme
 from .workspace_state import WorkspaceState
-from .pickable_state import PickableState
-from .const import PREFERRED_WORKSPACE_INDEX, MONITOR_STATE
+from .const import PREFERRED_WORKSPACE_INDEX, MONITOR_STATE, WORKSPACE_STATE
 
 logger = logging.getLogger(__name__)
 
 
-class MonitorState(PickableState):
+class MonitorState:
     """MonitorState holds variables needed by a Monitor
 
 
@@ -23,97 +21,89 @@ class MonitorState(PickableState):
     :param str theme: the active theme for the monitor in the virtual desktop
     """
 
-    config: WmConfig
-    monitor: Monitor
+    index: int
+    name: str
+    rect: Rect
+    theme: Theme
     workspaces: List[WorkspaceState]
-    windows: Set[Window]
     active_workspace_index: int
 
-    def __init__(self, config: WmConfig, monitor: Monitor):
-        self.config = config
-        self.monitor = monitor
-        self.workspaces = [
-            WorkspaceState(config, workspace_name, self.monitor)
-            for workspace_name in config.workspace_names
-        ]
+    def __init__(
+        self,
+        index: int,
+        name: str,
+        workspace_names: List[str],
+        rect: Rect,
+        theme: Theme,
+    ):
+        self.index = index
+        self.name = name
+        self.rect = rect
+        self.theme = theme
         self.active_workspace_index = 0
-        self.workspaces[0].toggle(True)
+        self.workspaces = []
+        self.set_workspaces(workspace_names)
 
     def __repr__(self) -> str:
-        return f"<MonitorState {self.monitor.name}>"
+        return f"<MonitorState #{self.index}>"
 
-    def update_config(self, config: WmConfig):
-        """Update the workspaces based on configuration"""
-        self.config = config
-        # if the number of workspaces has increased
-        for workspace_index, workspace_name in enumerate(self.config.workspace_names):
-            if workspace_index >= len(self.workspaces):
-                self.workspaces.append(WorkspaceState(self.config, workspace_name, self.monitor))
-            else:
-                self.workspaces[workspace_index].name = workspace_name
-        # or it has decrease
-        l = len(self.config.workspace_names)
-        i = l
-        while i < len(self.workspaces):
-            tobe_removed = self.workspaces[i]
-            target_ws = self.workspaces[i % l]
-            target_ws.windows = target_ws.windows.union(tobe_removed.windows)
-            i += 1
-        self.workspaces = self.workspaces[:l]
+    def set_workspaces(self, workspace_names: List[str]):
+        """Update the workspaces"""
+        if len(self.workspaces) > len(workspace_names):
+            self.active_workspace_index = self.active_workspace_index % len(
+                workspace_names
+            )
+            active_workspace = self.workspaces[self.active_workspace_index]
+            while len(self.workspaces) > len(workspace_names):
+                ws = self.workspaces.pop()
+                active_workspace.windows |= ws.windows
+        if len(self.workspaces) < len(workspace_names):
+            while len(self.workspaces) < len(workspace_names):
+                self.workspaces.append(
+                    WorkspaceState(
+                        self.index,
+                        len(self.workspaces),
+                        workspace_names[len(self.workspaces)],
+                        self.rect,
+                        self.theme,
+                    )
+                )
+        for i, workspace_name in enumerate(workspace_names):
+            self.workspaces[i].name = workspace_name
+
+    def set_rect(self, rect: Rect):
+        """Update the monitor rect"""
+        self.rect = rect
         for workspace in self.workspaces:
-            workspace.update_config(config)
+            workspace.set_rect(rect)
 
     @property
     def workspace(self) -> WorkspaceState:
         """Get the active workspace of the monitor"""
         return self.workspaces[self.active_workspace_index]
 
-    @property
-    def windows(self) -> Set[Window]:
-        """Get the windows of the active workspace of the monitor"""
-        windows = set()
-        for ws in self.workspaces:
-            windows |= ws.windows
-        return windows
+    def add_windows(self, *windows: List[Window]):
+        """Add new windows to the active workspace of the monitor"""
+        for w in windows:
+            workspace_index: int = w.attrs.get(
+                PREFERRED_WORKSPACE_INDEX, self.active_workspace_index
+            )
+            ws = self.workspaces[workspace_index]
+            ws.windows.add(w)
+            w.attrs[MONITOR_STATE] = self
+            w.attrs[WORKSPACE_STATE] = ws
+            logger.info("added window %s to %s", w, ws)
 
-    @property
-    def tilable_windows(self) -> List[Window]:
-        """Get the windows of the active workspace of the monitor"""
-        return self.workspace.tilable_windows
+    def remove_windows(self, *windows: List[Window]):
+        """Remove windows from the active workspace of the monitor"""
+        for w in windows:
+            ws: WorkspaceState = w.attrs[WORKSPACE_STATE]
+            ws.windows.remove(w)
+            # del w.attrs[MONITOR_STATE]
+            # del w.attrs[WORKSPACE_STATE]
+            logger.info("removed window %s from %s", w, ws)
 
-    @property
-    def theme(self) -> Theme:
-        """Get the active theme of the monitor"""
-        return self.workspace.theme
-
-    def set_theme(self, theme: Theme):
-        """Set the theme of the active workspace of the monitor"""
-        self.workspace.set_theme(theme)
-
-    def arrange(self):
-        """Arrange the windows in the active workspace of the monitor"""
-        self.workspace.arrange()
-
-    def add_window(self, window: Window):
-        """Add a window to the active workspace of the monitor"""
-        window.attrs[MONITOR_STATE] = self
-        self.windows.add(window)
-        ws: WorkspaceState = self.workspaces[window.attrs.get(PREFERRED_WORKSPACE_INDEX) or self.active_workspace_index]
-        ws.add_window(window)
-
-        if PREFERRED_WORKSPACE_INDEX not in window.attrs:
-            logger.debug("window %s has no preferred workspace index, fallback to active workspace", window)
-            window.attrs[PREFERRED_WORKSPACE_INDEX] = self.active_workspace_index
-
-    def remove_window(self, window: Window):
-        """Remove a window from the active workspace of the monitor"""
-        self.workspace.remove_window(window)
-
-    def find_workspace_by_name(self, name: str):
-        """Find the workspace by name"""
-        return next(filter(lambda w: w.name == name, self.workspaces), None)
-
-    def switch_workspace(self, workspace_index: int, no_activation=False):
+    def switch_workspace(self, workspace_index: int):
         """Switch to the workspace by index"""
         logger.debug("%s switch workspace by index to #%d", self, workspace_index)
         workspace_index = workspace_index % len(self.workspaces)
@@ -121,16 +111,8 @@ class MonitorState(PickableState):
             logger.warning("already in workspace index %s", workspace_index)
             return
         self.workspaces[self.active_workspace_index].toggle(False)
-        self.workspaces[workspace_index].toggle(True, no_activation=no_activation)
+        self.workspaces[workspace_index].toggle(True)
         self.active_workspace_index = workspace_index
-
-    def switch_workspace_by_name(self, workspace_name: str, no_activation = False):
-        """Switch to the workspace by index"""
-        logger.debug("%s switch workspace by name to %s", self, workspace_name)
-        for i, workspace in enumerate(self.workspaces):
-            if workspace.name == workspace_name:
-                self.switch_workspace(i, no_activation=no_activation)
-                return
 
     def move_to_workspace(self, window: Window, workspace_index: int):
         """Move the window to the workspace by index"""
@@ -139,7 +121,9 @@ class MonitorState(PickableState):
             logger.warning("workspace index %s does not exist", workspace_index)
             return
         if workspace_index == self.active_workspace_index:
-            logger.warning("window %s already in workspace index %s", window, workspace_index)
+            logger.warning(
+                "window %s already in workspace index %s", window, workspace_index
+            )
             return
         if window not in self.workspace.windows:
             logger.warning("window %s not in active workspace", window)
@@ -151,11 +135,3 @@ class MonitorState(PickableState):
         self.workspace.remove_window(root)
         self.workspaces[workspace_index].add_windows(children)
         return self.workspaces[workspace_index].add_window(window)
-
-    def sync_windows(self) -> bool:
-        """Synchronize managed windows with given actual windows currently visible and arrange them
-        accordingly
-
-        :param Set[Window] windows: latest visible windows
-        """
-        self.workspace.sync_windows()

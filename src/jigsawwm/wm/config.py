@@ -1,4 +1,5 @@
 """This module contains the configuration dataclass for the window manager"""
+
 import re
 import logging
 from dataclasses import dataclass, field
@@ -13,21 +14,23 @@ logger = logging.getLogger(__name__)
 @dataclass
 class WmRule:
     """WmRule holds the rule for managing windows"""
+
     exe_regex: Optional[str] = None
     title_regex: Optional[str] = None
     preferred_monitor_index: Optional[int] = None
     preferred_workspace_index: Optional[int] = None
-    preferred_window_index: Optional[int] = None
-    manageable: Optional[bool] = None # managed in workspace
-    tilable: Optional[bool] = None # is it tilable in a workspace
+    static_window_index: Optional[int] = None
+    manageable: Optional[bool] = None  # managed in workspace
+    tilable: Optional[bool] = None  # is it tilable in a workspace
+
 
 @dataclass
 class WmConfig:
     """WmConfig holds the configuration of the window manager"""
+
     themes: List[Theme] = None
     ignore_exe_names: Set[str] = None
     force_managed_exe_names: Set[str] = None
-    init_exe_sequence: List[List[str]] = None
     workspace_names: List[str] = field(default_factory=lambda: ["0", "1", "2", "3"])
     rules: Optional[List[WmRule]] = None
     _monitor_themes: Dict[str, Theme] = field(default_factory=dict)
@@ -38,10 +41,12 @@ class WmConfig:
         if self.rules:
             self._rules_regexs = []
             for rule in self.rules:
-                self._rules_regexs.append([
-                    re.compile(rule.exe_regex) if rule.exe_regex else None,
-                    re.compile(rule.title_regex) if rule.title_regex else None
-                ])
+                self._rules_regexs.append(
+                    [
+                        re.compile(rule.exe_regex) if rule.exe_regex else None,
+                        re.compile(rule.title_regex) if rule.title_regex else None,
+                    ]
+                )
 
     def get_theme_index(self, theme_name: str) -> int:
         """Retrieves the index of given theme name, useful to switching theme"""
@@ -64,7 +69,8 @@ class WmConfig:
         if monitor.name not in self._monitor_themes:
             self._monitor_themes[monitor.name] = sorted(
                 self.themes,
-                key=lambda x: x.affinity_index(monitor.get_screen_info()), reverse=True
+                key=lambda x: x.affinity_index(monitor.get_screen_info()),
+                reverse=True,
             )[0]
         return self._monitor_themes[monitor.name]
 

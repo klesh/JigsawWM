@@ -1,4 +1,8 @@
+"""The module that holds the window structures and enums."""
+
 import enum
+from ctypes.wintypes import RECT
+from dataclasses import dataclass
 
 
 class EnumCheckResult(enum.IntFlag):
@@ -134,5 +138,59 @@ class DwmWindowAttribute(enum.IntEnum):
     DWMWA_SYSTEMBACKDROP_TYPE = 38
     DWMWA_LAST = 39
 
-def repr_rect(rect):
-    return f"Rect(left={rect.left}, top={rect.top}, right={rect.right}, bottom={rect.bottom})"
+
+def repr_rect(rect: RECT):
+    """Return the string representation of the RECT object."""
+    return f"RECT(left={rect.left}, top={rect.top}, right={rect.right}, bottom={rect.bottom})"
+
+
+def rect_eq(a: RECT, b: RECT):
+    """Return True if the two RECT objects are equal."""
+    return (
+        a.left == b.left
+        and a.top == b.top
+        and a.right == b.right
+        and a.bottom == b.bottom
+    )
+
+
+@dataclass
+class Rect:
+    """ctypes.wintypes.RECT wrapper"""
+
+    left: int
+    top: int
+    right: int
+    bottom: int
+
+    @classmethod
+    def from_win_rect(cls, r: RECT):
+        """Create a Rect object from a RECT object."""
+        return cls(r.left, r.top, r.right, r.bottom)
+
+    def __repr__(self) -> str:
+        return f"RECT(left={self.left}, top={self.top}, right={self.right}, bottom={self.bottom})"
+
+    @property
+    def width(self) -> int:
+        """Return the width of the rectangle."""
+        return self.right - self.left
+
+    @width.setter
+    def width(self, value: int):
+        """Set the width of the rectangle."""
+        self.right = self.left + value
+
+    @property
+    def height(self) -> int:
+        """Return the height of the rectangle."""
+        return self.bottom - self.top
+
+    @height.setter
+    def height(self, value: int):
+        """Set the height of the rectangle."""
+        self.bottom = self.top + value
+
+    def contains(self, x: int, y: int):
+        """Return True if the point is inside the rectangle."""
+        return self.left <= x <= self.right and self.top <= y <= self.bottom

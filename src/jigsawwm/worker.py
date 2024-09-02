@@ -29,7 +29,7 @@ class ThreadWorker:
         if self.stopped:
             return
         self.queue.put((QUEUE_MSG_CLOSE, None))
-        self.executor.shutdown()
+        # self.executor.shutdown()
 
     def enqueue(self, fn: callable, *args):
         """Enqueue a function call"""

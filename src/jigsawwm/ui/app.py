@@ -1,4 +1,5 @@
 """This module provides a QApplication instance and a custom exception hook for handling uncaught exceptions."""
+
 import logging
 import sys
 import traceback
@@ -9,24 +10,8 @@ from PySide6 import QtCore, QtWidgets
 app = QtWidgets.QApplication(sys.argv)
 
 # basic logger functionality
-log = logging.getLogger(__name__)
-handler = logging.StreamHandler(stream=sys.stdout)
-log.addHandler(handler)
+logger = logging.getLogger(__name__)
 
-screenChanged: callable = None
-
-def on_screen_changed(callback):
-    """Registers a callback function to be called when the screen configuration changes."""
-    global screenChanged # pylint: disable=global-statement
-    screenChanged = callback
-
-def fire_screen_changed(_screen):
-    """Fires the screenChanged event."""
-    if screenChanged:
-        screenChanged()
-
-app.screenAdded.connect(fire_screen_changed)
-app.screenRemoved.connect(fire_screen_changed)
 
 def show_exception_box(log_msg):
     """Checks if a QApplication instance is available and shows a messagebox with the exception message.
@@ -34,7 +19,7 @@ def show_exception_box(log_msg):
     """
     # if QtWidgets.QApplication.instance() is not None:
     errorbox = QtWidgets.QMessageBox()
-    errorbox.setText("Oops. An unexpected error occured:\n{0}".format(log_msg))
+    errorbox.setText(f"Oops. An unexpected error occured:\n{log_msg}")
     errorbox.exec_()
     # else:
     #     log.debug("No QApplication instance available.")
@@ -42,6 +27,7 @@ def show_exception_box(log_msg):
 
 class UncaughtHook(QtCore.QObject):
     """Custom exception hook class to handle uncaught exceptions."""
+
     _exception_caught = QtCore.Signal(object)
 
     def __init__(self, *args, **kwargs):
@@ -65,10 +51,10 @@ class UncaughtHook(QtCore.QObject):
             log_msg = "\n".join(
                 [
                     "".join(traceback.format_tb(exc_traceback)),
-                    "{0}: {1}".format(exc_type.__name__, exc_value),
+                    f"{exc_type.__name__}: {exc_value}",
                 ]
             )
-            log.critical("Uncaught exception:\n {0}".format(log_msg), exc_info=exc_info)
+            logger.critical("Uncaught exception:\n %s", log_msg, exc_info=exc_info)
 
             # trigger message box show
             self._exception_caught.emit(log_msg)
@@ -80,6 +66,7 @@ qt_exception_hook = UncaughtHook()
 
 if __name__ == "__main__":
     import signal
+
     signal.signal(signal.SIGINT, signal.SIG_DFL)
     for s in app.screens():
         print(s.name(), s.geometry())

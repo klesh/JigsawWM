@@ -16,8 +16,8 @@ class Theme:
     name: str
     # layout tiler
     layout_tiler: LayoutTiler
-    static_layout = False
-    max_tiling_windows = 4
+    static_layout: bool = False
+    max_tiling_windows: int = 0
     # unused
     icon_name: Optional[str] = None
     # unused
@@ -29,3 +29,8 @@ class Theme:
     # forbid
     strict: Optional[bool] = None
     affinity_index: Optional[Callable[[Monitor], int]] = None
+    stacking_margin_x: float = 0.1
+    stacking_margin_y: float = 0.1
+    stacking_window_width: float = 0.6
+    stacking_window_height: float = 0.6
+    stacking_max_step: int = 30

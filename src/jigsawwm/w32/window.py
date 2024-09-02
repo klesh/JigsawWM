@@ -13,6 +13,7 @@ from functools import cached_property
 from . import process
 from .sendinput import send_input, INPUT, INPUTTYPE, KEYBDINPUT, KEYEVENTF
 from .vk import Vk
+from .window_structs import Rect
 
 # from .monitor import get_monitor_from_window
 from .window_structs import (
@@ -20,7 +21,6 @@ from .window_structs import (
     WindowExStyle,
     ShowWindowCmd,
     DwmWindowAttribute,
-    repr_rect,
 )
 
 user32 = WinDLL("user32", use_last_error=True)
@@ -60,9 +60,9 @@ class Window:
     """
 
     handle: HWND
-    restricted_rect = None
-    compensated_rect = None
-    restricted_actual_rect = None
+    restricted_rect: Rect = None
+    compensated_rect: Rect = None
+    restricted_actual_rect: Rect = None
     attrs: dict = field(default_factory=dict)
     untilable_reason: Optional[str] = None
     unmanageable_reason: Optional[str] = None
@@ -85,7 +85,7 @@ class Window:
             marks += "M"
         if self.restricted_rect:
             marks += "R"
-        return f"<Window id={id(self)} pid={self.pid} exe={self.exe_name} title={self.title[:10]} hwnd={self.handle}{marks}>"
+        return f"<Window pid={self.pid} exe={self.exe_name} title={self.title[:10]} hwnd={self.handle}{marks}>"
 
     # some windows may change their style after created and there will be no event raised
     # so we need to remember the tilable state to avoid undesirable behavior.
@@ -119,6 +119,8 @@ class Window:
 
     def check_unmanageable(self) -> str:
         """Check if window is a app window which could be managed"""
+        if process.is_elevated(self.pid):
+            return "admin window"
         if not self.is_visible:
             return "invisible"
         if not self.is_toplevel:
@@ -134,8 +136,6 @@ class Window:
         exstyle = self.get_exstyle()
         if WindowExStyle.TRANSPARENT in exstyle:
             return "WindowExStyle.TRANSPARENT"
-        if process.is_elevated(self.pid):
-            return "admin window"
         if not self.exe:
             return "no executable path"
         return None
@@ -337,7 +337,7 @@ class Window:
         """Check if window exists"""
         return user32.IsWindow(self.handle)
 
-    def get_extended_frame_bounds(self) -> RECT:
+    def get_extended_frame_bounds(self) -> Rect:
         """Retrieves extended frame bounds
 
         Ref: https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/ne-dwmapi-dwmwindowattribute
@@ -349,9 +349,9 @@ class Window:
             pointer(bound),
             sizeof(bound),
         )
-        return bound
+        return Rect.from_win_rect(bound)
 
-    def get_rect(self) -> RECT:
+    def get_rect(self) -> Rect:
         """Retrieves the dimensions of the bounding rectangle of the specified window.
         The dimensions are given in screen coordinates that are relative to the upper-left
         corner of the screen
@@ -364,21 +364,21 @@ class Window:
         rect = RECT()
         if not user32.GetWindowRect(self.handle, pointer(rect)):
             raise WinError(get_last_error())
-        return rect
+        return Rect.from_win_rect(rect)
 
-    def set_rect(self, rect: RECT):
+    def set_rect(self, rect: Rect):
         """Sets the dimensions of the bounding rectangle (Call SetWindowPos with RECT)
 
         Ref: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowpos
 
         :param rect: RECT with top/left/bottom/right properties
         """
-        logger.debug("%s set rect to %s", self, repr_rect(rect))
+        logger.debug("%s set rect to %s", self, rect)
         x, y, w, h = rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top
         if not user32.SetWindowPos(self.handle, None, x, y, w, h, SET_WINDOW_RECT_FLAG):
             raise WinError(get_last_error())
 
-    def set_restrict_rect(self, rect: RECT):
+    def set_restrict_rect(self, rect: Rect):
         """Set the restricted rect"""
         self.set_rect(rect)
         self.restricted_rect = rect
@@ -393,7 +393,7 @@ class Window:
             # compensation
             r = self.get_rect()
             b = self.get_extended_frame_bounds()
-            self.compensated_rect = RECT(
+            self.compensated_rect = Rect(
                 round(rect.left + r.left - b.left),
                 round(rect.top + r.top - b.top),
                 round(rect.right + r.right - b.right),
@@ -515,7 +515,7 @@ class Window:
         if show:
             if self.is_off:
                 self.set_rect(
-                    RECT(
+                    Rect(
                         r.left - self.X_OFFSET,
                         r.top - self.Y_OFFSET,
                         r.right - self.Y_OFFSET,
@@ -525,7 +525,7 @@ class Window:
         else:
             if self.is_on:
                 self.set_rect(
-                    RECT(
+                    Rect(
                         r.left + self.X_OFFSET,
                         r.top + self.Y_OFFSET,
                         r.right + self.Y_OFFSET,
@@ -594,10 +594,8 @@ def filter_windows(cb: Callable[[HWND], Any]) -> Set[Any]:
     def enum_windows_proc(
         hwnd: HWND, _lparam: LPARAM
     ) -> BOOL:  # pylint: disable=invalid-name
-        window = cb(hwnd)
-        if window is False:
-            return False
-        result.add(window)
+        if cb(hwnd):
+            result.add(hwnd)
         return True
 
     if not user32.EnumWindows(enum_windows_proc, None):
@@ -610,6 +608,20 @@ def filter_windows(cb: Callable[[HWND], Any]) -> Set[Any]:
 def get_foreground_window() -> Optional[HWND]:
     """Get the foreground window handle"""
     return user32.GetForegroundWindow()
+
+
+def minimize_active_window(self):
+    """Minize active window"""
+    hwnd = get_foreground_window()
+    if hwnd:
+        Window(hwnd).minimize()
+
+
+def toggle_maximize_active_window(self):
+    """Maximize/Unmaximize active window"""
+    hwnd = get_foreground_window()
+    if hwnd:
+        Window(hwnd).toggle_maximize()
 
 
 ###

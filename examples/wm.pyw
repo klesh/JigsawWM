@@ -21,15 +21,20 @@ wm = WindowManager(
             name="Dwindle",
             layout_tiler=tilers.ratio_dwindle_layout_tiler,
             strict=True,
-            gap=2,
+            gap=4,
             new_window_as_master=True,
-            affinity_index=lambda si: (4 if si.inch >= 20 else 0) + (5 if si.ratio < 2 else 0),
+            affinity_index=lambda si: (4 if si.inch >= 20 else 0)
+            + (5 if si.ratio < 2 else 0),
         ),
         Theme(
             name="Mono",
             layout_tiler=tilers.mono_layout_tiler,
             strict=True,
-            affinity_index=lambda si: 10 if si.inch < 20 or (si.width_px == 2048 and si.height_px == 1536) else 0,
+            affinity_index=lambda si: (
+                10
+                if si.inch < 20 or (si.width_px == 2048 and si.height_px == 1536)
+                else 0
+            ),
         ),
         Theme(
             name="WideScreen Dwindle",
@@ -38,15 +43,15 @@ wm = WindowManager(
             gap=2,
             strict=True,
             new_window_as_master=True,
-            affinity_index=lambda si: (4 if si.inch >= 20 else 0) + (5 if si.ratio >= 2 else 0),
+            affinity_index=lambda si: (4 if si.inch >= 20 else 0)
+            + (5 if si.ratio >= 2 else 0),
         ),
     ],
-    rules = [
+    rules=[
         WmRule(exe_regex=r"\bWindowsTerminal\.exe$", manageable=False),
         WmRule(exe_regex=r"\bSnippingTool\.exe$", manageable=False),
         WmRule(exe_regex=r"\bFlow\.Launcher\.exe", manageable=False),
         WmRule(exe_regex=r"\bmsedgewebview2.exe\.exe", manageable=False),
-
         WmRule(exe_regex=r"\bWeChat\.exe$", tilable=False),
         WmRule(exe_regex=r"\bMediaInfo\.exe$", tilable=False),
         WmRule(exe_regex=r"\bCloudflare WARP\.exe$", tilable=False),
@@ -58,10 +63,11 @@ wm = WindowManager(
         WmRule(exe_regex=r"\bPotPlayerMini64\.exe", tilable=False),
         # WmRule(exe_regex=r"\bmintty\.exe", tilable=False),
         WmRule(exe_regex=r"\bopenvpn-gui\.exe", tilable=False),
-
-        WmRule(exe_regex=r"\bObsidian\.exe$", title_regex=None, to_monitor_index=1),
-        WmRule(exe_regex=r"\bFeishu\.exe$", to_monitor_index=1),
-    ]
+        WmRule(
+            exe_regex=r"\bObsidian\.exe$", title_regex=None, preferred_monitor_index=1
+        ),
+        WmRule(exe_regex=r"\bFeishu\.exe$", preferred_monitor_index=1),
+    ],
 )
 
 hotkeys = [
@@ -88,8 +94,10 @@ hotkeys = [
     ("Win+Ctrl+u", wm.inspect_state),
 ]
 
-class WindowManagerService(daemon.Service): # , daemon.ServiceMenu
+
+class WindowManagerService(daemon.Service):  # , daemon.ServiceMenu
     """Window Manager Service"""
+
     name = "Window Manager"
     is_running = False
 

@@ -1,4 +1,5 @@
 """WinEvent eum"""
+
 import logging
 import enum
 from ctypes import WINFUNCTYPE
@@ -15,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 class WinEvent(enum.IntEnum):
     """WinEvent enumeration for Windows event hooking"""
+
     # The range of WinEvent constant values specified by the Accessibility Interoperability Alliance (AIA) for use across the industry. For more information, see Allocation of WinEvent IDs.
     EVENT_AIA_START = 0xA000
     EVENT_AIA_END = 0xAFFF
@@ -106,10 +108,6 @@ class WinEvent(enum.IntEnum):
     EVENT_UIA_PROPID_START = 0x7500
     EVENT_UIA_PROPID_END = 0x75FF
 
-    #
-    EVENT_SCREEN_CHANGED = 0x80000000
-    CMD_EXIT = 0x80000001
-    CMD_CALL = 0x80000002
     UNKNOWN = 0x00
 
     @classmethod

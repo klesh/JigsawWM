@@ -56,7 +56,8 @@ class MonitorDetector(ObjectCache, ChangeDetector):
         if changed:
             self.monitors = sorted(
                 map(self.get_monitor, self.previous_keys),
-                key=lambda m: m.get_monitor_central(),
+                # key=lambda m: m.get_monitor_central(),
+                key=lambda m: m.name,
             )
         return MonitorsChange(
             changed,
