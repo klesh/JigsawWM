@@ -242,14 +242,10 @@ class VirtDeskState:
             return True
         if not window.tilable:
             return False
-        window_index = -1
-        try:
-            window_index = monitor_state.workspace.tiling_windows.index(window)
-        except ValueError:
-            return False
         target_window = self.window_detector.window_restricted_at_cursor()
         if not target_window or target_window == window:
             return False
+        window_index = monitor_state.workspace.tiling_windows.index(window)
         target_window_index = target_monitor_state.workspace.tiling_windows.index(
             target_window
         )
