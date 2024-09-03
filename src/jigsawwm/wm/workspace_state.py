@@ -97,8 +97,6 @@ class WorkspaceState:
             windows_list = new_list + windows_list
         else:
             windows_list += new_list
-        for i, window in enumerate(windows_list):
-            window.attrs[PREFERRED_WINDOW_INDEX] = i
         return windows_list
 
     def arrange(self):
@@ -107,6 +105,8 @@ class WorkspaceState:
         :param str theme: optional, fallback to theme of the instance
         """
         logger.debug("%s arrange total %d windows", self, len(self.tiling_windows))
+        for i, window in enumerate(self.tiling_windows):
+            window.attrs[PREFERRED_WINDOW_INDEX] = i
         theme = self.theme
         wr = self.rect
         work_area = (wr.left, wr.top, wr.right, wr.bottom)

@@ -75,7 +75,7 @@ class VirtDeskState:
         if result.removed_monitors:
             for m in result.removed_monitors:
                 ms = self.monitor_states.pop(m)
-                logger.info("monitor disconnected: %s", ms.monitor)
+                logger.info("monitor disconnected: %s", ms.name)
                 for ws in ms.workspaces:
                     windows_tobe_rearranged |= ws.windows
         # rearrange windows
@@ -375,6 +375,8 @@ class VirtDeskState:
         target_monitor_state.add_windows(window)
         monitor_state.workspace.sync_windows()
         target_monitor_state.workspace.sync_windows()
+        if monitor_state.workspace.tiling_windows:
+            monitor_state.workspace.tiling_windows[0].activate()
 
     def switch_monitor_splash(self, delta: int):
         """Switch to another monitor by given offset"""
