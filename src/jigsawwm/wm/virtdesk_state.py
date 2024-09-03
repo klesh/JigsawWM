@@ -288,7 +288,7 @@ class VirtDeskState:
         if not window.manageable or not window.tilable:
             return
         monitor_state: MonitorState = window.attrs[MONITOR_STATE]
-        preferred_monitor_index = (monitor_state.monitor.index + delta) % len(
+        preferred_monitor_index = (monitor_state.index + delta) % len(
             self.monitor_detector.monitors
         )
         window.attrs[PREFERRED_MONITOR_INDEX] = preferred_monitor_index
@@ -296,7 +296,7 @@ class VirtDeskState:
         monitor_state.remove_windows(window)
         target_monitor_state.add_windows(window)
         monitor_state.workspace.sync_windows()
-        target_monitor_state.sync_windows()
+        target_monitor_state.workspace.sync_windows()
 
     def toggle_tilable(self):
         """Toggle window tilable"""
