@@ -115,8 +115,8 @@ class WorkspaceState:
         gap = theme.gap
         # tile the first n windows
         n = len(windows)
-        if theme.max_tiling_windows > 0:
-            n = min(theme.max_tiling_windows, n)
+        if theme.max_tiling_areas > 0:
+            n = min(theme.max_tiling_areas, n)
         for left, top, right, bottom in theme.layout_tiler(work_area, n):
             window = windows[i]
             # add gap
@@ -136,7 +136,7 @@ class WorkspaceState:
             window.set_restrict_rect(Rect(left, top, right, bottom))
             i += 1
         # stack the rest
-        num_rest = len(windows) - i - 1
+        num_rest = len(windows) - i
         if num_rest <= 0:
             return
         self._stack_the_rest(i, num_rest)

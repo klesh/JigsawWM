@@ -38,7 +38,7 @@ def test_workspace_state_dynamic_tiling(mocker):
                 (500, 500, 1000, 1000),
             ]
         ),
-        max_tiling_windows=3,
+        max_tiling_areas=3,
         gap=2,
         stacking_margin_x=0.1,
         stacking_margin_y=0.1,

@@ -6,9 +6,9 @@ import time
 from ctypes import *  # pylint: disable=wildcard-import,unused-wildcard-import
 from ctypes.wintypes import *  # pylint: disable=wildcard-import,unused-wildcard-import
 from dataclasses import dataclass, field
-from typing import Callable, Optional, Any, Set
+from typing import Callable, Optional, Any, Set, Iterable
 from os import path
-from functools import cached_property
+from functools import cached_property, cmp_to_key
 
 from . import process
 from .sendinput import send_input, INPUT, INPUTTYPE, KEYBDINPUT, KEYEVENTF
@@ -629,6 +629,19 @@ def toggle_maximize_active_window():
     hwnd = get_foreground_window()
     if hwnd:
         Window(hwnd).toggle_maximize()
+
+
+def topo_sort_windows(windows: Iterable[Window]):
+    """Sort windows topologicallly"""
+
+    def cmp(w1: Window, w2: Window) -> int:
+        r1, r2 = w1.get_rect(), w2.get_rect()
+        if abs(r1.top - r2.top) < 15:
+            return r1.left - r2.left
+        else:
+            return r1.top - r2.top
+
+    return sorted(windows, key=cmp_to_key(cmp))
 
 
 ###

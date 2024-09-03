@@ -17,7 +17,7 @@ class Theme:
     # layout tiler
     layout_tiler: LayoutTiler
     static_layout: bool = False
-    max_tiling_windows: int = 0
+    max_tiling_areas: int = 0
     # unused
     icon_name: Optional[str] = None
     # unused

@@ -4,7 +4,7 @@ resued between different calls to the same HWND value
 """
 
 from dataclasses import dataclass
-from typing import Set, Optional
+from typing import Set, Optional, Callable
 from jigsawwm.objectcache import ObjectCache, ChangeDetector
 from .window import HWND, Window, filter_windows, get_foreground_window
 from .monitor import get_cursor_pos
@@ -23,15 +23,24 @@ class WindowDetector(ObjectCache, ChangeDetector):
     """A cache of all windows"""
 
     windows: Set[Window]
+    created: Optional[Callable[[Window], None]] = None
 
-    def __init__(self, vacuum_interval: int = 3600):
+    def __init__(
+        self,
+        created: Optional[Callable[[Window], None]] = None,
+        vacuum_interval: int = 3600,
+    ):
         ObjectCache.__init__(self, vacuum_interval=vacuum_interval)
         ChangeDetector.__init__(self)
         self.windows = set()
+        self.created = created
 
     def create(self, key: HWND) -> Window:
         """Create a window for the cache based on the HWND value"""
-        return Window(key)
+        w = Window(key)
+        if self.created:
+            return self.created(w) or w
+        return w
 
     def is_valid(self, val: Window) -> bool:
         """Check if the window is still valid"""

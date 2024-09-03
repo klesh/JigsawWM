@@ -65,7 +65,7 @@ class WindowManager(ThreadWorker):
         # load windows state from the last session
         # self.load_state()
         self.virtdesk_state.on_monitors_changed()
-        self.virtdesk_state.on_windows_changed()
+        self.virtdesk_state.on_windows_changed(starting_up=True)
         self.start_worker()
         self.install_hooks()
 
@@ -166,7 +166,12 @@ class WindowManager(ThreadWorker):
         When the active window is unmanaged, activate the first in the list or do nothing
         """
         window = self.virtdesk_state.window_detector.foreground_window()
-        if not window.manageable or not window.tilable:
+        if not window or not window.manageable or not window.tilable:
+            window = self.virtdesk_state.monitor_state.workspace.last_active_window
+        if not window or not window.manageable or not window.tilable:
+            if self.virtdesk_state.monitor_state.workspace.tiling_windows:
+                window = self.virtdesk_state.monitor_state.workspace.tiling_windows[0]
+        if not window or not window.manageable or not window.tilable:
             return
         monitor_state: MonitorState = window.attrs[MONITOR_STATE]
         workspace_state: WorkspaceState = window.attrs[WORKSPACE_STATE]
@@ -231,7 +236,16 @@ class WindowManager(ThreadWorker):
         dst_monitor_state = self.virtdesk_state.monitor_state_from_index(dst_idx)
         return dst_monitor_state
 
+    def enqueue_hide_splash(self):
+        """Enqueue hide splash call"""
+        self.enqueue(self.splash.hide_splash.emit)
+
     def switch_monitor_by_offset(self, delta: int):
+        """Switch to another monitor by given offset"""
+        self.enqueue(self._switch_monitor_by_offset, delta)
+        return self.enqueue_hide_splash
+
+    def _switch_monitor_by_offset(self, delta: int):
         """Switch to another monitor by given offset"""
         logger.debug("switch_monitor_by_offset: %s", delta)
         srcms = self.virtdesk_state.monitor_state_from_cursor()
@@ -240,9 +254,10 @@ class WindowManager(ThreadWorker):
         self.virtdesk_state.active_monitor_index = dstms.index
         if dstms.workspace.last_active_window:
             dstms.workspace.last_active_window.activate()
+        elif dstms.workspace.tiling_windows:
+            dstms.workspace.tiling_windows[0].activate()
         else:
             set_cursor_pos(dstms.rect.center_x, dstms.rect.center_y)
-        return self.splash.hide_splash.emit
 
     def move_to_monitor_by_offset(self, delta: int):
         """Move active window to another monitor by offset"""
@@ -338,7 +353,8 @@ class WindowManager(ThreadWorker):
             for ms in virtdesk_state.monitor_states.values():
                 for ws in ms.workspaces:
                     for w in ws.windows:
-                        w.toggle(True)
+                        if w.exists():
+                            w.toggle(True)
 
     def inspect_state(self):
         """Inspect the state of the virtual desktops"""

@@ -248,8 +248,7 @@ class Monitor:
                     monitor.height,
                     monitor.width_mm,
                     monitor.height_mm,
-                    ratio=max(monitor.width, monitor.height)
-                    / min(monitor.width, monitor.height),
+                    ratio=monitor.width / monitor.height,
                     is_primary=monitor.is_primary,
                     inch=round(
                         math.sqrt(monitor.width_mm**2 + monitor.height_mm**2) / 25.4

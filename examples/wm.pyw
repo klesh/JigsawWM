@@ -20,11 +20,12 @@ wm = WindowManager(
         Theme(
             name="Dwindle",
             layout_tiler=tilers.ratio_dwindle_layout_tiler,
+            max_tiling_area=3,
             strict=True,
             gap=4,
             new_window_as_master=True,
             affinity_index=lambda si: (4 if si.inch >= 20 else 0)
-            + (5 if si.ratio < 2 else 0),
+            + (5 if 1 < si.ratio < 2 else 0),
         ),
         Theme(
             name="Mono",
@@ -44,7 +45,7 @@ wm = WindowManager(
             strict=True,
             new_window_as_master=True,
             affinity_index=lambda si: (4 if si.inch >= 20 else 0)
-            + (5 if si.ratio >= 2 else 0),
+            + (5 if si.ratio < 1 or si.ratio >= 2 else 0),
         ),
     ],
     rules=[

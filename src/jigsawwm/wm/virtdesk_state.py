@@ -8,12 +8,14 @@ from jigsawwm.jmk import sysinout, Vk
 from jigsawwm.w32.winevent import WinEvent
 from jigsawwm.w32.monitor_detector import MonitorDetector, Monitor
 from jigsawwm.w32.window_detector import WindowDetector, Window, HWND
+from jigsawwm.w32.window import topo_sort_windows
 
 from .monitor_state import MonitorState
 from .workspace_state import WorkspaceState
 from .const import (
     PREFERRED_MONITOR_INDEX,
     PREFERRED_WORKSPACE_INDEX,
+    PREFERRED_WINDOW_INDEX,
     STATIC_WINDOW_INDEX,
     MONITOR_STATE,
     WORKSPACE_STATE,
@@ -41,7 +43,7 @@ class VirtDeskState:
 
     def __init__(self, desktop_id: bytearray, config: WmConfig):
         self.desktop_id = desktop_id
-        self.window_detector = WindowDetector()
+        self.window_detector = WindowDetector(created=self.apply_rule_to_window)
         self.monitor_detector = MonitorDetector()
         self.config = config
 
@@ -122,7 +124,7 @@ class VirtDeskState:
         ):
             self.on_minimize_changed(window)
 
-    def on_windows_changed(self):
+    def on_windows_changed(self, starting_up=False):
         """Syncs the window states with the virtual desktop"""
         if not self.monitor_states:
             logger.warning("no monitors found")
@@ -133,19 +135,24 @@ class VirtDeskState:
             return
         # handle new windows
         if result.new_windows:
-            for w in result.new_windows:
+            for i, w in enumerate(topo_sort_windows(result.new_windows)):
                 logger.info("new window appeared: %s", w)
-                self.apply_rule_to_window(w)
                 if PREFERRED_MONITOR_INDEX not in w.attrs:
                     logger.debug(
                         "window %s has no preferred monitor index, set it to %d",
                         w,
                         self.active_monitor_index,
                     )
-                    w.attrs[PREFERRED_MONITOR_INDEX] = self.active_monitor_index
+                    if starting_up:
+                        w.attrs[PREFERRED_MONITOR_INDEX] = (
+                            self.monitor_state_from_window(w).index
+                        )
+                    else:
+                        w.attrs[PREFERRED_MONITOR_INDEX] = self.active_monitor_index
                 monitor_state = self.monitor_state_from_index(
                     w.attrs[PREFERRED_MONITOR_INDEX]
                 )
+                w.attrs[PREFERRED_WINDOW_INDEX] = i
                 monitor_state.add_windows(w)
         # handle removed windows
         if result.removed_windows:
@@ -265,6 +272,19 @@ class VirtDeskState:
         if index >= len(self.monitor_detector.monitors):
             raise IndexError("monitor index out of range")
         return self.monitor_states[self.monitor_detector.monitors[index]]
+
+    def monitor_state_from_window(self, window: Window) -> MonitorState:
+        """Retrieve monitor_state from current cursor"""
+        return self.monitor_states[
+            self.monitor_detector.monitor_from_window(window.handle)
+        ]
+
+    @property
+    def monitor_state(self) -> MonitorState:
+        """Retrieve current active monitor's state"""
+        return self.monitor_states[
+            self.monitor_detector.monitors[self.active_monitor_index]
+        ]
 
     def reorder(self, reorderer: Callable[[List[Window], int], None]):
         """Reorder windows"""
