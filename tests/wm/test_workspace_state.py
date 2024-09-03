@@ -64,14 +64,13 @@ def test_workspace_state_dynamic_tiling(mocker):
     assert ws.tiling_windows[1].set_restrict_rect.call_args[0][0] == Rect(
         502, 4, 996, 498
     )
+    # stacking windows
     assert ws.tiling_windows[2].set_restrict_rect.call_args[0][0] == Rect(
-        502, 502, 996, 996
+        502, 502, 798, 798
     )
-    # stacking window size: 600x600; max bound: 900x900; final bound: 640x640; step: 40, num_rest: 2
-    # first Rect(180, 180, 180+600, 180+600)
     assert ws.tiling_windows[3].set_restrict_rect.call_args[0][0] == Rect(
-        180, 180, 780, 780
+        601, 601, 897, 897
     )
     assert ws.tiling_windows[4].set_restrict_rect.call_args[0][0] == Rect(
-        220, 220, 820, 820
+        700, 700, 996, 996
     )

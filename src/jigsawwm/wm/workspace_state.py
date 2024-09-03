@@ -114,11 +114,14 @@ class WorkspaceState:
         i = 0
         gap = theme.gap
         # tile the first n windows
-        n = len(windows)
+        w = len(windows)
+        n = w
         if theme.max_tiling_areas > 0:
             n = min(theme.max_tiling_areas, n)
+        r = None
         for left, top, right, bottom in theme.layout_tiler(work_area, n):
             window = windows[i]
+            i += 1
             # add gap
             if gap:
                 if left == wr.left:
@@ -133,44 +136,26 @@ class WorkspaceState:
             top += gap
             right -= gap
             bottom -= gap
-            window.set_restrict_rect(Rect(left, top, right, bottom))
-            i += 1
+            r = Rect(left, top, right, bottom)
+            if i == n and w > n:  # when
+                break
+            window.set_restrict_rect(r)
         # stack the rest
-        num_rest = len(windows) - i
+        num_rest = w - n
         if num_rest <= 0:
             return
-        self._stack_the_rest(i, num_rest)
+        self._stack_the_rest(i - 1, num_rest, r)
 
-    def _stack_the_rest(self, index: int, num_rest: int):
-        # monitor width and height
-        wr = self.rect
-        mw, mh = wr.right - wr.left, wr.bottom - wr.top
-        # window width and height
-        w = int(mw * self.theme.stacking_window_width)
-        h = int(mh * self.theme.stacking_window_height)
-        # stacking boundaries
-        x_margin = int(mw * self.theme.stacking_margin_x)
-        y_margin = int(mh * self.theme.stacking_margin_y)
-        left, top, right, bottom = (
-            wr.left + x_margin,
-            wr.top + y_margin,
-            wr.right - x_margin,
-            wr.bottom - y_margin,
-        )
-        # final stacking area
-        x_step = min((right - left - w) // num_rest, self.theme.stacking_max_step)
-        y_step = min((bottom - top - h) // num_rest, self.theme.stacking_max_step)
-        bw, wh = x_step * num_rest + w, y_step * num_rest + h
-        x_margin, y_margin = (mw - bw) // 2, (mh - wh) // 2
-        left, top, right, bottom = (
-            wr.left + x_margin,
-            wr.top + y_margin,
-            wr.right - x_margin,
-            wr.bottom - y_margin,
-        )
+    def _stack_the_rest(self, index: int, num_rest: int, bound: Rect):
+        # window size
+        w = int(bound.width * self.theme.stacking_window_width)
+        h = int(bound.height * self.theme.stacking_window_height)
+        # offset between windows
+        x_step = (bound.width - w) // num_rest
+        y_step = (bound.height - h) // num_rest
+        left, top = bound.left, bound.top
         for i in range(index, len(self.tiling_windows)):
-            rect = Rect(left, top, left + w, top + h)
-            self.tiling_windows[i].set_restrict_rect(rect)
+            self.tiling_windows[i].set_restrict_rect(Rect(left, top, left + w, top + h))
             left += x_step
             top += y_step
 

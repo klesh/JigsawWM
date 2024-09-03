@@ -31,6 +31,6 @@ class Theme:
     affinity_index: Optional[Callable[[Monitor], int]] = None
     stacking_margin_x: float = 0.1
     stacking_margin_y: float = 0.1
-    stacking_window_width: float = 0.6
-    stacking_window_height: float = 0.6
+    stacking_window_width: float = 0.8
+    stacking_window_height: float = 0.8
     stacking_max_step: int = 30
