@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 class Splash(Dialog):
     """The window list splash screen."""
 
-    show_splash = Signal(MonitorState, int, Window)
+    show_splash = Signal(MonitorState, Window)
     hide_splash = Signal()
     monitor_state: QLabel
     workspace_states: QWidget
@@ -72,11 +72,10 @@ class Splash(Dialog):
                     logger.debug("window %s activated", msg.hWnd)
         return super().nativeEvent(eventType, message)
 
-    @Slot(MonitorState, int, Window)
+    # @Slot(MonitorState, Window)
     def show_windows_splash(
         self,
         monitor_state: MonitorState,
-        workspace_index: int,
         active_window: Optional[Window] = None,
     ):
         """Show the splash screen"""
@@ -85,8 +84,7 @@ class Splash(Dialog):
         self.monitor_state.setText(f"Monitor: {monitor_state.name}")
         # workspaces
         self.deleteDirectChildren(self.workspace_states)
-        if workspace_index == -1:
-            workspace_index = monitor_state.active_workspace_index
+        workspace_index = monitor_state.active_workspace_index
         if active_window is None:
             active_window = monitor_state.workspaces[workspace_index].last_active_window
         for i, workspace in enumerate(monitor_state.workspaces):

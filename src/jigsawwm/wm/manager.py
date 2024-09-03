@@ -11,15 +11,12 @@ from jigsawwm.ui import Splash, app
 from jigsawwm.w32 import hook
 from jigsawwm.w32.winevent import WinEvent
 from jigsawwm.w32.reg import get_current_desktop_id
-from jigsawwm.w32.window import Window
-from jigsawwm.w32.monitor import set_cursor_pos
 from jigsawwm.worker import ThreadWorker
 
 from .theme import Theme
 from .config import WmConfig, WmRule
-from .virtdesk_state import VirtDeskState, MonitorState, WorkspaceState
+from .virtdesk_state import VirtDeskState
 from .debug_state import inspect_virtdesk_states
-from .const import MONITOR_STATE, WORKSPACE_STATE
 
 
 logger = logging.getLogger(__name__)
@@ -73,7 +70,7 @@ class WindowManager(ThreadWorker):
         """Stop the WindowManagerCore service"""
         self.uninstall_hooks()
         self.stop_worker()
-        self.unhide_workspaces()
+        self.release_hidden_workspaces()
 
     def install_hooks(self):
         """Install hooks for window events"""
@@ -114,7 +111,7 @@ class WindowManager(ThreadWorker):
         """Save the windows state"""
         logger.info("saving state")
         with open(self.DEFAULT_STATE_PATH, "wb") as f:
-            pickle.dump(self.virtdesk_states)
+            pickle.dump(self.virtdesk_states, f)
 
     def load_state(self):
         """Load the windows state"""
@@ -139,7 +136,7 @@ class WindowManager(ThreadWorker):
         virtdesk_state = self.virtdesk_states.get(desktop_id)
         if virtdesk_state is None:
             # make sure monitor_state for current virtual desktop exists
-            virtdesk_state = VirtDeskState(desktop_id, self.config)
+            virtdesk_state = VirtDeskState(desktop_id, self.config, self.splash)
             self.virtdesk_states[desktop_id] = virtdesk_state
         return virtdesk_state
 
@@ -159,161 +156,68 @@ class WindowManager(ThreadWorker):
         self.sleep_till(ts + 0.2)
         self.virtdesk_state.handle_window_event(event, hwnd)
 
-    def activate_by_offset(self, delta: int) -> Callable:
-        """Activate managed window by offset
+    def enqueue_splash(self, fn: callable, *args):
+        """Enqueue a callable with splash window"""
+        self.enqueue(fn, *args)
+        return lambda: self.enqueue(self.splash.hide_splash.emit)
 
-        When the active window is managed, activate window in the same monitor by offset
-        When the active window is unmanaged, activate the first in the list or do nothing
-        """
-        window = self.virtdesk_state.window_detector.foreground_window()
-        if not window or not window.manageable or not window.tilable:
-            window = self.virtdesk_state.monitor_state.workspace.last_active_window
-        if not window or not window.manageable or not window.tilable:
-            if self.virtdesk_state.monitor_state.workspace.tiling_windows:
-                window = self.virtdesk_state.monitor_state.workspace.tiling_windows[0]
-        if not window or not window.manageable or not window.tilable:
-            return
-        monitor_state: MonitorState = window.attrs[MONITOR_STATE]
-        workspace_state: WorkspaceState = window.attrs[WORKSPACE_STATE]
-        src_index = workspace_state.tiling_windows.index(window)
-        dst_index = (src_index + delta) % len(workspace_state.tiling_windows)
-        dst_window = workspace_state.tiling_windows[dst_index]
-        dst_window.activate()
-        self.splash.show_splash.emit(
-            monitor_state, monitor_state.active_workspace_index, dst_window
-        )
-        return self.splash.hide_splash.emit
+    ########################################
+    # Window Management Actions
+    ########################################
 
-    def swap_by_offset(self, offset: int):
-        """Swap current active managed window with its sibling by offset"""
+    def next_window(self) -> Callable:
+        """Activate the managed window next to the last activated managed window"""
+        return self.enqueue_splash(self.virtdesk_state.switch_window_splash, +1)
 
-        def reorderer(windows: List[Window], src_idx: int):
-            dst_idx = (src_idx + offset) % len(windows)
-            windows[src_idx], windows[dst_idx] = windows[dst_idx], windows[src_idx]
+    def prev_window(self) -> Callable:
+        """Activate the managed window prior to the last activated managed window"""
+        return self.enqueue_splash(self.virtdesk_state.switch_window_splash, -1)
 
-        self.enqueue(self.virtdesk_state.reorder, reorderer)
+    def swap_next(self):
+        """Swap the current active managed window with its next in list"""
+        return self.enqueue(self.virtdesk_state.swap_window, +1)
+
+    def swap_prev(self):
+        """Swap the current active managed window with its previous in list"""
+        self.enqueue(self.virtdesk_state.swap_window, -1)
 
     def set_master(self):
         """Set the active active managed window as the Master or the second window
         in the list if it is Master already
         """
+        self.enqueue(self.virtdesk_state.set_master)
 
-        def reorderer(windows: List[Window], src_idx: int):
-            src_window = windows[src_idx]
-            if src_idx == 0:
-                src_idx = 1
-                src_window = windows[1]
-            # shift elements from the beginning to the src_window
-            for i in reversed(range(1, src_idx + 1)):
-                windows[i] = windows[i - 1]
-            # assign new master
-            windows[0] = src_window
-            return src_window
-
-        self.enqueue(self.virtdesk_state.reorder, reorderer)
-
-    def switch_theme_by_offset(self, delta: int) -> Callable:
-        """Switch theme by offset"""
-        logger.info("switching theme by offset: %s", delta)
-        monitor_state = self.virtdesk_state.monitor_state_from_cursor()
-        theme_index = self.config.get_theme_index(monitor_state.workspace.theme.name)
-        theme = self.config.themes[(theme_index + delta) % len(self.config.themes)]
-        self.enqueue(monitor_state.workspace.set_theme, theme)
-        self.splash.show_splash.emit(
-            monitor_state, monitor_state.active_workspace_index, None
-        )
-        return self.splash.hide_splash.emit
-
-    def get_monitor_state_by_offset(
-        self, delta: int, src_monitor_state: Optional[MonitorState] = None
-    ) -> MonitorState:
-        """Retrieves a pair of monitor_states, the current active one and its offset in the list"""
-        if not src_monitor_state:
-            src_monitor_state = self.virtdesk_state.monitor_state_from_cursor()
-        monitors = self.virtdesk_state.monitor_detector.monitors
-        src_idx = src_monitor_state.index
-        dst_idx = (src_idx + delta) % len(monitors)
-        dst_monitor_state = self.virtdesk_state.monitor_state_from_index(dst_idx)
-        return dst_monitor_state
-
-    def enqueue_hide_splash(self):
-        """Enqueue hide splash call"""
-        self.enqueue(self.splash.hide_splash.emit)
-
-    def switch_monitor_by_offset(self, delta: int):
+    def switch_monitor(self, delta: int):
         """Switch to another monitor by given offset"""
-        self.enqueue(self._switch_monitor_by_offset, delta)
-        return self.enqueue_hide_splash
+        return self.enqueue_splash(self.virtdesk_state.switch_monitor_splash, delta)
 
-    def _switch_monitor_by_offset(self, delta: int):
-        """Switch to another monitor by given offset"""
-        logger.debug("switch_monitor_by_offset: %s", delta)
-        srcms = self.virtdesk_state.monitor_state_from_cursor()
-        dstms = self.get_monitor_state_by_offset(delta, src_monitor_state=srcms)
-        self.splash.show_splash.emit(dstms, dstms.active_workspace_index, None)
-        self.virtdesk_state.active_monitor_index = dstms.index
-        if dstms.workspace.last_active_window:
-            dstms.workspace.last_active_window.activate()
-        elif dstms.workspace.tiling_windows:
-            dstms.workspace.tiling_windows[0].activate()
-        else:
-            set_cursor_pos(dstms.rect.center_x, dstms.rect.center_y)
-
-    def move_to_monitor_by_offset(self, delta: int):
+    def move_to_monitor(self, delta: int):
         """Move active window to another monitor by offset"""
-        logger.debug("move_to_monitor_by_offset(%s)", delta)
         self.enqueue(self.virtdesk_state.move_to_monitor, delta)
 
     def prev_theme(self):
         """Switch to previous theme in the themes list"""
-        self.switch_theme_by_offset(-1)
+        return self.enqueue_splash(self.virtdesk_state.switch_theme_splash, -1)
 
     def next_theme(self) -> Callable:
         """Switch to next theme in the themes list"""
-        return self.switch_theme_by_offset(+1)
-
-    def activate_next(self) -> Callable:
-        """Activate the managed window next to the last activated managed window"""
-        return self.activate_by_offset(+1)
-
-    def activate_prev(self) -> Callable:
-        """Activate the managed window prior to the last activated managed window"""
-        return self.activate_by_offset(-1)
-
-    def swap_next(self):
-        """Swap the current active managed window with its next in list"""
-        self.swap_by_offset(+1)
-
-    def swap_prev(self):
-        """Swap the current active managed window with its previous in list"""
-        self.swap_by_offset(-1)
+        return self.enqueue_splash(self.virtdesk_state.switch_theme_splash, +1)
 
     def prev_monitor(self):
         """Switch to previous monitor"""
-        return self.switch_monitor_by_offset(-1)
+        return self.enqueue_splash(self.virtdesk_state.switch_monitor_splash, -1)
 
     def next_monitor(self):
         """Switch to next monitor"""
-        return self.switch_monitor_by_offset(+1)
+        return self.enqueue_splash(self.virtdesk_state.switch_monitor_splash, +1)
 
     def move_to_prev_monitor(self):
         """Move active window to previous monitor"""
-        self.move_to_monitor_by_offset(-1)
+        self.enqueue(self.virtdesk_state.move_to_monitor, -1)
 
     def move_to_next_monitor(self):
         """Move active window to next monitor"""
-        self.move_to_monitor_by_offset(+1)
-
-    # def move_to_desktop(self, desktop_number: int, window: Optional[Window] = None):
-    #     """Move active window to another virtual desktop"""
-    #     virtdesk.move_to_desktop(desktop_number, window)
-    #     self.sync_windows()
-    #     self.save_state()
-
-    # def switch_desktop(self, desktop_number: int):
-    #     """Switch to another virtual desktop"""
-    #     virtdesk.switch_desktop(desktop_number)
-    #     self.sync_windows()
+        self.enqueue(self.virtdesk_state.move_to_monitor, +1)
 
     def toggle_tilable(self):
         """Toggle the active window between tilable and floating state"""
@@ -321,7 +225,6 @@ class WindowManager(ThreadWorker):
 
     def move_to_workspace(self, workspace_index: int):
         """Move active window to a specific workspace"""
-        pass
 
     def switch_workspace(
         self,
@@ -347,7 +250,7 @@ class WindowManager(ThreadWorker):
         # if not hide_splash_in:
         #     return ui.hide_windows_splash
 
-    def unhide_workspaces(self):
+    def release_hidden_workspaces(self):
         """Unhide all workspaces"""
         for virtdesk_state in self.virtdesk_states.values():
             for ms in virtdesk_state.monitor_states.values():

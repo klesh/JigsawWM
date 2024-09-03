@@ -73,8 +73,8 @@ wm = WindowManager(
 )
 
 hotkeys = [
-    ([Vk.WIN, Vk.J], wm.activate_next),
-    ([Vk.WIN, Vk.K], wm.activate_prev),
+    ([Vk.WIN, Vk.J], wm.next_window),
+    ([Vk.WIN, Vk.K], wm.prev_window),
     ([Vk.WIN, Vk.SHIFT, Vk.J], wm.swap_next),
     ([Vk.WIN, Vk.SHIFT, Vk.K], wm.swap_prev),
     ("Win+/", wm.set_master),
