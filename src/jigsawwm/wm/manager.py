@@ -216,7 +216,7 @@ class WindowManager(ThreadWorker):
         """Switch theme by offset"""
         logger.info("switching theme by offset: %s", delta)
         monitor_state = self.virtdesk_state.monitor_state_from_cursor()
-        theme_index = self.config.get_theme_index(monitor_state.theme.name)
+        theme_index = self.config.get_theme_index(monitor_state.workspace.theme.name)
         theme = self.config.themes[(theme_index + delta) % len(self.config.themes)]
         self.enqueue(monitor_state.workspace.set_theme, theme)
         self.splash.show_splash.emit(

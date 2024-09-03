@@ -40,6 +40,7 @@ wm = WindowManager(
         Theme(
             name="WideScreen Dwindle",
             layout_tiler=tilers.widescreen_dwindle_layout_tiler,
+            max_tiling_areas=4,
             icon_name="wide-dwindle.png",
             gap=2,
             strict=True,
