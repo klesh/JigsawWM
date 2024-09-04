@@ -116,10 +116,10 @@ class Splash(Dialog):
             self.workspace_states.layout().addWidget(widget)
         h = self.workspace_states.height()
         w = self.width()
-        tilable_windows = monitor_state.workspaces[workspace_index].tiling_windows
-        if self.windows != tilable_windows:
+        tiling_windows = monitor_state.workspaces[workspace_index].tiling_windows
+        if self.windows != tiling_windows:
             self.deleteDirectChildren(self.container)
-            self.windows = tilable_windows.copy()
+            self.windows = tiling_windows.copy()
             for window in self.windows:
                 icon = QImage.fromHICON(window.icon_handle)
                 ws_name: QWidget = self.create_row_widget(

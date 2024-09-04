@@ -67,13 +67,13 @@ class WorkspaceState:
         """Sync the internal windows list to the incoming windows list"""
         logger.debug("%s sync windows", self)
         tiling_windows, self.floating_windows, self.minimized_windows = (
-            self._split_windows()
+            self._group_windows()
         )
         if tiling_windows != self.tiling_windows:
             self.tiling_windows = tiling_windows
             self.arrange()
 
-    def _split_windows(self) -> Tuple[Set[Window], Set[Window], Set[Window]]:
+    def _group_windows(self) -> Tuple[Set[Window], Set[Window], Set[Window]]:
         tiling_windows, floating_windows, minimized_windows = set(), set(), set()
         for w in self.windows:
             if w.is_iconic:

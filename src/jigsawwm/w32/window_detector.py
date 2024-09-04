@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from typing import Set, Optional, Callable
 from jigsawwm.objectcache import ObjectCache, ChangeDetector
 from .window import HWND, Window, filter_windows, get_foreground_window
-from .monitor import get_cursor_pos
 
 
 @dataclass
@@ -73,13 +72,6 @@ class WindowDetector(ObjectCache, ChangeDetector):
     def foreground_window(self) -> Optional[Window]:
         """Get the current foreground window"""
         return self.get_window(get_foreground_window())
-
-    def window_restricted_at_cursor(self) -> Optional[Window]:
-        """Get the window under the cursor"""
-        pos = get_cursor_pos()
-        for w in self.windows:
-            if w.restricted_rect and w.restricted_rect.contains(pos.x, pos.y):
-                return w
 
 
 if __name__ == "__main__":
