@@ -218,49 +218,26 @@ class VirtDeskState:
     ) -> Optional[Tuple[Window, MonitorState]]:
         """Check if the window is being reordered"""
         # when dragging chrome tab into a new window, the window will not have MONITOR_STATE
-        monitor_state: MonitorState = window.attrs[MONITOR_STATE]
-        target_monitor_state = self.monitor_state_from_cursor()
+        ms: MonitorState = window.attrs[MONITOR_STATE]
+        dst_ms = self.monitor_state_from_cursor()
         # window being dragged to another monitor
-        if target_monitor_state != monitor_state:
-            logger.info("move %s to another monitor %s", window, target_monitor_state)
-            monitor_state.remove_windows(window)
-            target_monitor_state.add_windows(window)
-            window.attrs[PREFERRED_MONITOR_INDEX] = target_monitor_state.index
-            monitor_state.workspace.sync_windows()
-            target_monitor_state.workspace.sync_windows()
+        if dst_ms != ms:
+            logger.info("move %s to another monitor %s", window, dst_ms)
+            ms.remove_windows(window)
+            dst_ms.add_windows(window)
+            window.attrs[PREFERRED_MONITOR_INDEX] = dst_ms.index
+            ms.workspace.sync_windows()
+            dst_ms.workspace.sync_windows()
             return
         if not window.tilable:
             return
-        target_window = self.window_detector.window_restricted_at_cursor()
-        if not target_window or target_window == window:
-            monitor_state.workspace.restrict()
-            return
-        window_index = monitor_state.workspace.tiling_windows.index(window)
-        target_window_index = target_monitor_state.workspace.tiling_windows.index(
-            target_window
-        )
-        # swap
-        a = monitor_state.workspace
-        b = target_monitor_state.workspace
-        a.tiling_windows[window_index], b.tiling_windows[target_window_index] = (
-            target_window,
-            window,
-        )
-        a.windows.remove(window)
-        a.windows.add(target_window)
-        b.windows.add(window)
-        b.windows.remove(target_window)
-        a = window.restricted_rect
-        if a is None:
-            raise ValueError(f"window has no restricted rect: {window}")
-        b = target_window.restricted_rect
-        if b is None:
-            raise ValueError(f"target window has no restricted rect: {target_window}")
-        window.set_restrict_rect(b)
-        target_window.set_restrict_rect(a)
-        # update preferred monitor index
-        window.attrs[PREFERRED_MONITOR_INDEX] = target_monitor_state.index
-        target_window.attrs[PREFERRED_MONITOR_INDEX] = monitor_state.index
+        # window being reordered
+        src_idx = window.attrs[PREFERRED_WINDOW_INDEX]
+        dst_idx = ms.workspace.tiling_index_from_cursor()
+        if dst_idx >= 0:
+            self.swap_window(
+                idx=src_idx, delta=dst_idx - src_idx, workspace=ms.workspace
+            )
 
     def on_minimize_changed(self, window: Window):
         """Handle window minimized event"""
@@ -307,28 +284,40 @@ class VirtDeskState:
         dst_window.activate()
         self.splash.show_splash.emit(monitor_state, dst_window)
 
-    def reorder_windows(self, reorderer: Callable[[List[Window], int], None]):
+    def reorder_windows(
+        self,
+        reorderer: Callable[[List[Window], int], None],
+        idx: Optional[int] = None,
+        workspace: Optional[WorkspaceState] = None,
+    ):
         """Reorder windows"""
-        window = self.window_detector.foreground_window()
-        if not window.manageable or not window.tilable:
+        if workspace is None:
+            window = self.window_detector.foreground_window()
+            if not window.manageable or not window.tilable:
+                return
+            workspace = window.attrs[WORKSPACE_STATE]
+            if idx is None:
+                idx = window.attrs[PREFERRED_WINDOW_INDEX]
+        if len(workspace.tiling_windows) < 2:
             return
-        workspace_state: WorkspaceState = window.attrs[WORKSPACE_STATE]
-        if len(workspace_state.tiling_windows) < 2:
-            return
-        next_active_window = reorderer(
-            workspace_state.tiling_windows, workspace_state.tiling_windows.index(window)
-        )
-        workspace_state.arrange()
+        window = workspace.tiling_windows[idx]
+        next_active_window = reorderer(workspace.tiling_windows, idx)
+        workspace.arrange()
         (next_active_window or window).activate()
 
-    def swap_window(self, delta: int):
+    def swap_window(
+        self,
+        delta: int,
+        idx: Optional[int] = None,
+        workspace: Optional[WorkspaceState] = None,
+    ):
         """Swap current active managed window with its sibling by offset"""
 
         def swap(windows: List[Window], src_idx: int):
             dst_idx = (src_idx + delta) % len(windows)
             windows[src_idx], windows[dst_idx] = windows[dst_idx], windows[src_idx]
 
-        self.reorder_windows(swap)
+        self.reorder_windows(swap, idx=idx, workspace=workspace)
 
     def set_master(self):
         """Set the active active managed window as the Master or the second window

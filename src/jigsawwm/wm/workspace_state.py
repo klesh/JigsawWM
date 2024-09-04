@@ -4,6 +4,7 @@ import logging
 from typing import List, Optional, Set, Tuple
 
 from jigsawwm.w32.window import Window, Rect
+from jigsawwm.w32.monitor import get_cursor_pos
 
 from .theme import Theme
 from .const import PREFERRED_WINDOW_INDEX
@@ -25,6 +26,7 @@ class WorkspaceState:
     minimized_windows: List[Window]
     showing: bool = False
     last_active_window: Optional[Window] = None
+    tiling_areas: List[Rect] = []
 
     def __init__(
         self, monitor_index: int, index: int, name: str, rect: Rect, theme: Theme
@@ -119,6 +121,7 @@ class WorkspaceState:
         if theme.max_tiling_areas > 0:
             n = min(theme.max_tiling_areas, n)
         r = None
+        self.tiling_areas = []
         for left, top, right, bottom in theme.layout_tiler(work_area, n):
             window = windows[i]
             i += 1
@@ -137,6 +140,7 @@ class WorkspaceState:
             right -= gap
             bottom -= gap
             r = Rect(left, top, right, bottom)
+            self.tiling_areas.append(r)
             if i == n and w > n:  # when
                 break
             window.set_restrict_rect(r)
@@ -166,3 +170,11 @@ class WorkspaceState:
             return
         for window in self.tiling_windows:
             window.restrict()
+
+    def tiling_index_from_cursor(self) -> int:
+        """Get the index of the tiling area under the cursor"""
+        pos = get_cursor_pos()
+        for i, r in enumerate(self.tiling_areas):
+            if r.contains(pos.x, pos.y):
+                return i
+        return -1
