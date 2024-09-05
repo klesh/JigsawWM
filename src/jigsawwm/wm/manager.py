@@ -250,6 +250,10 @@ class WindowManager(ThreadWorker):
         # if not hide_splash_in:
         #     return ui.hide_windows_splash
 
+    ########################################
+    # Other helper functions
+    ########################################
+
     def release_hidden_workspaces(self):
         """Unhide all workspaces"""
         for virtdesk_state in self.virtdesk_states.values():

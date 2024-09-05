@@ -223,11 +223,7 @@ class VirtDeskState:
         # window being dragged to another monitor
         if dst_ms != ms:
             logger.info("move %s to another monitor %s", window, dst_ms)
-            ms.remove_windows(window)
-            dst_ms.add_windows(window)
-            window.attrs[PREFERRED_MONITOR_INDEX] = dst_ms.index
-            ms.workspace.sync_windows()
-            dst_ms.workspace.sync_windows()
+            self.move_to_monitor(window=window, dst_ms=dst_ms)
             return
         if not window.tilable:
             return
@@ -347,25 +343,31 @@ class VirtDeskState:
         workspace_state: WorkspaceState = window.attrs[WORKSPACE_STATE]
         workspace_state.sync_windows()
 
-    def move_to_monitor(self, delta: int):
+    def move_to_monitor(
+        self,
+        delta: int = 0,
+        window: Optional[Window] = None,
+        dst_ms: Optional[MonitorState] = None,
+    ):
         """Move window to another monitor"""
         if len(self.monitor_detector.monitors) < 2:
             return
-        window = self.window_detector.foreground_window()
+        window = window or self.window_detector.foreground_window()
         if not window.manageable or not window.tilable:
             return
-        monitor_state: MonitorState = window.attrs[MONITOR_STATE]
-        preferred_monitor_index = (monitor_state.index + delta) % len(
-            self.monitor_detector.monitors
-        )
-        window.attrs[PREFERRED_MONITOR_INDEX] = preferred_monitor_index
-        target_monitor_state = self.monitor_state_from_index(preferred_monitor_index)
-        monitor_state.remove_windows(window)
-        target_monitor_state.add_windows(window)
-        monitor_state.workspace.sync_windows()
-        target_monitor_state.workspace.sync_windows()
-        if monitor_state.workspace.tiling_windows:
-            monitor_state.workspace.tiling_windows[0].activate()
+        src_ms: MonitorState = window.attrs[MONITOR_STATE]
+        if dst_ms is None:
+            preferred_monitor_index = (src_ms.index + delta) % len(
+                self.monitor_detector.monitors
+            )
+            window.attrs[PREFERRED_MONITOR_INDEX] = preferred_monitor_index
+            dst_ms = self.monitor_state_from_index(src_ms.index + delta)
+        src_ms.remove_windows(window)
+        dst_ms.add_windows(window)
+        src_ms.workspace.sync_windows()
+        dst_ms.workspace.sync_windows()
+        if delta and src_ms.workspace.tiling_windows:
+            src_ms.workspace.tiling_windows[0].activate()
 
     def switch_monitor_splash(self, delta: int):
         """Switch to another monitor by given offset"""
@@ -389,4 +391,4 @@ class VirtDeskState:
         theme_index = self.config.get_theme_index(monitor_state.workspace.theme.name)
         theme = self.config.themes[(theme_index + delta) % len(self.config.themes)]
         self.monitor_state.workspace.set_theme(theme)
-        self.splash.show_splash.emit(monitor_state)
+        self.splash.show_splash.emit(monitor_state, None)

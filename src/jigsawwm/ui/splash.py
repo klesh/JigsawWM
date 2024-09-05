@@ -29,7 +29,7 @@ class Splash(Dialog):
     windows: List[Window]
     shellhook_msgid = 0
     created_windows = set()
-    # show_counter = 0
+    show_counter = 0
 
     def __init__(self):
         super().__init__()
@@ -157,16 +157,16 @@ class Splash(Dialog):
         x = rect.x() + (rect.width() - w) // 2
         y = rect.y() + (rect.height()) // 3
         self.setGeometry(x, y, w, h)
-        # self.show_counter += 1
-        # if self.show_counter % 2 == 0:
-        #     logger.info("ignore show_windows_splash due to hide_before_show")
-        #     return
+        self.show_counter += 1
+        if self.show_counter % 2 == 0:
+            logger.info("ignore show_windows_splash due to hide_before_show")
+            return
         self.show()
 
     @Slot()
     def hide_windows_splash(self):
         """Hide the splash screen"""
-        # self.show_counter += 1
+        self.show_counter += 1
         logger.info("WindowsSplash hide")
         self.hide()
 
