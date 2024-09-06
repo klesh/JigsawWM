@@ -225,15 +225,20 @@ class VirtDeskState:
             logger.info("move %s to another monitor %s", window, dst_ms)
             self.move_to_monitor(window=window, dst_ms=dst_ms)
             return
-        if not window.tilable:
+        ws: WorkspaceState = window.attrs[WORKSPACE_STATE]
+        if window.tilable and len(ws.tiling_windows) > 1:
+            # window being reordered
+            src_idx = window.attrs[PREFERRED_WINDOW_INDEX]
+            dst_idx = ms.workspace.tiling_index_from_cursor()
+            if dst_idx >= 0:
+                self.swap_window(
+                    idx=src_idx,
+                    delta=dst_idx - src_idx,
+                    workspace=ms.workspace,
+                    activate=False,
+                )
             return
-        # window being reordered
-        src_idx = window.attrs[PREFERRED_WINDOW_INDEX]
-        dst_idx = ms.workspace.tiling_index_from_cursor()
-        if dst_idx >= 0:
-            self.swap_window(
-                idx=src_idx, delta=dst_idx - src_idx, workspace=ms.workspace
-            )
+        ws.restrict()
 
     def on_minimize_changed(self, window: Window):
         """Handle window minimized event"""
@@ -285,6 +290,7 @@ class VirtDeskState:
         reorderer: Callable[[List[Window], int], None],
         idx: Optional[int] = None,
         workspace: Optional[WorkspaceState] = None,
+        activate: bool = True,
     ):
         """Reorder windows"""
         if workspace is None:
@@ -299,13 +305,15 @@ class VirtDeskState:
         window = workspace.tiling_windows[idx]
         next_active_window = reorderer(workspace.tiling_windows, idx)
         workspace.arrange()
-        (next_active_window or window).activate()
+        if activate:
+            (next_active_window or window).activate()
 
     def swap_window(
         self,
         delta: int,
         idx: Optional[int] = None,
         workspace: Optional[WorkspaceState] = None,
+        activate: bool = True,
     ):
         """Swap current active managed window with its sibling by offset"""
 
@@ -313,7 +321,7 @@ class VirtDeskState:
             dst_idx = (src_idx + delta) % len(windows)
             windows[src_idx], windows[dst_idx] = windows[dst_idx], windows[src_idx]
 
-        self.reorder_windows(swap, idx=idx, workspace=workspace)
+        self.reorder_windows(swap, idx=idx, workspace=workspace, activate=activate)
 
     def set_master(self):
         """Set the active active managed window as the Master or the second window
