@@ -14,8 +14,8 @@ from . import process
 from .sendinput import send_input, INPUT, INPUTTYPE, KEYBDINPUT, KEYEVENTF
 from .vk import Vk
 from .window_structs import Rect
+from .monitor import monitor_from_window, Monitor
 
-# from .monitor import get_monitor_from_window
 from .window_structs import (
     WindowStyle,
     WindowExStyle,
@@ -40,6 +40,8 @@ MANAGEABLE_CLASSNAME_BLACKLIST = {
 MANAGEABLE_EXE_BLACKLIST = {
     "msedge.exe",  # stupid copilot
     "msedgewebview2.exe",  # this shit would display a invisible widow and hide it right away, what the heck
+    # "msrdc.exe",  # WSL
+    # "wslhost.exe",
 }
 SWP_NOACTIVATE = 0x0010
 SET_WINDOW_RECT_FLAG = SWP_NOACTIVATE
@@ -66,10 +68,13 @@ class Window:
     attrs: dict = field(default_factory=dict)
     untilable_reason: Optional[str] = None
     unmanageable_reason: Optional[str] = None
+    parent: Optional["Window"] = None
+    manageable_children: Set["Window"] = None
 
     def __init__(self, hwnd: HWND):
         self.handle = hwnd
         self.attrs = {}
+        self.manageable_children = set()
 
     def __eq__(self, other):
         return isinstance(other, Window) and self.handle == other.handle
@@ -78,14 +83,16 @@ class Window:
         return hash(self.handle)
 
     def __repr__(self):
-        marks = " "
+        marks = ""
         if self.tilable:
             marks += "T"
         if self.manageable:
             marks += "M"
         if self.restricted_rect:
             marks += "R"
-        return f"<Window pid={self.pid} exe={self.exe_name} title={self.title[:10]} hwnd={self.handle}{marks}>"
+        if marks:
+            marks = f"({marks})"
+        return f"<Window hwnd={self.handle} pid={self.pid} exe={self.exe_name} title={self.title[:10]} child={len(self.manageable_children)}{marks}>"
 
     # some windows may change their style after created and there will be no event raised
     # so we need to remember the tilable state to avoid undesirable behavior.
@@ -125,8 +132,13 @@ class Window:
         #     return "invisible"
         if not self.is_toplevel:
             return "not a top-level window"
-        if not self.is_root_window:
-            return "not a root window"
+        # if not self.is_root_window:
+        #     return "not a root window"
+        style = self.get_style()
+        if WindowStyle.SYSMENU not in style:
+            return "SYSMENU not in style"
+        if WindowStyle.THICKFRAME not in style:
+            return "THICKFRAME not in style"
         if self.is_cloaked:
             return "%s cloaked"
         if self.class_name in MANAGEABLE_CLASSNAME_BLACKLIST:
@@ -147,13 +159,7 @@ class Window:
 
     @property
     def title(self) -> str:
-        """Retrieves the text of the specified window's title bar (if it has one)
-
-        Ref: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowtexta
-
-        :return: text of the title bar
-        :rtype: str
-        """
+        """Retrieves the text of the specified window's title bar (if it has one)"""
         title = create_unicode_buffer(255)
         user32.GetWindowTextW(self.handle, title, 255)
         return str(title.value)
@@ -228,19 +234,18 @@ class Window:
     @property
     def is_fullscreen(self) -> bool:
         """Check if window is fullscreen"""
-        return False
-
-    #     m = get_monitor_from_window(self.handle)
-    #     if m is None:  # window is moved outside of monitors
-    #         return False
-    #     mr = m.get_rect()
-    #     wr = self.get_rect()
-    #     return (
-    #         mr.top == wr.top
-    #         and mr.left == wr.left
-    #         and mr.right == wr.right
-    #         and mr.bottom == wr.bottom
-    #     )
+        hmon = monitor_from_window(self.handle)
+        if hmon is None:  # window is hmonoved outside of monitors
+            return False
+        m = Monitor(hmon)
+        mr = m.get_rect()
+        wr = self.get_rect()
+        return (
+            mr.top == wr.top
+            and mr.left == wr.left
+            and mr.right == wr.right
+            and mr.bottom == wr.bottom
+        )
 
     @cached_property
     def is_elevated(self):
@@ -559,6 +564,7 @@ class Window:
         for s in WindowStyle:
             if s in style:
                 style_flags.append(s.name)
+        print("overlapped   :", WindowStyle.OVERLAPPEDWINDOW in style, file=file)
         print("style        :", ", ".join(style_flags), file=file)
         exstyle = self.get_exstyle()
         exstyle_flags = []
@@ -587,8 +593,9 @@ class Window:
         print("is_cloaked   :", self.is_cloaked, file=file)
         print("is_visible   :", self.is_visible, file=file)
         print("is_iconic    :", self.is_iconic, file=file)
-        print("is_resored   :", self.is_restored, file=file)
+        print("is_restored  :", self.is_restored, file=file)
         print("unmanageable :", self.unmanageable_reason, file=file)
+        print("untilable    :", self.untilable_reason, file=file)
         print("parent       :", self.parent_handle, file=file)
         print("dpi_awareness:", self.dpi_awareness.name, file=file)
 
@@ -654,16 +661,30 @@ if __name__ == "__main__":
         if param.isdigit():
             Window(int(param)).inspect()
         elif param == "app":
-            for wd in filter_windows(
-                lambda hwnd: Window(hwnd) if Window(hwnd).manageable else None
+            for wd in map(
+                Window,
+                filter_windows(
+                    lambda hwnd: (
+                        Window(hwnd)
+                        if Window(hwnd).manageable and Window(hwnd).is_visible
+                        else None
+                    )
+                ),
             ):
                 print()
                 wd.inspect()
         elif param == "fix":
-            for wd in filter_windows(
-                lambda w: w.manageable and w.get_rect().right > 1000
+            for wd in map(
+                Window,
+                filter_windows(
+                    lambda hwnd: (
+                        Window(hwnd)
+                        if Window(hwnd).manageable and Window(hwnd).is_off
+                        else None
+                    )
+                ),
             ):
-                wd.set_rect(RECT(100, 100, 500, 600))
+                print()
                 wd.inspect()
     else:
         time.sleep(2)

@@ -34,7 +34,7 @@ class MonitorDetector(ObjectCache, ChangeDetector):
         ObjectCache.__init__(self, vacuum_interval=vacuum_interval)
         ChangeDetector.__init__(self)
 
-    def create(self, key: HMONITOR) -> Monitor:
+    def _create(self, key: HMONITOR) -> Monitor:
         """Create a monitor for the cache based on the HMONITOR value"""
         return Monitor(key)
 

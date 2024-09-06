@@ -16,7 +16,10 @@ class ObjectCache(ThreadWorker):
     cache: Dict[Any, Any]
     vacuum_interval: int
 
-    def __init__(self, vacuum_interval: int = 3600):
+    def __init__(
+        self,
+        vacuum_interval: int = 3600,
+    ):
         self.cache = {}
         self.vacuum_interval = vacuum_interval
         self._lock = Lock()
@@ -33,14 +36,21 @@ class ObjectCache(ThreadWorker):
     def get(self, key: Any) -> Any:
         """Get a object from the cache"""
         if key not in self.cache:
+            created = False
             with self._lock:
                 if key not in self.cache:
-                    self.cache[key] = self.create(key)
+                    self.cache[key] = self._create(key)
+                    created = True
+            if created:
+                self._created(self.cache[key])
         return self.cache[key]
 
     @abc.abstractmethod
-    def create(self, key: Any) -> Any:
+    def _create(self, key: Any) -> Any:
         """Create a object for the cache"""
+
+    def _created(self, val: Any):
+        """A callback when a new object is created"""
 
     def vaccum(self):
         """Remove all invalid windows from the cache"""

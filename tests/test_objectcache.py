@@ -11,7 +11,7 @@ class Foo:
 def test_object_cache_concurrency():
     """Test the ObjectCache class"""
     cache = ObjectCache()
-    cache.create = Foo
+    cache._create = Foo
     result = [None for i in range(100)]
 
     def concurrent_get(i):

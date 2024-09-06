@@ -34,12 +34,18 @@ class WindowDetector(ObjectCache, ChangeDetector):
         self.windows = set()
         self.created = created
 
-    def create(self, key: HWND) -> Window:
+    def _create(self, key: HWND) -> Window:
         """Create a window for the cache based on the HWND value"""
         w = Window(key)
         if self.created:
             return self.created(w) or w
         return w
+
+    def _created(self, val: Window):
+        if val.manageable and val.parent_handle:
+            val.parent = self.get_window(val.parent_handle)
+            val.parent.manageable_children.add(val)
+        return self.created(val) if self.created else None
 
     def is_valid(self, val: Window) -> bool:
         """Check if the window is still valid"""
@@ -63,10 +69,14 @@ class WindowDetector(ObjectCache, ChangeDetector):
         changed, new_keys, removed_keys = self.detect_changes()
         if changed:
             self.windows = set(map(self.get_window, self.previous_keys))
+        removed_windows = set(map(self.get_window, removed_keys))
+        for w in removed_windows:
+            if w.parent:
+                w.parent.manageable_children.remove(w)
         return WindowsChange(
             changed,
             set(map(self.get_window, new_keys)),
-            set(map(self.get_window, removed_keys)),
+            removed_windows,
         )
 
     def foreground_window(self) -> Optional[Window]:

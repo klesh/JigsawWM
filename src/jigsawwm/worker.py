@@ -54,7 +54,9 @@ class ThreadWorker:
         try:
             fn(*args)
         except Exception as err:  # pylint: disable=bare-except, broad-exception-caught
-            logger.exception("error calling %s", fn, exc_info=True, stack_info=True)
+            logger.exception(
+                "error calling %s %s", fn, args, exc_info=True, stack_info=True
+            )
             self.on_consume_queue_error(fn, err)
 
     def on_consume_queue_error(self, fn: callable, err: Exception):
