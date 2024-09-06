@@ -515,41 +515,45 @@ class Window:
         """Hides the window"""
         self.show_window(ShowWindowCmd.SW_HIDE)
 
-    X_OFFSET = 10000
-    Y_OFFSET = 10000
+    LEFT = 10000
+    TOP = 10000
+    RIGHT = 15000
+    BOTTOM = 15000
 
-    @property
-    def is_off(self):
-        return self.get_rect().left >= self.X_OFFSET
-
-    @property
-    def is_on(self):
-        return not self.is_off
+    def is_showing(self):
+        """Check if window is off screen"""
+        r = self.get_rect()
+        return not (
+            r.left >= self.LEFT
+            and r.right <= self.RIGHT
+            and r.top >= self.TOP
+            and r.bottom <= self.BOTTOM
+        )
 
     def toggle(self, show: bool):
         """Toggle window visibility"""
+        showing = self.is_showing()
+        if showing == show:
+            logger.debug("%s already %s", self, "showing" if show else "hiding")
+            return
         logger.debug("%s toggle showing to %s", self, show)
         r = self.get_rect()
         if show:
-            if self.is_off:
-                self.set_rect(
-                    Rect(
-                        r.left - self.X_OFFSET,
-                        r.top - self.Y_OFFSET,
-                        r.right - self.Y_OFFSET,
-                        r.bottom - self.Y_OFFSET,
-                    )
-                )
+            nr = Rect(
+                r.left - self.LEFT,
+                r.top - self.TOP,
+                r.right - self.TOP,
+                r.bottom - self.TOP,
+            )
         else:
-            if self.is_on:
-                self.set_rect(
-                    Rect(
-                        r.left + self.X_OFFSET,
-                        r.top + self.Y_OFFSET,
-                        r.right + self.Y_OFFSET,
-                        r.bottom + self.Y_OFFSET,
-                    )
-                )
+            nr = Rect(
+                r.left + self.LEFT,
+                r.top + self.TOP,
+                r.right + self.TOP,
+                r.bottom + self.TOP,
+            )
+        self.set_rect(nr)
+        logger.debug("%s toggle by setting rect to %s", self, nr)
 
     @cached_property
     def is_root_window(self) -> bool:
@@ -685,7 +689,7 @@ if __name__ == "__main__":
                 filter_windows(
                     lambda hwnd: (
                         Window(hwnd)
-                        if Window(hwnd).manageable and Window(hwnd).is_off
+                        if Window(hwnd).manageable and not Window(hwnd).is_showing()
                         else None
                     )
                 ),

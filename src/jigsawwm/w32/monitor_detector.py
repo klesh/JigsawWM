@@ -42,9 +42,9 @@ class MonitorDetector(ObjectCache, ChangeDetector):
         """Check if the monitor is still valid"""
         return val.exists()
 
-    def get_monitor(self, hwnd: HMONITOR) -> Monitor:
+    def get_monitor(self, hmon: HMONITOR) -> Monitor:
         """Retrieve a monitor from the cache"""
-        return self.get(hwnd)
+        return self.get(hmon)
 
     def current_keys(self) -> set:
         """Retrieve all interested keys at the moment"""
@@ -75,4 +75,7 @@ class MonitorDetector(ObjectCache, ChangeDetector):
 
     def monitor_from_window(self, hwnd: int) -> Monitor:
         """Retrieves monitor from a window"""
-        return self.get_monitor(monitor_from_window(hwnd))
+        hmon = monitor_from_window(hwnd)
+        if not hmon:
+            return self.monitor_from_cursor()
+        return self.get_monitor(hmon)

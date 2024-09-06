@@ -113,6 +113,7 @@ class MonitorState:
             return
         self.workspaces[self.active_workspace_index].toggle(False)
         self.workspaces[workspace_index].toggle(True)
+        self.workspaces[workspace_index].arrange()
         self.active_workspace_index = workspace_index
 
     def move_to_workspace(self, window: Window, workspace_index: int):

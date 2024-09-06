@@ -148,9 +148,19 @@ class VirtDeskState:
                         self.active_monitor_index,
                     )
                     if starting_up:
+                        # if starting up, set the preferred monitor index to its current monitor
                         w.attrs[PREFERRED_MONITOR_INDEX] = (
                             self.monitor_state_from_window(w).index
                         )
+                        if not w.is_showing():
+                            w.toggle(True)
+                    elif w.parent:
+                        w.attrs[PREFERRED_MONITOR_INDEX] = w.parent.attrs[
+                            PREFERRED_MONITOR_INDEX
+                        ]
+                        # w.attrs[PREFERRED_WORKSPACE_INDEX] = w.parent.attrs[
+                        #     PREFERRED_WORKSPACE_INDEX
+                        # ]
                     else:
                         w.attrs[PREFERRED_MONITOR_INDEX] = self.active_monitor_index
                 monitor_state = self.monitor_state_from_index(

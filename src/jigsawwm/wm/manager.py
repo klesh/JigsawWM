@@ -4,7 +4,7 @@ import logging
 import pickle
 import os
 import time
-from typing import Dict, List, Callable, Optional
+from typing import Dict, List, Callable
 from ctypes.wintypes import HWND, LONG, DWORD
 
 from jigsawwm.ui import Splash, app
@@ -229,26 +229,11 @@ class WindowManager(ThreadWorker):
     def switch_workspace(
         self,
         workspace_index: int,
-        monitor_name: str = None,
-        hide_splash_in: Optional[float] = None,
     ) -> Callable:
         """Switch to a specific workspace"""
-        # monitor_state = (
-        #     self.virtdesk_state.monitor_state_by_name(monitor_name)
-        #     if monitor_name
-        #     else self.virtdesk_state.monitor_state_from_cursor()
-        # )
-        # window = monitor_state.workspaces[workspace_index].last_active_window
-        # ui.show_windows_splash(monitor_state, workspace_index, window)
-        # self.enqueue(
-        #     WinEvent.CMD_CALL,
-        #     self._switch_workspace,
-        #     monitor_state,
-        #     workspace_index,
-        #     hide_splash_in,
-        # )
-        # if not hide_splash_in:
-        #     return ui.hide_windows_splash
+        self.enqueue(
+            self.virtdesk_state.monitor_state.switch_workspace, workspace_index
+        )
 
     ########################################
     # Other helper functions

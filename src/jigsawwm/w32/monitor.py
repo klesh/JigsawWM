@@ -193,7 +193,7 @@ class Monitor:
         if info is None:
             return f"<Monitor: {self.name} {self.handle} gone>"
         rect = info.rcMonitor
-        return f"<Monitor: {self.name} {self.handle} {rect.left} {rect.top} {rect.right-rect.left} {rect.bottom-rect.top} {self.get_scale_factor()/100}>"
+        return f"<Monitor hmon={self.handle} {self.name} {self.handle} {rect.left} {rect.top} {rect.right-rect.left} {rect.bottom-rect.top} {self.get_scale_factor()/100}>"
 
     @cached_property
     def name(self) -> str:

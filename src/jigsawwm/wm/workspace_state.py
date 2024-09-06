@@ -46,11 +46,10 @@ class WorkspaceState:
 
     def toggle(self, show: bool):
         """Toggle all windows in the workspace"""
-        logger.debug("%s toggle show %s", self, show)
         self.showing = show
         for window in self.windows:
             window.toggle(show)
-        self.arrange()
+        # self.arrange()
 
     def set_theme(self, theme: Theme):
         """Set theme for the workspace"""
