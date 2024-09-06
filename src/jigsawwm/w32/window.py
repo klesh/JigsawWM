@@ -128,17 +128,23 @@ class Window:
         """Check if window is a app window which could be managed"""
         if process.is_elevated(self.pid):
             return "admin window"
-        # if not self.is_visible:
-        #     return "invisible"
         if not self.is_toplevel:
             return "not a top-level window"
-        # if not self.is_root_window:
-        #     return "not a root window"
+        # all the following windows should be manageable
+        #
+        # dbeaver preference window
+        # style        : BORDER, CLIPCHILDREN, CLIPSIBLINGS, DLGFRAME, MAXIMIZEBOX, POPUP, SIZEBOX, SYSMENU, VISIBLE
+        #
+        # fusion360 preference window
+        # style        : BORDER, CLIPCHILDREN, CLIPSIBLINGS, DLGFRAME, POPUP, SIZEBOX, SYSMENU, VISIBLE
+        #
+        # obsidian
+        # style        : BORDER, CLIPSIBLINGS, DLGFRAME, GROUP, MAXIMIZEBOX, SIZEBOX, VISIBLE
         style = self.get_style()
-        if WindowStyle.SYSMENU not in style:
-            return "SYSMENU not in style"
-        if WindowStyle.THICKFRAME not in style:
-            return "THICKFRAME not in style"
+        if WindowStyle.BORDER not in style:
+            return "BORDER not in style"
+        if WindowStyle.DLGFRAME not in style:
+            return "DLGFRAME not in style"
         if self.is_cloaked:
             return "%s cloaked"
         if self.class_name in MANAGEABLE_CLASSNAME_BLACKLIST:
