@@ -1,7 +1,6 @@
 """Window Manager Operations"""
 
 import logging
-import pickle
 import os
 import time
 from typing import Dict, List, Callable
@@ -106,28 +105,6 @@ class WindowManager(ThreadWorker):
         for hook_id in self._hook_ids:
             hook.unhook_winevent(hook_id)
         self._hook_ids = []
-
-    def save_state(self):
-        """Save the windows state"""
-        logger.info("saving state")
-        with open(self.DEFAULT_STATE_PATH, "wb") as f:
-            pickle.dump(self.virtdesk_states, f)
-
-    def load_state(self):
-        """Load the windows state"""
-        logger.info("loading state")
-        if os.path.exists(self.DEFAULT_STATE_PATH):
-            with open(self.DEFAULT_STATE_PATH, "rb") as f:
-                try:
-                    self.virtdesk_states = pickle.load(f)
-                    logger.info("load windows states from the last session")
-                except:  # pylint: disable=bare-except
-                    logger.exception("load windows states error", exc_info=True)
-                    return
-            for virtdesk_state in self.virtdesk_states.values():
-                virtdesk_state.update_config(self.config)
-        else:
-            logger.info("nothing from the last session")
 
     @property
     def virtdesk_state(self) -> VirtDeskState:

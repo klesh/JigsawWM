@@ -104,6 +104,7 @@ class VirtDeskState:
         elif self._wait_mouse_released:
             if not sysinout.state.get(Vk.LBUTTON):
                 self._wait_mouse_released = False
+                self.on_windows_changed()
             else:
                 return
         if not hwnd:
