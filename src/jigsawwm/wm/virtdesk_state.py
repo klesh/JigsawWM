@@ -162,7 +162,10 @@ class VirtDeskState:
                         #     PREFERRED_WORKSPACE_INDEX
                         # ]
                     else:
-                        w.attrs[PREFERRED_MONITOR_INDEX] = self.active_monitor_index
+                        # w.attrs[PREFERRED_MONITOR_INDEX] = self.active_monitor_index
+                        w.attrs[PREFERRED_MONITOR_INDEX] = (
+                            self.monitor_state_from_cursor().index
+                        )
                 monitor_state = self.monitor_state_from_index(
                     w.attrs[PREFERRED_MONITOR_INDEX]
                 )

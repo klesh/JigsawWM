@@ -231,10 +231,13 @@ class WindowManager(ThreadWorker):
         workspace_index: int,
     ) -> Callable:
         """Switch to a specific workspace"""
-        self.enqueue(
-            self.virtdesk_state.monitor_state_from_cursor().switch_workspace,
-            workspace_index,
-        )
+
+        def _switch_workspace_splash():
+            ms = self.virtdesk_state.monitor_state_from_cursor()
+            ms.switch_workspace(workspace_index)
+            self.splash.show_splash.emit(ms, None)
+
+        return self.enqueue_splash(_switch_workspace_splash)
 
     ########################################
     # Other helper functions

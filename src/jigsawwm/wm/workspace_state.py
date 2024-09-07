@@ -50,6 +50,12 @@ class WorkspaceState:
         self.showing = show
         for window in self.windows:
             window.toggle(show)
+        if show:
+            w = self.last_active_window
+            if not w and self.tiling_windows:
+                w = self.tiling_windows[0]
+            if w:
+                w.activate()
 
     def set_theme(self, theme: Theme):
         """Set theme for the workspace"""
