@@ -138,39 +138,43 @@ class VirtDeskState:
             logger.info("no window changes detected")
             return
         # handle new windows
+        monitor_state = self.monitor_state_from_cursor()
         if result.new_windows:
             for i, w in enumerate(topo_sort_windows(result.new_windows)):
                 logger.info("new window appeared: %s", w)
-                if PREFERRED_MONITOR_INDEX not in w.attrs:
-                    logger.debug(
-                        "window %s has no preferred monitor index, set it to %d",
-                        w,
-                        self.active_monitor_index,
-                    )
-                    if starting_up:
-                        # if starting up, set the preferred monitor index to its current monitor
-                        w.attrs[PREFERRED_MONITOR_INDEX] = (
-                            self.monitor_state_from_window(w).index
-                        )
-                        if not w.is_showing():
-                            w.toggle(True)
+                pmi, pwi, pmi_reason, pwi_reason = 0, 0, "", ""
+                if starting_up:
+                    # TODO: calculate the preferred monitor index
+                    pmi_reason, pwi_reason = "starting up", "starting up"
+                    ms = self.monitor_state_from_window(w)
+                    pmi = ms.index
+                    pwi = ms.active_workspace_index
+                    if not w.is_showing():
+                        w.toggle(True)
+                else:
+                    if PREFERRED_MONITOR_INDEX in w.attrs:
+                        pmi_reason = "rule"
+                        pmi = w.attrs[PREFERRED_MONITOR_INDEX]
                     elif w.parent:
-                        w.attrs[PREFERRED_MONITOR_INDEX] = w.parent.attrs[
-                            PREFERRED_MONITOR_INDEX
-                        ]
-                        # w.attrs[PREFERRED_WORKSPACE_INDEX] = w.parent.attrs[
-                        #     PREFERRED_WORKSPACE_INDEX
-                        # ]
+                        pmi_reason = "parent"
+                        pmi = w.parent.attrs[PREFERRED_MONITOR_INDEX]
                     else:
-                        # w.attrs[PREFERRED_MONITOR_INDEX] = self.active_monitor_index
-                        w.attrs[PREFERRED_MONITOR_INDEX] = (
-                            self.monitor_state_from_cursor().index
-                        )
-                monitor_state = self.monitor_state_from_index(
-                    w.attrs[PREFERRED_MONITOR_INDEX]
-                )
+                        pmi_reason = "cursor"
+                        pmi = monitor_state.index
+                    if PREFERRED_WORKSPACE_INDEX in w.attrs:
+                        pwi_reason = "rule"
+                        pwi = w.attrs[PREFERRED_WORKSPACE_INDEX]
+                    elif w.parent:
+                        pwi_reason = "parent"
+                        pwi = w.parent.attrs[WORKSPACE_STATE].index
+                    else:
+                        pwi = monitor_state.active_workspace_index
+                w.attrs[PREFERRED_MONITOR_INDEX] = pmi
+                logger.info("%s preferred monitor index: %s (%s)", w, pmi, pmi_reason)
+                w.attrs[PREFERRED_WORKSPACE_INDEX] = pwi
+                logger.info("%s preferred workspace index: %s (%s)", w, pwi, pwi_reason)
                 w.attrs[PREFERRED_WINDOW_INDEX] = i
-                monitor_state.add_windows(w)
+                self.monitor_states[self.monitor_detector.monitors[pmi]].add_windows(w)
         # handle removed windows
         if result.removed_windows:
             logger.info("window disappeared: %s", result.removed_windows)
@@ -364,6 +368,10 @@ class VirtDeskState:
         workspace_state: WorkspaceState = window.attrs[WORKSPACE_STATE]
         workspace_state.sync_windows()
 
+    ########################################
+    # Monitor related methods
+    ########################################
+
     def move_to_monitor(
         self,
         delta: int = 0,
@@ -405,6 +413,10 @@ class VirtDeskState:
         if window:
             window.activate()
 
+    ########################################
+    # Workspace related methods
+    ########################################
+
     def switch_theme_splash(self, delta: int) -> Callable:
         """Switch theme by offset"""
         logger.info("switching theme by offset: %s", delta)
@@ -413,3 +425,15 @@ class VirtDeskState:
         theme = self.config.themes[(theme_index + delta) % len(self.config.themes)]
         self.monitor_state.workspace.set_theme(theme)
         self.splash.show_splash.emit(monitor_state, None)
+
+    def switch_workspace_splash(self, workspace_index: int):
+        """Switch to a specific workspace"""
+        ms = self.monitor_state_from_cursor()
+        ms.switch_workspace(workspace_index)
+        self.splash.show_splash.emit(ms, None)
+
+    def move_to_workspace(self, workspace_index: int):
+        """Switch to a specific workspace"""
+        ms = self.monitor_state_from_cursor()
+        ms.switch_workspace(workspace_index)
+        self.splash.show_splash.emit(ms, None)
