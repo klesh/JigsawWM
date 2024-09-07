@@ -232,7 +232,8 @@ class WindowManager(ThreadWorker):
     ) -> Callable:
         """Switch to a specific workspace"""
         self.enqueue(
-            self.virtdesk_state.monitor_state.switch_workspace, workspace_index
+            self.virtdesk_state.monitor_state_from_cursor().switch_workspace,
+            workspace_index,
         )
 
     ########################################

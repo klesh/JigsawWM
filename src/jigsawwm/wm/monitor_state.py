@@ -83,7 +83,7 @@ class MonitorState:
         """Get the active workspace of the monitor"""
         return self.workspaces[self.active_workspace_index]
 
-    def add_windows(self, *windows: List[Window]):
+    def add_windows(self, *windows: Window):
         """Add new windows to the active workspace of the monitor"""
         for w in windows:
             workspace_index: int = w.attrs.get(
@@ -93,6 +93,8 @@ class MonitorState:
             ws.windows.add(w)
             w.attrs[MONITOR_STATE] = self
             w.attrs[WORKSPACE_STATE] = ws
+            if not w.tilable:
+                self.move_floating_window_in(w)
             logger.info("added window %s to %s", w, ws)
 
     def remove_windows(self, *windows: List[Window]):
@@ -113,7 +115,7 @@ class MonitorState:
             return
         self.workspaces[self.active_workspace_index].toggle(False)
         self.workspaces[workspace_index].toggle(True)
-        self.workspaces[workspace_index].arrange()
+        # self.workspaces[workspace_index].arrange()
         self.active_workspace_index = workspace_index
 
     def move_to_workspace(self, window: Window, workspace_index: int):
@@ -137,3 +139,19 @@ class MonitorState:
         self.workspace.remove_window(root)
         self.workspaces[workspace_index].add_windows(children)
         return self.workspaces[workspace_index].add_window(window)
+
+    def move_floating_window_in(self, window: Window):
+        """Move the floating window into the monitor"""
+        logger.debug("%s move floating window %s in", self, window)
+        wr = window.get_rect()
+        mr = self.rect
+        if mr.contains(wr.left, wr.top):
+            return
+        window.set_rect(
+            Rect(
+                mr.x + mr.width // 4,
+                mr.y + mr.height // 4,
+                mr.width // 2,
+                mr.height // 2,
+            )
+        )

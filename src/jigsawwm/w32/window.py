@@ -70,6 +70,8 @@ class Window:
     unmanageable_reason: Optional[str] = None
     parent: Optional["Window"] = None
     manageable_children: Set["Window"] = None
+    off: bool = False
+    original_rect: Optional[Rect] = None
 
     def __init__(self, hwnd: HWND):
         self.handle = hwnd
@@ -509,10 +511,12 @@ class Window:
 
     def show(self):
         """Shows the window"""
+        logger.debug("%s show", self)
         self.show_window(ShowWindowCmd.SW_SHOWNA)
 
     def hide(self):
         """Hides the window"""
+        logger.debug("%s hide", self)
         self.show_window(ShowWindowCmd.SW_HIDE)
 
     LEFT = 10000
@@ -532,28 +536,27 @@ class Window:
 
     def toggle(self, show: bool):
         """Toggle window visibility"""
-        showing = self.is_showing()
-        if showing == show:
+        if show != self.off:
             logger.debug("%s already %s", self, "showing" if show else "hiding")
             return
+        self.off = not show
         logger.debug("%s toggle showing to %s", self, show)
-        r = self.get_rect()
+        r = None
         if show:
-            nr = Rect(
-                r.left - self.LEFT,
-                r.top - self.TOP,
-                r.right - self.TOP,
-                r.bottom - self.TOP,
-            )
+            r = self.original_rect
+            self.show()
         else:
-            nr = Rect(
+            r = self.get_rect()
+            self.original_rect = r
+            r = Rect(
                 r.left + self.LEFT,
                 r.top + self.TOP,
                 r.right + self.TOP,
                 r.bottom + self.TOP,
             )
-        self.set_rect(nr)
-        logger.debug("%s toggle by setting rect to %s", self, nr)
+            self.hide()
+        self.set_rect(r)
+        logger.debug("%s toggle by setting rect to %s", self, r)
 
     @cached_property
     def is_root_window(self) -> bool:
