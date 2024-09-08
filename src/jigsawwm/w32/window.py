@@ -243,7 +243,7 @@ class Window:
     def is_fullscreen(self) -> bool:
         """Check if window is fullscreen"""
         hmon = monitor_from_window(self.handle)
-        if hmon is None:  # window is hmonoved outside of monitors
+        if not hmon:  # window is hmonoved outside of monitors
             return False
         m = Monitor(hmon)
         mr = m.get_rect()

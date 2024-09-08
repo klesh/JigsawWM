@@ -108,9 +108,11 @@ class MonitorState:
 
     def add_window(self, w: Window, workspace_index: Optional[int] = None):
         """Add new windows to the active workspace of the monitor"""
-        workspace_index = workspace_index or self.active_workspace_index
+        if workspace_index is None:
+            workspace_index = self.active_workspace_index
         ws = self.workspaces[workspace_index]
         ws.windows.add(w)
+        w.toggle(ws.showing)
         w.attrs[MONITOR_STATE] = self
         w.attrs[WORKSPACE_STATE] = ws
         if not w.tilable:
@@ -150,9 +152,6 @@ class MonitorState:
             logger.warning(
                 "window %s already in workspace index %s", window, workspace_index
             )
-            return
-        if window not in self.workspace.windows:
-            logger.warning("window %s not in active workspace", window)
             return
         # should move all windows
         while window.parent:

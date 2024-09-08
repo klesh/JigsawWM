@@ -145,7 +145,6 @@ class VirtDeskState:
                 self.distribute_windows_on_starting_up(result.new_windows)
             else:
                 self.distribute_new_windows(result.new_windows)
-
         # handle removed windows
         if result.removed_windows:
             logger.info("window disappeared: %s", result.removed_windows)

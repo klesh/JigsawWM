@@ -200,9 +200,6 @@ class WindowManager(ThreadWorker):
         """Toggle the active window between tilable and floating state"""
         self.enqueue(self.virtdesk_state.toggle_tilable)
 
-    def move_to_workspace(self, workspace_index: int):
-        """Move active window to a specific workspace"""
-
     def switch_workspace(
         self,
         workspace_index: int,
@@ -211,6 +208,10 @@ class WindowManager(ThreadWorker):
         return self.enqueue_splash(
             self.virtdesk_state.switch_workspace_splash, workspace_index
         )
+
+    def move_to_workspace(self, workspace_index: int):
+        """Move active window to a specific workspace"""
+        self.enqueue(self.virtdesk_state.move_to_workspace, workspace_index)
 
     ########################################
     # Other helper functions
