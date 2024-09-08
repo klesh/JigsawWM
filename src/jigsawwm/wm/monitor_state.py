@@ -104,28 +104,30 @@ class MonitorState:
         elif PREFERRED_WINDOW_INDEX in w.attrs:
             del w.attrs[PREFERRED_WINDOW_INDEX]
         logger.info("assigned %s to %s with index %s", w, workspace, window_index)
-        self.add_windows(w, workspace_index=workspace.index)
+        self.add_window(w, workspace_index=workspace.index)
 
-    def add_windows(self, *windows: Window, workspace_index: Optional[int] = None):
+    def add_window(self, w: Window, workspace_index: Optional[int] = None):
         """Add new windows to the active workspace of the monitor"""
-        for w in windows:
-            workspace_index = workspace_index or self.active_workspace_index
-            ws = self.workspaces[workspace_index]
-            ws.windows.add(w)
-            w.attrs[MONITOR_STATE] = self
-            w.attrs[WORKSPACE_STATE] = ws
-            if not w.tilable:
-                self.move_floating_window_in(w)
-            logger.info("added window %s to %s", w, ws)
+        workspace_index = workspace_index or self.active_workspace_index
+        ws = self.workspaces[workspace_index]
+        ws.windows.add(w)
+        w.attrs[MONITOR_STATE] = self
+        w.attrs[WORKSPACE_STATE] = ws
+        if not w.tilable:
+            self.move_floating_window_in(w)
+        logger.info("added window %s to %s", w, ws)
+        for c in w.manageable_children:
+            self.add_window(c, workspace_index=workspace_index)
 
-    def remove_windows(self, *windows: List[Window]):
+    def remove_window(self, w: Window):
         """Remove windows from the active workspace of the monitor"""
-        for w in windows:
-            ws: WorkspaceState = w.attrs[WORKSPACE_STATE]
-            ws.windows.remove(w)
-            # del w.attrs[MONITOR_STATE]
-            # del w.attrs[WORKSPACE_STATE]
-            logger.info("removed window %s from %s", w, ws)
+        ws: WorkspaceState = w.attrs[WORKSPACE_STATE]
+        ws.windows.remove(w)
+        logger.info("removed window %s from %s", w, ws)
+        for c in w.manageable_children:
+            self.remove_window(c)
+        # del w.attrs[MONITOR_STATE]
+        # del w.attrs[WORKSPACE_STATE]
 
     def switch_workspace(self, workspace_index: int):
         """Switch to the workspace by index"""
@@ -152,13 +154,12 @@ class MonitorState:
         if window not in self.workspace.windows:
             logger.warning("window %s not in active workspace", window)
             return
-        # remove the window from its current workspace
-        root = window.root_window
-        children = window.find_manageable_children()
-        self.workspace.remove_windows(children)
-        self.workspace.remove_window(root)
-        self.workspaces[workspace_index].add_windows(children)
-        return self.workspaces[workspace_index].add_window(window)
+        # should move all windows
+        while window.parent:
+            window = window.parent
+        self.remove_window(window)
+        self.add_window(window, workspace_index=workspace_index)
+        self.workspace.arrange()
 
     def move_floating_window_in(self, window: Window):
         """Move the floating window into the monitor"""

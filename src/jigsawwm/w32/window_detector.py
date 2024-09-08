@@ -60,7 +60,7 @@ class WindowDetector(ObjectCache, ChangeDetector):
 
         def check(hwnd: HWND):
             w = self.get_window(hwnd)
-            return (w.is_visible or w.off) and w.manageable
+            return (w.is_visible or w.off) and w.manageable and w.is_root_window
 
         return filter_windows(check)
 

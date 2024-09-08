@@ -25,8 +25,8 @@ def test_try_swapping_windows(mocker):
     w1.attrs[MONITOR_STATE] = ms1
     vd = VirtDeskState(b"111", config)
     vd.monitor_state_from_cursor = mocker.Mock(return_value=ms2)
-    ms1.remove_windows = mocker.Mock()
-    ms2.add_windows = mocker.Mock()
+    ms1.remove_window = mocker.Mock()
+    ms2.add_window = mocker.Mock()
     assert vd.on_moved_or_resized(w1)
-    assert ms1.remove_windows.call_count == 1
-    assert ms2.add_windows.call_count == 1
+    assert ms1.remove_window.call_count == 1
+    assert ms2.add_window.call_count == 1

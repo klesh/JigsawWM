@@ -86,7 +86,7 @@ class VirtDeskState:
                     % len(self.monitor_detector.monitors)
                 ]
                 monitor_state = self.monitor_states[m]
-                monitor_state.add_windows(w)
+                monitor_state.add_window(w)
             for ms in self.monitor_states.values():
                 ms.workspace.sync_windows()
 
@@ -151,7 +151,7 @@ class VirtDeskState:
             logger.info("window disappeared: %s", result.removed_windows)
             for w in result.removed_windows:
                 monitor_state: MonitorState = w.attrs[MONITOR_STATE]
-                monitor_state.remove_windows(w)
+                monitor_state.remove_window(w)
         for ms in self.monitor_states.values():
             ms.workspace.sync_windows()
 
@@ -177,12 +177,12 @@ class VirtDeskState:
         """Distribute windows on starting up JigsawWM - respect the current windows' positions"""
         logger.info("distributing windows on starting up")
         root_windows = [w for w in windows if not w.parent]
-        child_windows = [w for w in windows if w.parent]
+        # child_windows = [w for w in windows if w.parent]
         for i, w in enumerate(topo_sort_windows(root_windows)):
             ms = self.monitor_state_from_window(w)
             ms.assign_window(w, window_index=i)
-        for w in child_windows:
-            self.distribute_window_by_parent(w)
+        # for w in child_windows:
+        #     self.distribute_window_by_parent(w)
 
     def distribute_new_windows(self, windows: List[Window]):
         """Distribute new windows to the right monitor and workspace - respect rules for windows"""
@@ -405,7 +405,7 @@ class VirtDeskState:
             )
             window.attrs[PREFERRED_MONITOR_INDEX] = preferred_monitor_index
             dst_ms = self.monitor_state_from_index(src_ms.index + delta)
-        src_ms.remove_windows(window)
+        src_ms.remove_window(window)
         dst_ms.assign_window(window)
         src_ms.workspace.sync_windows()
         dst_ms.workspace.sync_windows()
@@ -448,6 +448,8 @@ class VirtDeskState:
 
     def move_to_workspace(self, workspace_index: int):
         """Switch to a specific workspace"""
-        ms = self.monitor_state_from_cursor()
-        ms.switch_workspace(workspace_index)
-        self.splash.show_splash.emit(ms, None)
+        window = self.window_detector.foreground_window()
+        if not window.manageable:
+            return
+        ms: MonitorState = window.attrs[MONITOR_STATE]
+        ms.move_to_workspace(window, workspace_index)
