@@ -156,7 +156,7 @@ class VirtDeskState:
             ms.workspace.sync_windows()
 
     def apply_rule_to_window(self, window: Window) -> bool:
-        """Check if window is to be tilable"""
+        """Apply rule to window"""
         rule = self.config.find_rule_for_window(window)
         if rule:
             logger.info("applying rule %s on %s", rule, window)
