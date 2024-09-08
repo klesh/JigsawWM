@@ -4,7 +4,7 @@ resued between different calls to the same HMONITOR value
 """
 
 from dataclasses import dataclass
-from typing import Set, List
+from typing import Set, List, Optional
 from jigsawwm.objectcache import ObjectCache, ChangeDetector
 from .monitor import (
     HMONITOR,
@@ -13,6 +13,7 @@ from .monitor import (
     monitor_from_point,
     monitor_from_cursor,
     monitor_from_window,
+    Rect,
 )
 
 
@@ -29,6 +30,7 @@ class MonitorDetector(ObjectCache, ChangeDetector):
     """A cache of all monitors"""
 
     monitors: List[Monitor]
+    full_rect: Rect
 
     def __init__(self, vacuum_interval: int = 3600):
         ObjectCache.__init__(self, vacuum_interval=vacuum_interval)
@@ -59,6 +61,7 @@ class MonitorDetector(ObjectCache, ChangeDetector):
                 # key=lambda m: m.get_monitor_central(),
                 key=lambda m: m.name,
             )
+            self.refresh_full_rect()
         return MonitorsChange(
             changed,
             set(map(self.get_monitor, new_keys)),
@@ -73,9 +76,20 @@ class MonitorDetector(ObjectCache, ChangeDetector):
         """Retrieves monitor from the cursor"""
         return self.get_monitor(monitor_from_cursor())
 
-    def monitor_from_window(self, hwnd: int) -> Monitor:
+    def monitor_from_window(self, hwnd: int) -> Optional[Monitor]:
         """Retrieves monitor from a window"""
         hmon = monitor_from_window(hwnd)
         if not hmon:
-            return self.monitor_from_cursor()
+            return None
+            # return self.monitor_from_cursor()
         return self.get_monitor(hmon)
+
+    def refresh_full_rect(self) -> Rect:
+        """Refresh the full rect of all monitors"""
+        rects = [m.get_rect() for m in self.monitors]
+        left = min(r.left for r in rects)
+        top = min(r.top for r in rects)
+        right = max(r.right for r in rects)
+        bottom = max(r.bottom for r in rects)
+        self.full_rect = Rect(left, top, right, bottom)
+        return self.full_rect

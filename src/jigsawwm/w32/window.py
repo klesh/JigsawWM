@@ -515,50 +515,13 @@ class Window:
         """Shows the window"""
         logger.debug("%s show", self)
         self.show_window(ShowWindowCmd.SW_SHOWNA)
+        self.off = False
 
     def hide(self):
         """Hides the window"""
         logger.debug("%s hide", self)
         self.show_window(ShowWindowCmd.SW_HIDE)
-
-    LEFT = 10000
-    TOP = 10000
-    RIGHT = 15000
-    BOTTOM = 15000
-
-    def is_showing(self):
-        """Check if window is off screen"""
-        r = self.get_rect()
-        return not (
-            r.left >= self.LEFT
-            and r.right <= self.RIGHT
-            and r.top >= self.TOP
-            and r.bottom <= self.BOTTOM
-        )
-
-    def toggle(self, show: bool):
-        """Toggle window visibility"""
-        if show != self.off:
-            logger.debug("%s already %s", self, "showing" if show else "hiding")
-            return
-        self.off = not show
-        logger.debug("%s toggle showing to %s", self, show)
-        r = None
-        if show:
-            r = self.original_rect
-            self.show()
-        else:
-            r = self.get_rect()
-            self.original_rect = r
-            r = Rect(
-                r.left + self.LEFT,
-                r.top + self.TOP,
-                r.right + self.TOP,
-                r.bottom + self.TOP,
-            )
-            self.hide()
-        self.set_rect(r)
-        logger.debug("%s toggle by setting rect to %s", self, r)
+        self.off = True
 
     @cached_property
     def is_root_window(self) -> bool:
@@ -682,19 +645,6 @@ if __name__ == "__main__":
                     lambda hwnd: (
                         Window(hwnd)
                         if Window(hwnd).manageable and Window(hwnd).is_visible
-                        else None
-                    )
-                ),
-            ):
-                print()
-                wd.inspect()
-        elif param == "fix":
-            for wd in map(
-                Window,
-                filter_windows(
-                    lambda hwnd: (
-                        Window(hwnd)
-                        if Window(hwnd).manageable and not Window(hwnd).is_showing()
                         else None
                     )
                 ),

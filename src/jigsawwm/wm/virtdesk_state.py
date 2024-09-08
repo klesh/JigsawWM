@@ -65,11 +65,12 @@ class VirtDeskState:
                 monitor_index = self.monitor_detector.monitors.index(m)
                 logger.info("new monitor connected: %s index: %d", m, monitor_index)
                 self.monitor_states[m] = MonitorState(
-                    monitor_index,
-                    m.name,
-                    self.config.workspace_names,
-                    m.get_work_rect(),
-                    self.config.get_theme_for_monitor(m),
+                    index=monitor_index,
+                    name=m.name,
+                    workspace_names=self.config.workspace_names,
+                    rect=m.get_work_rect(),
+                    full_rect=self.monitor_detector.full_rect,
+                    theme=self.config.get_theme_for_monitor(m),
                 )
         # remove monitor states
         if result.removed_monitors:
@@ -79,16 +80,15 @@ class VirtDeskState:
                 for ws in ms.workspaces:
                     windows_tobe_rearranged |= ws.windows
         # rearrange windows
-        if windows_tobe_rearranged:
-            for w in windows_tobe_rearranged:
-                m = self.monitor_detector.monitors[
-                    w.attrs.get(PREFERRED_MONITOR_INDEX, 0)
-                    % len(self.monitor_detector.monitors)
-                ]
-                monitor_state = self.monitor_states[m]
-                monitor_state.add_window(w)
-            for ms in self.monitor_states.values():
-                ms.workspace.sync_windows()
+        for w in windows_tobe_rearranged:
+            m = self.monitor_detector.monitors[
+                w.attrs.get(PREFERRED_MONITOR_INDEX, 0)
+                % len(self.monitor_detector.monitors)
+            ]
+            monitor_state = self.monitor_states[m]
+            monitor_state.add_window(w)
+        for ms in self.monitor_states.values():
+            ms.workspace.sync_windows()
 
     def handle_window_event(self, event: WinEvent, hwnd: Optional[HWND] = None):
         """Check if we need to sync windows for given window event"""
@@ -176,12 +176,9 @@ class VirtDeskState:
         """Distribute windows on starting up JigsawWM - respect the current windows' positions"""
         logger.info("distributing windows on starting up")
         root_windows = [w for w in windows if not w.parent]
-        # child_windows = [w for w in windows if w.parent]
         for i, w in enumerate(topo_sort_windows(root_windows)):
             ms = self.monitor_state_from_window(w)
             ms.assign_window(w, window_index=i)
-        # for w in child_windows:
-        #     self.distribute_window_by_parent(w)
 
     def distribute_new_windows(self, windows: List[Window]):
         """Distribute new windows to the right monitor and workspace - respect rules for windows"""

@@ -29,12 +29,19 @@ class WorkspaceState:
     tiling_areas: List[Rect] = []
 
     def __init__(
-        self, monitor_index: int, index: int, name: str, rect: Rect, theme: Theme
+        self,
+        monitor_index: int,
+        index: int,
+        name: str,
+        rect: Rect,
+        alter_rect: Rect,
+        theme: Theme,
     ):
         self.monitor_index = monitor_index
         self.index = index
         self.name = name
         self.rect = rect
+        self.alter_rect = alter_rect
         self.theme = theme
         self.windows = set()
         self.tiling_windows = []
@@ -49,7 +56,7 @@ class WorkspaceState:
         logger.debug("%s toggle %s", self, show)
         self.showing = show
         for window in self.windows:
-            window.toggle(show)
+            self.toggle_window(window, show)
         if show:
             w = self.last_active_window
             if not w and self.tiling_windows:
@@ -183,3 +190,36 @@ class WorkspaceState:
             if r.contains(pos.x, pos.y):
                 return i
         return -1
+
+    def toggle_window(self, window: Window, show: bool):
+        """Toggle window visibility"""
+        if show != window.off:
+            logger.debug("%s already %s", self, "showing" if show else "hiding")
+            return
+        logger.debug("%s toggle showing to %s", self, show)
+        r = window.get_rect()
+        logger.debug(
+            "%s window rect %s,  mr: %s, alter_rect: %s",
+            window,
+            r,
+            self.rect,
+            self.alter_rect,
+        )
+        if show:
+            r = Rect(
+                self.rect.left + (r.left - self.alter_rect.left),
+                self.rect.top + (r.top - self.alter_rect.top),
+                self.rect.right + (r.right - self.alter_rect.right),
+                self.rect.bottom + (r.bottom - self.alter_rect.bottom),
+            )
+            window.show()
+        else:
+            r = Rect(
+                self.alter_rect.left + (r.left - self.rect.left),
+                self.alter_rect.top + (r.top - self.rect.top),
+                self.alter_rect.right + (r.right - self.rect.right),
+                self.alter_rect.bottom + (r.bottom - self.rect.bottom),
+            )
+            window.hide()
+        window.set_rect(r)
+        logger.debug("%s toggle by setting rect to %s", self, r)

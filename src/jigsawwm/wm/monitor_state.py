@@ -30,6 +30,7 @@ class MonitorState:
     index: int
     name: str
     rect: Rect
+    full_rect: Rect
     theme: Theme
     workspaces: List[WorkspaceState]
     active_workspace_index: int
@@ -40,18 +41,20 @@ class MonitorState:
         name: str,
         workspace_names: List[str],
         rect: Rect,
+        full_rect: Rect,
         theme: Theme,
     ):
         self.index = index
         self.name = name
         self.rect = rect
+        self.full_rect = full_rect
         self.theme = theme
         self.active_workspace_index = 0
         self.workspaces = []
         self.set_workspaces(workspace_names)
 
     def __repr__(self) -> str:
-        return f"<MonitorState #{self.index}>"
+        return f"<MonitorState #{self.index} {self.rect}>"
 
     def set_workspaces(self, workspace_names: List[str]):
         """Update the workspaces"""
@@ -65,13 +68,15 @@ class MonitorState:
                 active_workspace.windows |= ws.windows
         if len(self.workspaces) < len(workspace_names):
             while len(self.workspaces) < len(workspace_names):
+                i = len(self.workspaces)
                 self.workspaces.append(
                     WorkspaceState(
-                        self.index,
-                        len(self.workspaces),
-                        workspace_names[len(self.workspaces)],
-                        self.rect,
-                        self.theme,
+                        monitor_index=self.index,
+                        index=len(self.workspaces),
+                        name=workspace_names[i],
+                        rect=self.rect,
+                        alter_rect=self.compute_alter_rect(i),
+                        theme=self.theme,
                     )
                 )
         for i, workspace_name in enumerate(workspace_names):
@@ -112,7 +117,7 @@ class MonitorState:
             workspace_index = self.active_workspace_index
         ws = self.workspaces[workspace_index]
         ws.windows.add(w)
-        w.toggle(ws.showing)
+        ws.toggle_window(w, ws.showing)
         w.attrs[MONITOR_STATE] = self
         w.attrs[WORKSPACE_STATE] = ws
         if not w.tilable:
@@ -175,3 +180,12 @@ class MonitorState:
                 mr.height // 2,
             )
         )
+
+    def compute_alter_rect(self, workspace_index: int):
+        """Compute the alter rect(window would be moved into when workspace is toggled off) for the workspace,
+        all alter_rect would be spread over the y axis of the current full_rect()"""
+        left = self.rect.left
+        top = self.full_rect.bottom + self.rect.height * workspace_index
+        right = self.rect.right
+        bottom = top + self.rect.height
+        return Rect(left, top, right, bottom)

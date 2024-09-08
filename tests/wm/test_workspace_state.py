@@ -10,7 +10,12 @@ def test_workspace_state_update_list_from_set(mocker):
         name="test_theme", layout_tiler=mocker.Mock(), new_window_as_master=False
     )
     ws = WorkspaceState(
-        0, 0, "test_ws", Rect(left=0, top=0, right=1000, bottom=1000), theme
+        monitor_index=0,
+        index=0,
+        name="test_ws",
+        rect=Rect(left=0, top=0, right=1000, bottom=1000),
+        alter_rect=Rect(left=0, top=1000, right=1000, bottom=2000),
+        theme=theme,
     )
     old_list = [Window(1), Window(2)]
     new_set = set(old_list + [Window(3)])
@@ -47,14 +52,19 @@ def test_workspace_state_dynamic_tiling(mocker):
         stacking_window_height=0.6,
     )
     ws = WorkspaceState(
-        0, 0, "test_ws", Rect(left=0, top=0, right=1000, bottom=1000), theme
+        monitor_index=0,
+        index=0,
+        name="test_ws",
+        rect=Rect(left=0, top=0, right=1000, bottom=1000),
+        alter_rect=Rect(left=0, top=1000, right=1000, bottom=2000),
+        theme=theme,
     )
     ws.tiling_windows = [
-        mocker.Mock(set_restrict_rect=mocker.Mock()),
-        mocker.Mock(set_restrict_rect=mocker.Mock()),
-        mocker.Mock(set_restrict_rect=mocker.Mock()),
-        mocker.Mock(set_restrict_rect=mocker.Mock()),
-        mocker.Mock(set_restrict_rect=mocker.Mock()),
+        mocker.Mock(set_restrict_rect=mocker.Mock(), attrs={}),
+        mocker.Mock(set_restrict_rect=mocker.Mock(), attrs={}),
+        mocker.Mock(set_restrict_rect=mocker.Mock(), attrs={}),
+        mocker.Mock(set_restrict_rect=mocker.Mock(), attrs={}),
+        mocker.Mock(set_restrict_rect=mocker.Mock(), attrs={}),
     ]
 
     ws.arrange()

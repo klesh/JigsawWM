@@ -18,15 +18,27 @@ def test_try_swapping_windows(mocker):
         layout_tiler=mocker.Mock(return_value=[]),
         new_window_as_master=False,
     )
-    ms1 = MonitorState(0, "ms1", ["ws"], Rect(0, 1920, 0, 1080), theme)
-    ms2 = MonitorState(1, "ms2", ["ws"], Rect(0, 800, 0, 600), theme)
+    ms1 = MonitorState(
+        index=0,
+        name="ms1",
+        workspace_names=["ws"],
+        rect=Rect(0, 1920, 0, 1080),
+        full_rect=Rect(0, 1920, 0, 1080),
+        theme=theme,
+    )
+    ms2 = MonitorState(
+        index=1,
+        name="ms2",
+        workspace_names=["ws"],
+        rect=Rect(0, 800, 0, 600),
+        full_rect=Rect(0, 1920, 0, 1080),
+        theme=theme,
+    )
     w1, w2, w3 = Window(1), Window(2), Window(3)
     w1.manageable = True
     w1.attrs[MONITOR_STATE] = ms1
-    vd = VirtDeskState(b"111", config)
+    vd = VirtDeskState(b"111", config, None)
     vd.monitor_state_from_cursor = mocker.Mock(return_value=ms2)
-    ms1.remove_window = mocker.Mock()
-    ms2.add_window = mocker.Mock()
-    assert vd.on_moved_or_resized(w1)
-    assert ms1.remove_window.call_count == 1
-    assert ms2.add_window.call_count == 1
+    vd.move_to_monitor = mocker.Mock()
+    vd.on_moved_or_resized(w1)
+    vd.move_to_monitor.assert_called()
