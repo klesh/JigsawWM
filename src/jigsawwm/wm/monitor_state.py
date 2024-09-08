@@ -1,13 +1,19 @@
 """MonitorState maintains state of a specific Monitor under a Virtual Desktop"""
 
 import logging
-from typing import List
+from typing import List, Optional
 
 from jigsawwm.w32.window import Window, Rect
 
 from .theme import Theme
 from .workspace_state import WorkspaceState
-from .const import PREFERRED_WORKSPACE_INDEX, MONITOR_STATE, WORKSPACE_STATE
+from .const import (
+    MONITOR_STATE,
+    WORKSPACE_STATE,
+    PREFERRED_MONITOR_INDEX,
+    PREFERRED_WORKSPACE_INDEX,
+    PREFERRED_WINDOW_INDEX,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -83,12 +89,27 @@ class MonitorState:
         """Get the active workspace of the monitor"""
         return self.workspaces[self.active_workspace_index]
 
-    def add_windows(self, *windows: Window):
+    def assign_window(
+        self,
+        w: Window,
+        workspace: Optional[WorkspaceState] = None,
+        window_index: Optional[int] = None,
+    ):
+        """Assign a window to the monitor"""
+        workspace = workspace or self.workspace
+        w.attrs[PREFERRED_MONITOR_INDEX] = self.index
+        w.attrs[PREFERRED_WORKSPACE_INDEX] = workspace.index
+        if window_index:
+            w.attrs[PREFERRED_WINDOW_INDEX] = window_index
+        elif PREFERRED_WINDOW_INDEX in w.attrs:
+            del w.attrs[PREFERRED_WINDOW_INDEX]
+        logger.info("assigned %s to %s with index %s", w, workspace, window_index)
+        self.add_windows(w, workspace_index=workspace.index)
+
+    def add_windows(self, *windows: Window, workspace_index: Optional[int] = None):
         """Add new windows to the active workspace of the monitor"""
         for w in windows:
-            workspace_index: int = w.attrs.get(
-                PREFERRED_WORKSPACE_INDEX, self.active_workspace_index
-            )
+            workspace_index = workspace_index or self.active_workspace_index
             ws = self.workspaces[workspace_index]
             ws.windows.add(w)
             w.attrs[MONITOR_STATE] = self

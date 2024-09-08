@@ -141,41 +141,11 @@ class VirtDeskState:
         # handle new windows
         monitor_state = self.monitor_state_from_cursor()
         if result.new_windows:
-            for i, w in enumerate(topo_sort_windows(result.new_windows)):
-                logger.info("new window appeared: %s", w)
-                pmi, pwi, pmi_reason, pwi_reason = 0, 0, "", ""
-                if starting_up:
-                    # TODO: calculate the preferred monitor index
-                    pmi_reason, pwi_reason = "starting up", "starting up"
-                    ms = self.monitor_state_from_window(w)
-                    pmi = ms.index
-                    pwi = ms.active_workspace_index
-                    if not w.is_showing():
-                        w.toggle(True)
-                else:
-                    if PREFERRED_MONITOR_INDEX in w.attrs:
-                        pmi_reason = "rule"
-                        pmi = w.attrs[PREFERRED_MONITOR_INDEX]
-                    elif w.parent:
-                        pmi_reason = "parent"
-                        pmi = w.parent.attrs[PREFERRED_MONITOR_INDEX]
-                    else:
-                        pmi_reason = "cursor"
-                        pmi = monitor_state.index
-                    if PREFERRED_WORKSPACE_INDEX in w.attrs:
-                        pwi_reason = "rule"
-                        pwi = w.attrs[PREFERRED_WORKSPACE_INDEX]
-                    elif w.parent:
-                        pwi_reason = "parent"
-                        pwi = w.parent.attrs[WORKSPACE_STATE].index
-                    else:
-                        pwi = monitor_state.active_workspace_index
-                w.attrs[PREFERRED_MONITOR_INDEX] = pmi
-                logger.info("%s preferred monitor index: %s (%s)", w, pmi, pmi_reason)
-                w.attrs[PREFERRED_WORKSPACE_INDEX] = pwi
-                logger.info("%s preferred workspace index: %s (%s)", w, pwi, pwi_reason)
-                w.attrs[PREFERRED_WINDOW_INDEX] = i
-                self.monitor_states[self.monitor_detector.monitors[pmi]].add_windows(w)
+            if starting_up:
+                self.distribute_windows_on_starting_up(result.new_windows)
+            else:
+                self.distribute_new_windows(result.new_windows)
+
         # handle removed windows
         if result.removed_windows:
             logger.info("window disappeared: %s", result.removed_windows)
@@ -202,6 +172,44 @@ class VirtDeskState:
                 window.attrs[PREFERRED_WORKSPACE_INDEX] = rule.preferred_workspace_index
             if rule.static_window_index is not None:
                 window.attrs[STATIC_WINDOW_INDEX] = rule.static_window_index
+
+    def distribute_windows_on_starting_up(self, windows: List[Window]):
+        """Distribute windows on starting up JigsawWM - respect the current windows' positions"""
+        logger.info("distributing windows on starting up")
+        root_windows = [w for w in windows if not w.parent]
+        child_windows = [w for w in windows if w.parent]
+        for i, w in enumerate(topo_sort_windows(root_windows)):
+            ms = self.monitor_state_from_window(w)
+            ms.assign_window(w, window_index=i)
+        for w in child_windows:
+            self.distribute_window_by_parent(w)
+
+    def distribute_new_windows(self, windows: List[Window]):
+        """Distribute new windows to the right monitor and workspace - respect rules for windows"""
+        logger.info("distributing new windows")
+        for w in windows:
+            logger.info("new window appeared: %s", w)
+            if w.parent:
+                self.distribute_window_by_parent(w)
+            else:
+                self.distribute_window_by_preferred(w)
+
+    def distribute_window_by_parent(self, window: Window):
+        """Distribute window to its parent's workspace"""
+        logger.info("distributing %s to its parent's workspace", window)
+        ms: MonitorState = window.parent.attrs[MONITOR_STATE]
+        ws: WorkspaceState = window.parent.attrs[WORKSPACE_STATE]
+        ms.assign_window(window, workspace=ws)
+
+    def distribute_window_by_preferred(self, window: Window):
+        """Distribute window to the preferred monitor and workspace"""
+        logger.info("distributing %s by its preferred", window)
+        default_msi = self.monitor_state_from_cursor().index
+        msi = window.attrs.get(PREFERRED_MONITOR_INDEX, default_msi)
+        ms = self.monitor_state_from_index(msi)
+        wsi = window.attrs.get(PREFERRED_WORKSPACE_INDEX, ms.active_workspace_index)
+        ws = ms.workspaces[wsi]
+        ms.assign_window(window, workspace=ws)
 
     def on_foreground_window_changed(self, window: Window):
         """Try to switch workspace for window activation"""
@@ -338,6 +346,11 @@ class VirtDeskState:
         def swap(windows: List[Window], src_idx: int):
             dst_idx = (src_idx + delta) % len(windows)
             windows[src_idx], windows[dst_idx] = windows[dst_idx], windows[src_idx]
+            a, b = windows[src_idx].attrs, windows[dst_idx].attrs
+            a[PREFERRED_WINDOW_INDEX], b[PREFERRED_WINDOW_INDEX] = (
+                b[PREFERRED_WINDOW_INDEX],
+                a[PREFERRED_WINDOW_INDEX],
+            )
 
         self.reorder_windows(swap, idx=idx, workspace=workspace, activate=activate)
 
@@ -393,7 +406,7 @@ class VirtDeskState:
             window.attrs[PREFERRED_MONITOR_INDEX] = preferred_monitor_index
             dst_ms = self.monitor_state_from_index(src_ms.index + delta)
         src_ms.remove_windows(window)
-        dst_ms.add_windows(window)
+        dst_ms.assign_window(window)
         src_ms.workspace.sync_windows()
         dst_ms.workspace.sync_windows()
         if delta and src_ms.workspace.tiling_windows:

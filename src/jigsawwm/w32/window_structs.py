@@ -224,3 +224,13 @@ class Rect:
     def contains(self, x: int, y: int):
         """Return True if the point is inside the rectangle."""
         return self.left <= x <= self.right and self.top <= y <= self.bottom
+
+    def contains_rect(self, other: "Rect"):
+        """Return True if the other rectangle is inside the rectangle."""
+        return self.contains(other.left, other.top) and self.contains(
+            other.right, other.bottom
+        )
+
+    def contains_rect_center(self, other: "Rect"):
+        """Return True if the other rectangle's center is inside the rectangle."""
+        return self.contains(other.center_x, other.center_x)

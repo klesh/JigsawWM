@@ -400,6 +400,8 @@ class Window:
 
     def set_restrict_rect(self, rect: Rect):
         """Set the restricted rect"""
+        if not self.is_restored:
+            self.restore()
         self.set_rect(rect)
         self.restricted_rect = rect
         self.compensated_rect = None
