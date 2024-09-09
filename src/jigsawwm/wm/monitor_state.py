@@ -146,6 +146,7 @@ class MonitorState:
         self.workspaces[self.active_workspace_index].toggle(False)
         self.workspaces[workspace_index].toggle(True)
         self.active_workspace_index = workspace_index
+        self.workspace.sync_windows()
 
     def move_to_workspace(self, window: Window, workspace_index: int):
         """Move the window to the workspace by index"""
@@ -163,7 +164,7 @@ class MonitorState:
             window = window.parent
         self.remove_window(window)
         self.add_window(window, workspace_index=workspace_index)
-        self.workspace.arrange()
+        self.workspace.sync_windows()
 
     def move_floating_window_in(self, window: Window):
         """Move the floating window into the monitor"""

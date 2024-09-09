@@ -3,18 +3,27 @@
 import logging
 import os
 import time
-from typing import Dict, List, Callable
+from typing import Dict, List, Callable, Optional
 from ctypes.wintypes import HWND, LONG, DWORD
 
+from jigsawwm.jmk import sysinout, Vk
 from jigsawwm.ui import Splash, app
 from jigsawwm.w32 import hook
 from jigsawwm.w32.winevent import WinEvent
 from jigsawwm.w32.reg import get_current_desktop_id
+from jigsawwm.w32.window import Window, Rect
 from jigsawwm.worker import ThreadWorker
 
 from .theme import Theme
 from .config import WmConfig, WmRule
-from .virtdesk_state import VirtDeskState
+from .virtdesk_state import (
+    VirtDeskState,
+    MonitorState,
+    WorkspaceState,
+    MONITOR_STATE,
+    WORKSPACE_STATE,
+    PREFERRED_WINDOW_INDEX,
+)
 from .debug_state import inspect_virtdesk_states
 
 
@@ -41,6 +50,9 @@ class WindowManager(ThreadWorker):
     virtdesk_states: Dict[bytearray, VirtDeskState]
     config: WmConfig
     splash: Splash
+    _wait_mouse_released: bool = False
+    _movesizing_window: Optional[Window] = None
+    _movesizing_window_rect: Optional[Rect] = None
 
     def __init__(
         self,
@@ -55,12 +67,10 @@ class WindowManager(ThreadWorker):
         self.config = config
         self.virtdesk_states = {}
         self.splash = Splash()
+        self.splash.mouse_up_on_workspace.connect(self.on_splash_workspace_mouse_up)
 
     def start(self):
         """Start the WindowManagerCore service"""
-        # load windows state from the last session
-        # self.virtdesk_state.on_monitors_changed()
-        # self.virtdesk_state.on_windows_changed(starting_up=True)
         self.start_worker()
         self.enqueue(self.virtdesk_state.on_monitors_changed)
         self.enqueue(self.virtdesk_state.on_windows_changed, starting_up=True)
@@ -132,7 +142,110 @@ class WindowManager(ThreadWorker):
     def on_window_event(self, event: WinEvent, hwnd: HWND, ts: float):
         """Handle the winevent"""
         self.sleep_till(ts + 0.2)
-        self.virtdesk_state.handle_window_event(event, hwnd)
+        self.handle_window_event(event, hwnd)
+
+    def handle_window_event(self, event: WinEvent, hwnd: Optional[HWND] = None):
+        """Check if we need to sync windows for given window event"""
+        # ignore if left mouse button is pressed in case of dragging
+        if (
+            not self._wait_mouse_released
+            and event == WinEvent.EVENT_OBJECT_PARENTCHANGE
+            and sysinout.state.get(Vk.LBUTTON)  # assuming JMK is enabled...
+        ):
+            # delay the sync until button released to avoid flickering
+            self._wait_mouse_released = True
+            return
+        elif self._wait_mouse_released:
+            if not sysinout.state.get(Vk.LBUTTON):
+                self._wait_mouse_released = False
+                self.virtdesk_state.on_windows_changed()
+            else:
+                return
+        if not hwnd:
+            return
+        window = self.virtdesk_state.window_detector.get_window(hwnd)
+        if not window.manageable:
+            return
+        # # filter by event
+        if event == WinEvent.EVENT_SYSTEM_FOREGROUND:
+            self.virtdesk_state.on_foreground_window_changed(window)
+        if (
+            event == WinEvent.EVENT_OBJECT_HIDE
+            or event == WinEvent.EVENT_OBJECT_SHOW
+            or event == WinEvent.EVENT_OBJECT_UNCLOAKED
+        ):
+            self.virtdesk_state.on_windows_changed()
+        elif event == WinEvent.EVENT_SYSTEM_MOVESIZESTART:
+            self.on_move_size_start(window)
+        elif event == WinEvent.EVENT_SYSTEM_MOVESIZEEND:
+            self.on_movesize_end(window)
+        elif (
+            event == WinEvent.EVENT_SYSTEM_MINIMIZESTART
+            or event == WinEvent.EVENT_SYSTEM_MINIMIZEEND
+        ):
+            self.virtdesk_state.on_minimize_changed(window)
+
+    def on_move_size_start(self, window: Window):
+        """React to EVENT_SYSTEM_MOVESIZESTART event"""
+        self._movesizing_window = window
+        self._movesizing_window_rect = window.get_rect()
+        self.delay_call(0.5, self.check_moving_window)
+
+    def check_moving_window(self):
+        """React to EVENT_OBJECT_LOCATIONCHANGE event"""
+        logger.debug("check_moving_window %s", self._movesizing_window)
+        if not self._movesizing_window:
+            return
+        r1, r2 = self._movesizing_window.get_rect(), self._movesizing_window_rect
+        if r1.width != r2.width or r1.height != r2.height:
+            return
+        self.splash.show_splash.emit(
+            self.virtdesk_state.monitor_state_from_cursor(), self._movesizing_window
+        )
+
+    def on_splash_workspace_mouse_up(self, workspace_index: int):
+        """React to mouse up event on splash's workspace widget"""
+        if self._movesizing_window:
+            logger.info(
+                "send %s to workspace %s using mouse",
+                self._movesizing_window,
+                workspace_index,
+            )
+            self.enqueue(
+                self.virtdesk_state.move_to_workspace,
+                workspace_index,
+                window=self._movesizing_window,
+            )
+            self._movesizing_window = None
+
+    def on_movesize_end(self, window: Window):
+        """React to EVENT_SYSTEM_MOVESIZEEND event"""
+        self.splash.hide_splash.emit()
+        if not self._movesizing_window:
+            return
+        self._movesizing_window = None
+        # when dragging chrome tab into a new window, the window will not have MONITOR_STATE
+        ms: MonitorState = window.attrs[MONITOR_STATE]
+        dst_ms = self.virtdesk_state.monitor_state_from_cursor()
+        # window being dragged to another monitor
+        if dst_ms != ms:
+            logger.info("move %s to another monitor %s", window, dst_ms)
+            self.virtdesk_state.move_to_monitor(window=window, dst_ms=dst_ms)
+            return
+        ws: WorkspaceState = window.attrs[WORKSPACE_STATE]
+        if window.tilable and len(ws.tiling_windows) > 1:
+            # window being reordered
+            src_idx = window.attrs[PREFERRED_WINDOW_INDEX]
+            dst_idx = ms.workspace.tiling_index_from_cursor()
+            if dst_idx >= 0:
+                self.virtdesk_state.swap_window(
+                    idx=src_idx,
+                    delta=dst_idx - src_idx,
+                    workspace=ms.workspace,
+                    activate=False,
+                )
+            return
+        ws.restrict()
 
     def enqueue_splash(self, fn: callable, *args):
         """Enqueue a callable with splash window"""

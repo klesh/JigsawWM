@@ -4,10 +4,8 @@ import time
 import logging
 from typing import Dict, Optional, Tuple, Callable, List
 
-from jigsawwm.jmk import sysinout, Vk
-from jigsawwm.w32.winevent import WinEvent
 from jigsawwm.w32.monitor_detector import MonitorDetector, Monitor
-from jigsawwm.w32.window_detector import WindowDetector, Window, HWND
+from jigsawwm.w32.window_detector import WindowDetector, Window
 from jigsawwm.w32.monitor import set_cursor_pos
 from jigsawwm.w32.window import topo_sort_windows
 from jigsawwm.ui import Splash
@@ -41,7 +39,6 @@ class VirtDeskState:
     window_detector: WindowDetector
     monitor_detector: MonitorDetector
     splash: Splash
-    _wait_mouse_released: bool = False
     _previous_switch_workspace_for_window_activation = 0.0
 
     def __init__(self, desktop_id: bytearray, config: WmConfig, splash: Splash):
@@ -89,45 +86,6 @@ class VirtDeskState:
             monitor_state.add_window(w)
         for ms in self.monitor_states.values():
             ms.workspace.sync_windows()
-
-    def handle_window_event(self, event: WinEvent, hwnd: Optional[HWND] = None):
-        """Check if we need to sync windows for given window event"""
-        # ignore if left mouse button is pressed in case of dragging
-        if (
-            not self._wait_mouse_released
-            and event == WinEvent.EVENT_OBJECT_PARENTCHANGE
-            and sysinout.state.get(Vk.LBUTTON)  # assuming JMK is enabled...
-        ):
-            # delay the sync until button released to avoid flickering
-            self._wait_mouse_released = True
-            return
-        elif self._wait_mouse_released:
-            if not sysinout.state.get(Vk.LBUTTON):
-                self._wait_mouse_released = False
-                self.on_windows_changed()
-            else:
-                return
-        if not hwnd:
-            return
-        window = self.window_detector.get_window(hwnd)
-        if not window.manageable:
-            return
-        # # filter by event
-        if event == WinEvent.EVENT_SYSTEM_FOREGROUND:
-            self.on_foreground_window_changed(window)
-        if (
-            event == WinEvent.EVENT_OBJECT_HIDE
-            or event == WinEvent.EVENT_OBJECT_SHOW
-            or event == WinEvent.EVENT_OBJECT_UNCLOAKED
-        ):
-            self.on_windows_changed()
-        elif event == WinEvent.EVENT_SYSTEM_MOVESIZEEND:
-            self.on_moved_or_resized(window)
-        elif (
-            event == WinEvent.EVENT_SYSTEM_MINIMIZESTART
-            or event == WinEvent.EVENT_SYSTEM_MINIMIZEEND
-        ):
-            self.on_minimize_changed(window)
 
     def on_windows_changed(self, starting_up=False):
         """Syncs the window states with the virtual desktop"""
@@ -266,33 +224,6 @@ class VirtDeskState:
                 ws,
                 window,
             )
-
-    def on_moved_or_resized(
-        self, window: Window
-    ) -> Optional[Tuple[Window, MonitorState]]:
-        """Check if the window is being reordered"""
-        # when dragging chrome tab into a new window, the window will not have MONITOR_STATE
-        ms: MonitorState = window.attrs[MONITOR_STATE]
-        dst_ms = self.monitor_state_from_cursor()
-        # window being dragged to another monitor
-        if dst_ms != ms:
-            logger.info("move %s to another monitor %s", window, dst_ms)
-            self.move_to_monitor(window=window, dst_ms=dst_ms)
-            return
-        ws: WorkspaceState = window.attrs[WORKSPACE_STATE]
-        if window.tilable and len(ws.tiling_windows) > 1:
-            # window being reordered
-            src_idx = window.attrs[PREFERRED_WINDOW_INDEX]
-            dst_idx = ms.workspace.tiling_index_from_cursor()
-            if dst_idx >= 0:
-                self.swap_window(
-                    idx=src_idx,
-                    delta=dst_idx - src_idx,
-                    workspace=ms.workspace,
-                    activate=False,
-                )
-            return
-        ws.restrict()
 
     def on_minimize_changed(self, window: Window):
         """Handle window minimized event"""
@@ -468,9 +399,9 @@ class VirtDeskState:
         ms.switch_workspace(workspace_index)
         self.splash.show_splash.emit(ms, None)
 
-    def move_to_workspace(self, workspace_index: int):
+    def move_to_workspace(self, workspace_index: int, window: Optional[Window] = None):
         """Switch to a specific workspace"""
-        window = self.window_detector.foreground_window()
+        window = window or self.window_detector.foreground_window()
         if not window.manageable:
             return
         ms: MonitorState = window.attrs[MONITOR_STATE]

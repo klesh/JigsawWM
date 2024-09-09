@@ -40,5 +40,5 @@ def test_try_swapping_windows(mocker):
     vd = VirtDeskState(b"111", config, None)
     vd.monitor_state_from_cursor = mocker.Mock(return_value=ms2)
     vd.move_to_monitor = mocker.Mock()
-    vd.on_moved_or_resized(w1)
+    vd.on_movesize_end(w1)
     vd.move_to_monitor.assert_called()

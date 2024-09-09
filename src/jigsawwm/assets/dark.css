@@ -16,6 +16,11 @@
   background: #999999;
 }
 
+/* #workspace::hover { */
+#workspace[hover=true] {
+  background: #666666;
+}
+
 #workspace_name {
   font-size: 14pt;
   font-weight: bold;
