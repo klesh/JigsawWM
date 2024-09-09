@@ -150,7 +150,7 @@ class Window:
         # style        : CLIPCHILDREN, CLIPSIBLINGS, POPUP, VISIBLE
         style = self.get_style()
         if WindowStyle.SIZEBOX not in style:
-            return "BORDER not in style"
+            return "SIZEBOX not in style"
         if self.is_cloaked:
             return "%s cloaked"
         if self.class_name in MANAGEABLE_CLASSNAME_BLACKLIST:

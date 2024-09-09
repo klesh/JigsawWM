@@ -120,8 +120,9 @@ class MonitorState:
         ws.toggle_window(w, ws.showing)
         w.attrs[MONITOR_STATE] = self
         w.attrs[WORKSPACE_STATE] = ws
-        if not w.tilable:
-            self.move_floating_window_in(w)
+        if not w.off:
+            if not w.tilable:
+                self.move_floating_window_in(w)
         logger.info("added window %s to %s", w, ws)
         for c in w.manageable_children:
             self.add_window(c, workspace_index=workspace_index)

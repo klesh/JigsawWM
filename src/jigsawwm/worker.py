@@ -31,28 +31,28 @@ class ThreadWorker:
         self.queue.put((QUEUE_MSG_CLOSE, None))
         # self.executor.shutdown()
 
-    def enqueue(self, fn: callable, *args):
+    def enqueue(self, fn: callable, *args, **kwargs):
         """Enqueue a function call"""
-        self.queue.put((QUEUE_MSG_CALL, (fn, *args)))
+        self.queue.put((QUEUE_MSG_CALL, (fn, args, kwargs)))
 
     def consume_queue(self):
         """Consume the queue and call the corresponding function"""
         while True:
-            msg_type, msg_args = self.queue.get()
+            msg_type, msg = self.queue.get()
             if msg_type == QUEUE_MSG_CLOSE:
                 logger.info("closing system input handler")
                 self.stopped = True
                 break
             if msg_type == QUEUE_MSG_CALL:
-                fn, args = msg_args[0], msg_args[1:]
-                self.try_call(fn, *args)
+                fn, args, kwargs = msg
+                self.try_call(fn, *args, **kwargs)
             else:
                 logger.error("unknown message type %s", msg_type)
 
-    def try_call(self, fn, *args):
+    def try_call(self, fn, *args, **kwargs):
         """Call a function and log exception if any"""
         try:
-            fn(*args)
+            fn(*args, **kwargs)
         except Exception as err:  # pylint: disable=bare-except, broad-exception-caught
             logger.exception(
                 "error calling %s %s", fn, args, exc_info=True, stack_info=True

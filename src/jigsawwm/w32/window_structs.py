@@ -169,7 +169,7 @@ class Rect:
         return cls(r.left, r.top, r.right, r.bottom)
 
     def __repr__(self) -> str:
-        return f"RECT(left={self.left}, top={self.top}, right={self.right}, bottom={self.bottom})"
+        return f"Rect(left={self.left}, top={self.top}, right={self.right}, bottom={self.bottom})"
 
     @property
     def width(self) -> int:
@@ -233,4 +233,4 @@ class Rect:
 
     def contains_rect_center(self, other: "Rect"):
         """Return True if the other rectangle's center is inside the rectangle."""
-        return self.contains(other.center_x, other.center_x)
+        return self.contains(other.center_x, other.center_y)

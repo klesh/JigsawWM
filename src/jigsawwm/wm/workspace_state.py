@@ -223,3 +223,10 @@ class WorkspaceState:
             window.hide()
         window.set_rect(r)
         logger.debug("%s toggle by setting rect to %s", self, r)
+
+    def reclaim_hidden_windows(self):
+        """Reclaim windows got hidden by the previous process"""
+        logger.debug("%s reclaim hidden windows", self)
+        for window in self.windows:
+            if window.off:
+                self.toggle_window(window, True)

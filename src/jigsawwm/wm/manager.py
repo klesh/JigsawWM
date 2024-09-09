@@ -59,10 +59,11 @@ class WindowManager(ThreadWorker):
     def start(self):
         """Start the WindowManagerCore service"""
         # load windows state from the last session
-        # self.load_state()
-        self.virtdesk_state.on_monitors_changed()
-        self.virtdesk_state.on_windows_changed(starting_up=True)
+        # self.virtdesk_state.on_monitors_changed()
+        # self.virtdesk_state.on_windows_changed(starting_up=True)
         self.start_worker()
+        self.enqueue(self.virtdesk_state.on_monitors_changed)
+        self.enqueue(self.virtdesk_state.on_windows_changed, starting_up=True)
         self.install_hooks()
 
     def stop(self):

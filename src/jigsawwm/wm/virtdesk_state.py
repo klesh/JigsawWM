@@ -177,8 +177,40 @@ class VirtDeskState:
         logger.info("distributing windows on starting up")
         root_windows = [w for w in windows if not w.parent]
         for i, w in enumerate(topo_sort_windows(root_windows)):
-            ms = self.monitor_state_from_window(w)
-            ms.assign_window(w, window_index=i)
+            m = self.monitor_detector.monitor_from_window(w.handle)
+            if m:
+                ms = self.monitor_states[m]
+                ms.assign_window(w, window_index=i)
+        self.reclaim_hidden_workspaces()
+
+    def reclaim_hidden_workspaces(self):
+        """Reclaim previously hidden workspaces"""
+        # reclaim previously hidden workspace
+        logger.info("reclaiming hidden workspaces")
+        for w in self.window_detector.get_invisible_windows():
+            logger.debug("try to reclaim hidden window: %s", w)
+            result = self.find_ws_for_hidden_window(w)
+            if result:
+                w.off = True
+                ms, ws = result
+                ms.assign_window(w, workspace=ws)
+                self.window_detector.windows.add(w)
+
+    def find_ws_for_hidden_window(
+        self, window: Window
+    ) -> Optional[Tuple[MonitorState, WorkspaceState]]:
+        """Find workspace for hidden window"""
+        rect = window.get_rect()
+        if window.exe_name == "7zFM.exe":
+            logger.debug("find workspace for hidden window: %s %s", window, rect)
+        for ms in self.monitor_states.values():
+            for ws in ms.workspaces:
+                if ws.alter_rect.contains_rect_center(rect):
+                    return ms, ws
+                if window.exe_name == "7zFM.exe":
+                    logger.debug(
+                        "ws rect %s doesn not contains %s", ws.alter_rect, rect
+                    )
 
     def distribute_new_windows(self, windows: List[Window]):
         """Distribute new windows to the right monitor and workspace - respect rules for windows"""
@@ -275,12 +307,6 @@ class VirtDeskState:
         """Retrieve monitor_state from index"""
         index = index % len(self.monitor_detector.monitors)
         return self.monitor_states[self.monitor_detector.monitors[index]]
-
-    def monitor_state_from_window(self, window: Window) -> MonitorState:
-        """Retrieve monitor_state from current cursor"""
-        return self.monitor_states[
-            self.monitor_detector.monitor_from_window(window.handle)
-        ]
 
     @property
     def monitor_state(self) -> MonitorState:
