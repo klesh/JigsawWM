@@ -120,9 +120,8 @@ class MonitorState:
         ws.toggle_window(w, ws.showing)
         w.attrs[MONITOR_STATE] = self
         w.attrs[WORKSPACE_STATE] = ws
-        if not w.off:
-            if not w.tilable:
-                self.move_floating_window_in(w)
+        if not w.off and not w.tilable:
+            self.move_floating_window_in(w)
         logger.info("added window %s to %s", w, ws)
         for c in w.manageable_children:
             self.add_window(c, workspace_index=workspace_index)
@@ -170,15 +169,15 @@ class MonitorState:
         """Move the floating window into the monitor"""
         logger.debug("%s move floating window %s in", self, window)
         wr = window.get_rect()
-        mr = self.rect
-        if mr.contains(wr.left, wr.top):
+        if self.rect.contains_rect_center(wr):
             return
+        mr = self.rect
         window.set_rect(
             Rect(
-                mr.x + mr.width // 4,
-                mr.y + mr.height // 4,
-                mr.width // 2,
-                mr.height // 2,
+                left=mr.left + wr.width // 2,
+                top=mr.top + wr.height // 2,
+                right=mr.right - wr.width // 2,
+                bottom=mr.bottom - wr.height // 2,
             )
         )
 
