@@ -142,11 +142,15 @@ class Window:
         #
         # obsidian
         # style        : BORDER, CLIPSIBLINGS, DLGFRAME, GROUP, MAXIMIZEBOX, SIZEBOX, VISIBLE
+        #
+        # feishu meeting window
+        # style        : CLIPCHILDREN, CLIPSIBLINGS, GROUP, MAXIMIZEBOX, SIZEBOX, SYSMENU, VISIBLE
+        #
+        # NOT manage/tilable fusion360 object selector
+        # style        : CLIPCHILDREN, CLIPSIBLINGS, POPUP, VISIBLE
         style = self.get_style()
-        if WindowStyle.BORDER not in style:
+        if WindowStyle.SIZEBOX not in style:
             return "BORDER not in style"
-        if WindowStyle.DLGFRAME not in style:
-            return "DLGFRAME not in style"
         if self.is_cloaked:
             return "%s cloaked"
         if self.class_name in MANAGEABLE_CLASSNAME_BLACKLIST:
