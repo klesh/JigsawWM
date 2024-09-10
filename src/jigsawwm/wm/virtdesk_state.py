@@ -333,7 +333,7 @@ class VirtDeskState:
         if len(self.monitor_detector.monitors) < 2:
             return
         window = window or self.window_detector.foreground_window()
-        if not window.manageable or not window.tilable:
+        if not window.manageable:
             return
         src_ms: MonitorState = window.attrs[MONITOR_STATE]
         if dst_ms is None:
