@@ -6,9 +6,8 @@ from typing import Dict, Optional, Tuple, Callable, List
 
 from jigsawwm.w32.monitor_detector import MonitorDetector, Monitor
 from jigsawwm.w32.window_detector import WindowDetector, Window
-from jigsawwm.w32.monitor import set_cursor_pos
 from jigsawwm.w32.window import topo_sort_windows
-from jigsawwm.ui import Splash
+from jigsawwm.w32.monitor import set_cursor_pos
 
 from .monitor_state import MonitorState
 from .workspace_state import WorkspaceState
@@ -38,15 +37,13 @@ class VirtDeskState:
     active_monitor_index: int = 0
     window_detector: WindowDetector
     monitor_detector: MonitorDetector
-    splash: Splash
-    _previous_switch_workspace_for_window_activation = 0.0
+    no_ws_switching_untill = 0
 
-    def __init__(self, desktop_id: bytearray, config: WmConfig, splash: Splash):
+    def __init__(self, desktop_id: bytearray, config: WmConfig):
         self.desktop_id = desktop_id
         self.window_detector = WindowDetector(created=self.apply_rule_to_window)
         self.monitor_detector = MonitorDetector()
         self.config = config
-        self.splash = splash
 
     def on_monitors_changed(self):
         """Syncs the monitor states with the virtual desktop"""
@@ -78,12 +75,10 @@ class VirtDeskState:
                     windows_tobe_rearranged |= ws.windows
         # rearrange windows
         for w in windows_tobe_rearranged:
-            m = self.monitor_detector.monitors[
-                w.attrs.get(PREFERRED_MONITOR_INDEX, 0)
-                % len(self.monitor_detector.monitors)
-            ]
-            monitor_state = self.monitor_states[m]
-            monitor_state.add_window(w)
+            msi = w.attrs.get(PREFERRED_MONITOR_INDEX, self.active_monitor_index)
+            ms = self.monitor_state_from_index(msi)
+            wsi = w.attrs.get(PREFERRED_WORKSPACE_INDEX, ms.active_workspace_index)
+            ms.add_window(w, wsi)
         for ms in self.monitor_states.values():
             ms.workspace.sync_windows()
 
@@ -202,8 +197,7 @@ class VirtDeskState:
         # a window belongs to hidden workspace just got activated
         # put your default browser into workspace and then ctrl-click a link, e.g. http://google.com
         now = time.time()
-        elapsed = now - self._previous_switch_workspace_for_window_activation
-        if elapsed < 1:
+        if now < self.no_ws_switching_untill:
             # child windows got spread across multiple workspaces
             logger.warning("workspace switching happened too frequently, possible loop")
             return
@@ -217,7 +211,7 @@ class VirtDeskState:
         ws: WorkspaceState = window.attrs[WORKSPACE_STATE]
         ws.last_active_window = window
         if not ws.showing:
-            self._previous_switch_workspace_for_window_activation = now
+            self.no_ws_switching_untill = now + 1
             ms.switch_workspace(ws.index)
             logger.info(
                 "switch to workspace %s due window %s got activated",
@@ -245,24 +239,6 @@ class VirtDeskState:
         return self.monitor_states[
             self.monitor_detector.monitors[self.active_monitor_index]
         ]
-
-    def switch_window_splash(self, delta: int):
-        """Switch to next or previous window"""
-        window = self.window_detector.foreground_window()
-        if not window or not window.manageable or not window.tilable:
-            window = self.monitor_state.workspace.last_active_window
-        if not window or not window.manageable or not window.tilable:
-            if self.monitor_state.workspace.tiling_windows:
-                window = self.monitor_state.workspace.tiling_windows[0]
-        if not window or not window.manageable or not window.tilable:
-            return
-        monitor_state: MonitorState = window.attrs[MONITOR_STATE]
-        workspace_state: WorkspaceState = window.attrs[WORKSPACE_STATE]
-        src_index: int = window.attrs[PREFERRED_WINDOW_INDEX]
-        dst_index = (src_index + delta) % len(workspace_state.tiling_windows)
-        dst_window = workspace_state.tiling_windows[dst_index]
-        dst_window.activate()
-        self.splash.show_splash.emit(monitor_state, dst_window)
 
     def reorder_windows(
         self,
@@ -299,11 +275,6 @@ class VirtDeskState:
         def swap(windows: List[Window], src_idx: int):
             dst_idx = (src_idx + delta) % len(windows)
             windows[src_idx], windows[dst_idx] = windows[dst_idx], windows[src_idx]
-            a, b = windows[src_idx].attrs, windows[dst_idx].attrs
-            a[PREFERRED_WINDOW_INDEX], b[PREFERRED_WINDOW_INDEX] = (
-                b[PREFERRED_WINDOW_INDEX],
-                a[PREFERRED_WINDOW_INDEX],
-            )
 
         self.reorder_windows(swap, idx=idx, workspace=workspace, activate=activate)
 
@@ -339,6 +310,19 @@ class VirtDeskState:
     # Monitor related methods
     ########################################
 
+    def switch_monitor(self, delta: int):
+        """Switch to another monitor"""
+        srcms = self.monitor_state_from_cursor()
+        dstms = self.monitor_state_from_index(srcms.index + delta)
+        self.active_monitor_index = dstms.index
+        window = dstms.workspace.last_active_window
+        if not window and dstms.workspace.tiling_windows:
+            window = dstms.workspace.tiling_windows[0]
+        if window:
+            window.activate()
+        else:
+            set_cursor_pos(dstms.rect.center_x, dstms.rect.center_y)
+
     def move_to_monitor(
         self,
         delta: int = 0,
@@ -365,39 +349,9 @@ class VirtDeskState:
         if delta and src_ms.workspace.tiling_windows:
             src_ms.workspace.tiling_windows[0].activate()
 
-    def switch_monitor_splash(self, delta: int):
-        """Switch to another monitor by given offset"""
-        logger.debug("switch_monitor_by_offset: %s", delta)
-        srcms = self.monitor_state_from_cursor()
-        dstms = self.monitor_state_from_index(srcms.index + delta)
-        self.active_monitor_index = dstms.index
-        window = dstms.workspace.last_active_window
-        if not window and dstms.workspace.tiling_windows:
-            window = dstms.workspace.tiling_windows[0]
-        else:
-            set_cursor_pos(dstms.rect.center_x, dstms.rect.center_y)
-        self.splash.show_splash.emit(dstms, window)
-        if window:
-            window.activate()
-
     ########################################
     # Workspace related methods
     ########################################
-
-    def switch_theme_splash(self, delta: int) -> Callable:
-        """Switch theme by offset"""
-        logger.info("switching theme by offset: %s", delta)
-        monitor_state = self.monitor_state_from_cursor()
-        theme_index = self.config.get_theme_index(monitor_state.workspace.theme.name)
-        theme = self.config.themes[(theme_index + delta) % len(self.config.themes)]
-        self.monitor_state.workspace.set_theme(theme)
-        self.splash.show_splash.emit(monitor_state, None)
-
-    def switch_workspace_splash(self, workspace_index: int):
-        """Switch to a specific workspace"""
-        ms = self.monitor_state_from_cursor()
-        ms.switch_workspace(workspace_index)
-        self.splash.show_splash.emit(ms, None)
 
     def move_to_workspace(self, workspace_index: int, window: Optional[Window] = None):
         """Switch to a specific workspace"""

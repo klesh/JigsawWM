@@ -18,7 +18,7 @@ from PySide6.QtCore import (
 from PySide6.QtGui import QImage, QCursor
 from PySide6.QtWidgets import QLabel, QSizePolicy, QWidget, QHBoxLayout, QVBoxLayout
 
-from jigsawwm.w32.window import Window
+from jigsawwm.w32.window import Window, get_foreground_window
 from jigsawwm.w32 import hook
 from jigsawwm.wm.monitor_state import MonitorState
 
@@ -31,16 +31,17 @@ logger = logging.getLogger(__name__)
 class Splash(Dialog):
     """The window list splash screen."""
 
-    show_splash = Signal(MonitorState, Window)
+    show_splash = Signal(MonitorState)
     hide_splash = Signal()
     mouse_up_on_workspace = Signal(int)
     monitor_state: QLabel
     workspace_states: QWidget
     windows: List[Window]
     shellhook_msgid = 0
-    mousehook_id = 0
+    mouse_hookid = 0
     created_windows = set()
     workspaces: List[QWidget] = []
+    fg_hwnd: Optional[int] = None
 
     def __init__(self):
         super().__init__()
@@ -62,8 +63,6 @@ class Splash(Dialog):
         self.workspace_states.setFixedHeight(100)
         self.root_layout.insertWidget(1, self.workspace_states)
         # self._register_shellhook()
-        # self.installEventFilter(self)
-        # self._register_mousehook()
         logger.info("WindowsSplash init")
 
     def _register_shellhook(self):
@@ -72,17 +71,16 @@ class Splash(Dialog):
         if not user32.RegisterShellHookWindow(self.winId()):
             raise WinError(get_last_error())
 
-    def _register_mousehook(self):
-        self.mousehook_id = hook.hook_mouse(self._on_system_mouse_move)
+    def _register_hooks(self):
+        self.mouse_hookid = hook.hook_mouse(self._on_system_mouse_move)
 
     def _unregister_mousehook(self):
-        hook.unhook(self.mousehook_id)
+        hook.unhook(self.mouse_hookid)
 
     def _on_system_mouse_move(
-        self, _ncode: int, msg_id: hook.MSLLHOOKMSGID, data: hook.MSLLHOOKDATA
+        self, _ncode: int, msg_id: hook.MSLLHOOKMSGID, _data: hook.MSLLHOOKDATA
     ):
         if msg_id == hook.MSLLHOOKMSGID.WM_MOUSEMOVE:
-            pt: POINT = data.pt
             self.on_mouse_move()
         elif msg_id == hook.MSLLHOOKMSGID.WM_LBUTTONUP:
             self.on_mouse_up()
@@ -100,12 +98,8 @@ class Splash(Dialog):
                     logger.debug("window %s activated", msg.hWnd)
         return super().nativeEvent(eventType, message)
 
-    # @Slot(MonitorState, Window)
-    def show_windows_splash(
-        self,
-        monitor_state: MonitorState,
-        active_window: Optional[Window] = None,
-    ):
+    @Slot(MonitorState)
+    def show_windows_splash(self, monitor_state: MonitorState):
         """Show the splash screen"""
         logger.info("WindowsSplash show")
         # monitor
@@ -113,8 +107,6 @@ class Splash(Dialog):
         # workspaces
         self.deleteDirectChildren(self.workspace_states)
         workspace_index = monitor_state.active_workspace_index
-        if active_window is None:
-            active_window = monitor_state.workspaces[workspace_index].last_active_window
         self.workspaces = []
         for i, workspace in enumerate(monitor_state.workspaces):
             widget = QWidget()
@@ -173,14 +165,7 @@ class Splash(Dialog):
                 QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
             )
             self.container_layout.addWidget(self.spacer)
-        if active_window:
-            for i in range(self.container_layout.count()):
-                ws_name = self.container_layout.itemAt(i).widget()
-                if ws_name.property("handle") == active_window.handle:
-                    ws_name.setProperty("active", True)
-                else:
-                    ws_name.setProperty("active", False)
-                ws_name.setStyleSheet("")
+        self.refresh_foreground_window()
         # centering the window
         r = monitor_state.rect
         rect = app.screenAt(QPoint(r.left, r.top)).geometry()
@@ -188,7 +173,7 @@ class Splash(Dialog):
         y = rect.y() + (rect.height()) // 3
         self.setGeometry(x, y, w, h)
         self.show()
-        self._register_mousehook()
+        self._register_hooks()
 
     @Slot()
     def hide_windows_splash(self):
@@ -196,6 +181,17 @@ class Splash(Dialog):
         logger.info("WindowsSplash hide")
         self.hide()
         self._unregister_mousehook()
+
+    def refresh_foreground_window(self):
+        """Refresh the foreground window"""
+        fg_hwnd = get_foreground_window()
+        for i in range(self.container_layout.count()):
+            ws_name = self.container_layout.itemAt(i).widget()
+            if ws_name.property("handle") == fg_hwnd:
+                ws_name.setProperty("active", True)
+            else:
+                ws_name.setProperty("active", False)
+            ws_name.setStyleSheet("")
 
     def on_mouse_move(self):
         """On system cursor move"""
@@ -206,11 +202,16 @@ class Splash(Dialog):
 
     def on_mouse_up(self):
         """On system mouse button up"""
-        pos = self.workspace_states.mapFromGlobal(QCursor.pos())
+        if self.isHidden():
+            return
+        sys_pos = QCursor.pos()
+        pos = self.workspace_states.mapFromGlobal(sys_pos)
         for i, wsw in enumerate(self.workspaces):
             if wsw.geometry().contains(pos):
                 self.mouse_up_on_workspace.emit(i)
                 return
+        if not self.geometry().contains(sys_pos):
+            self.hide_windows_splash()
 
     def eventFilter(self, src: QObject, evt: QEvent) -> bool:
         logger.debug("obj: %s, evt: %s", src, evt)

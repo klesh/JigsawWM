@@ -191,6 +191,17 @@ class WorkspaceState:
                 return i
         return -1
 
+    def switch_window(self, delta: int):
+        """Switch the active window in the tiling area"""
+        if not self.tiling_windows:
+            return
+        if self.last_active_window is None:
+            self.last_active_window = self.tiling_windows[0]
+        i = self.tiling_windows.index(self.last_active_window)
+        i = (i + delta) % len(self.tiling_windows)
+        self.last_active_window = self.tiling_windows[i]
+        self.last_active_window.activate()
+
     def toggle_window(self, window: Window, show: bool):
         """Toggle window visibility"""
         if show != window.off:

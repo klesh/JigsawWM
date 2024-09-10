@@ -1,6 +1,6 @@
 import enum
 import typing
-from ctypes import wintypes,WinDLL
+from ctypes import wintypes, WinDLL
 
 
 class Vk(enum.IntEnum):
@@ -296,6 +296,8 @@ Modifers = {
     Vk.LWIN,
     Vk.RWIN,
     Vk.WIN,
+    Vk.XBUTTON1,
+    Vk.XBUTTON2,
 }
 
 
@@ -352,6 +354,7 @@ def expand_combination(
 
 GetKeyState = WinDLL("user32").GetKeyState
 GetKeyState.restype = wintypes.SHORT
+
 
 def get_key_state(vk: Vk) -> bool:
     return bool(GetKeyState(vk) & 0x8000)

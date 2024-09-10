@@ -124,7 +124,7 @@ class WindowManager(ThreadWorker):
         virtdesk_state = self.virtdesk_states.get(desktop_id)
         if virtdesk_state is None:
             # make sure monitor_state for current virtual desktop exists
-            virtdesk_state = VirtDeskState(desktop_id, self.config, self.splash)
+            virtdesk_state = VirtDeskState(desktop_id, self.config)
             self.virtdesk_states[desktop_id] = virtdesk_state
         return virtdesk_state
 
@@ -187,6 +187,8 @@ class WindowManager(ThreadWorker):
 
     def on_move_size_start(self, window: Window):
         """React to EVENT_SYSTEM_MOVESIZESTART event"""
+        if not window.manageable or not window.is_root_window:
+            return
         self._movesizing_window = window
         self._movesizing_window_rect = window.get_rect()
         self.delay_call(0.5, self.check_moving_window)
@@ -199,12 +201,14 @@ class WindowManager(ThreadWorker):
         r1, r2 = self._movesizing_window.get_rect(), self._movesizing_window_rect
         if r1.width != r2.width or r1.height != r2.height:
             return
-        self.splash.show_splash.emit(
-            self.virtdesk_state.monitor_state_from_cursor(), self._movesizing_window
-        )
+        self.splash.show_splash.emit(self.virtdesk_state.monitor_state_from_cursor())
 
     def on_splash_workspace_mouse_up(self, workspace_index: int):
         """React to mouse up event on splash's workspace widget"""
+        self.enqueue(self.on_move_to_workspace, workspace_index)
+
+    def on_move_to_workspace(self, workspace_index: int):
+        """React to on move window to workspace using mouse"""
         if self._movesizing_window:
             logger.info(
                 "send %s to workspace %s using mouse",
@@ -217,6 +221,12 @@ class WindowManager(ThreadWorker):
                 window=self._movesizing_window,
             )
             self._movesizing_window = None
+        else:
+            logger.info("switch to workspace %s using mouse", workspace_index)
+            ms = self.virtdesk_state.monitor_state_from_cursor()
+            self.enqueue(ms.switch_workspace, workspace_index)
+            self.splash.hide_splash.emit()
+            self.virtdesk_state.no_ws_switching_untill = time.time() + 1
 
     def on_movesize_end(self, window: Window):
         """React to EVENT_SYSTEM_MOVESIZEEND event"""
@@ -247,9 +257,41 @@ class WindowManager(ThreadWorker):
             return
         ws.restrict()
 
+    def switch_window_splash(self, delta: int):
+        """Switch to next or previous window"""
+        return self.enqueue_splash(
+            self.virtdesk_state.monitor_state_from_cursor().workspace.switch_window,
+            delta,
+        )
+
+    def switch_monitor_splash(self, delta: int):
+        """Switch to another monitor by given offset"""
+        return self.enqueue_splash(self.virtdesk_state.switch_monitor, delta)
+
+    def switch_theme_splash(self, delta: int) -> Callable:
+        """Switch theme by offset"""
+        monitor_state = self.virtdesk_state.monitor_state_from_cursor()
+        theme_index = self.config.get_theme_index(monitor_state.workspace.theme.name)
+        theme = self.config.themes[(theme_index + delta) % len(self.config.themes)]
+        return self.enqueue_splash(monitor_state.workspace.set_theme, theme)
+
+    def switch_workspace_splash(self, workspace_index: int):
+        """Switch to a specific workspace"""
+        return self.enqueue_splash(
+            self.virtdesk_state.monitor_state_from_cursor().switch_workspace,
+            workspace_index,
+        )
+
     def enqueue_splash(self, fn: callable, *args):
         """Enqueue a callable with splash window"""
+
+        def show_splash():
+            self.splash.show_splash.emit(
+                self.virtdesk_state.monitor_state_from_cursor()
+            )
+
         self.enqueue(fn, *args)
+        self.enqueue(show_splash)
         return lambda: self.enqueue(self.splash.hide_splash.emit)
 
     ########################################
@@ -258,11 +300,11 @@ class WindowManager(ThreadWorker):
 
     def next_window(self) -> Callable:
         """Activate the managed window next to the last activated managed window"""
-        return self.enqueue_splash(self.virtdesk_state.switch_window_splash, +1)
+        return self.enqueue_splash(self.switch_window_splash, +1)
 
     def prev_window(self) -> Callable:
         """Activate the managed window prior to the last activated managed window"""
-        return self.enqueue_splash(self.virtdesk_state.switch_window_splash, -1)
+        return self.enqueue_splash(self.switch_window_splash, -1)
 
     def swap_next(self):
         """Swap the current active managed window with its next in list"""
@@ -288,19 +330,19 @@ class WindowManager(ThreadWorker):
 
     def prev_theme(self):
         """Switch to previous theme in the themes list"""
-        return self.enqueue_splash(self.virtdesk_state.switch_theme_splash, -1)
+        return self.enqueue_splash(self.switch_theme_splash, -1)
 
     def next_theme(self) -> Callable:
         """Switch to next theme in the themes list"""
-        return self.enqueue_splash(self.virtdesk_state.switch_theme_splash, +1)
+        return self.enqueue_splash(self.switch_theme_splash, +1)
 
     def prev_monitor(self):
         """Switch to previous monitor"""
-        return self.enqueue_splash(self.virtdesk_state.switch_monitor_splash, -1)
+        return self.enqueue_splash(self.switch_monitor_splash, -1)
 
     def next_monitor(self):
         """Switch to next monitor"""
-        return self.enqueue_splash(self.virtdesk_state.switch_monitor_splash, +1)
+        return self.enqueue_splash(self.switch_monitor_splash, +1)
 
     def move_to_prev_monitor(self):
         """Move active window to previous monitor"""
@@ -314,13 +356,26 @@ class WindowManager(ThreadWorker):
         """Toggle the active window between tilable and floating state"""
         self.enqueue(self.virtdesk_state.toggle_tilable)
 
+    def toggle_splash(self):
+        """Toggle the splash screen"""
+
+        def toggle_splash():
+            if self.splash.isHidden():
+                self.splash.show_splash.emit(
+                    self.virtdesk_state.monitor_state_from_cursor()
+                )
+            else:
+                self.splash.hide_splash.emit()
+
+        self.enqueue(toggle_splash)
+
     def switch_workspace(
         self,
         workspace_index: int,
     ) -> Callable:
         """Switch to a specific workspace"""
         return self.enqueue_splash(
-            self.virtdesk_state.switch_workspace_splash, workspace_index
+            self.virtdesk_state.monitor_state.switch_workspace, workspace_index
         )
 
     def move_to_workspace(self, workspace_index: int):
@@ -338,7 +393,7 @@ class WindowManager(ThreadWorker):
                 for ws in ms.workspaces:
                     for w in ws.windows:
                         if w.exists():
-                            ws.toggle_window(w)
+                            ws.toggle_window(w, True)
 
     def inspect_state(self):
         """Inspect the state of the virtual desktops"""

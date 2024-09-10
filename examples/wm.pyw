@@ -94,6 +94,7 @@ hotkeys = [
     ("Win+Shift+f", partial(wm.move_to_workspace, 3)),
     ("Win+Shift+Space", wm.toggle_tilable),
     ("Win+Ctrl+u", wm.inspect_state),
+    ("XBUTTON1+RBUTTON", wm.toggle_splash),  # browser forward button + right button
 ]
 
 
