@@ -164,7 +164,7 @@ class WorkspaceState:
         overflow = n > m
         if overflow:
             self._stack_the_rest(self.tiling_areas[-1])
-        else:
+        elif n == m and n > 0:
             windows[-1].set_restrict_rect(self.tiling_areas[-1])
 
     def generate_tiling_areas(self, num: int) -> Iterator[Rect]:

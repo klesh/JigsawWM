@@ -318,7 +318,7 @@ class VirtDeskState:
         window = dstms.workspace.last_active_window
         if not window and dstms.workspace.tiling_windows:
             window = dstms.workspace.tiling_windows[0]
-        if window:
+        if window.exists():
             window.activate()
         else:
             set_cursor_pos(dstms.rect.center_x, dstms.rect.center_y)
