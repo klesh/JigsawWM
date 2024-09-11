@@ -16,6 +16,7 @@ class WmRule:
     """WmRule holds the rule for managing windows"""
 
     exe_regex: Optional[str] = None
+    exe_name: Optional[str] = None
     title_regex: Optional[str] = None
     preferred_monitor_index: Optional[int] = None
     preferred_workspace_index: Optional[int] = None

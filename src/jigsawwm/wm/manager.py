@@ -243,7 +243,7 @@ class WindowManager(ThreadWorker):
             self.virtdesk_state.move_to_monitor(window=window, dst_ms=dst_ms)
             return
         ws: WorkspaceState = window.attrs[WORKSPACE_STATE]
-        if window.tilable and len(ws.tiling_windows) > 1:
+        if not ws.theme.static_layout and window.tilable and len(ws.tiling_windows) > 1:
             # window being reordered
             src_idx = window.attrs[PREFERRED_WINDOW_INDEX]
             dst_idx = ms.workspace.tiling_index_from_cursor()

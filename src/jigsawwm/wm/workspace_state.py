@@ -1,13 +1,13 @@
 """WorkspaceState maintins the state of a workspace"""
 
 import logging
-from typing import List, Optional, Set, Tuple
+from typing import List, Optional, Set, Tuple, Iterator
 
 from jigsawwm.w32.window import Window, Rect
 from jigsawwm.w32.monitor import get_cursor_pos
 
 from .theme import Theme
-from .const import PREFERRED_WINDOW_INDEX
+from .const import PREFERRED_WINDOW_INDEX, STATIC_WINDOW_INDEX
 
 logger = logging.getLogger(__name__)
 
@@ -68,22 +68,46 @@ class WorkspaceState:
         """Set theme for the workspace"""
         logger.debug("%s set theme %s", self, theme.name)
         self.theme = theme
-        self.arrange()
+        self.sync_windows(force_arrange=True)
 
     def set_rect(self, rect: Rect):
         """Set the rect of the workspace"""
         self.rect = rect
         self.arrange()
 
-    def sync_windows(self) -> bool:
+    def sync_windows(self, force_arrange=False) -> bool:
         """Sync the internal windows list to the incoming windows list"""
         logger.debug("%s sync windows", self)
         tiling_windows, self.floating_windows, self.minimized_windows = (
             self._group_windows()
         )
-        if tiling_windows != self.tiling_windows:
+        if self.theme.static_layout:
+            tiling_windows = self.sort_by_static_index(tiling_windows)
+        if force_arrange or tiling_windows != self.tiling_windows:
             self.tiling_windows = tiling_windows
             self.arrange()
+
+    def sort_by_static_index(
+        self, tiling_windows: List[Optional[Window]]
+    ) -> List[Optional[Window]]:
+        """ "Sort windows by static_index"""
+        assert self.theme.max_tiling_areas > 1
+        new_tiling_windows = [None] * self.theme.max_tiling_areas
+
+        for w in tiling_windows:
+            if w is None:
+                continue
+            if STATIC_WINDOW_INDEX in w.attrs:
+                static_index = w.attrs[STATIC_WINDOW_INDEX]
+                assert static_index < self.theme.max_tiling_areas
+                assert (
+                    new_tiling_windows[static_index] is None
+                ), "static index duplicated"
+                new_tiling_windows[static_index] = w
+            else:
+                new_tiling_windows.append(w)
+        logger.info("new_tiling_windows: %s", new_tiling_windows)
+        return new_tiling_windows
 
     def _group_windows(self) -> Tuple[Set[Window], Set[Window], Set[Window]]:
         tiling_windows, floating_windows, minimized_windows = set(), set(), set()
@@ -106,7 +130,9 @@ class WorkspaceState:
         windows_list = [w for w in windows_list if w in windows_set]
         old_set = set(windows_list)
         new_set = windows_set - old_set
-        new_list = sorted(new_set, key=lambda w: w.attrs.get(PREFERRED_WINDOW_INDEX, 0))
+        new_list = sorted(
+            new_set, key=lambda w: w.attrs.get(PREFERRED_WINDOW_INDEX, 0) if w else 0
+        )
         if self.theme.new_window_as_master:
             windows_list = new_list + windows_list
         else:
@@ -120,24 +146,33 @@ class WorkspaceState:
         """
         logger.debug("%s arrange total %d windows", self, len(self.tiling_windows))
         for i, window in enumerate(self.tiling_windows):
-            window.attrs[PREFERRED_WINDOW_INDEX] = i
+            if window:
+                window.attrs[PREFERRED_WINDOW_INDEX] = i
         theme = self.theme
+        windows = self.tiling_windows
+        # tile the first n windows
+        n = len(windows)
+        m = n
+        if theme.max_tiling_areas > 0:
+            m = min(theme.max_tiling_areas, m)
+        self.tiling_areas = list(self.generate_tiling_areas(m))
+        # arrange all except the last areaself.theme.
+        for i in range(m - 1):
+            if windows[i] is not None:
+                windows[i].set_restrict_rect(self.tiling_areas[i])
+        # arrange the last area
+        overflow = n > m
+        if overflow:
+            self._stack_the_rest(self.tiling_areas[-1])
+        else:
+            windows[-1].set_restrict_rect(self.tiling_areas[-1])
+
+    def generate_tiling_areas(self, num: int) -> Iterator[Rect]:
+        """Generate tiling areas for current monitor with respect to given number"""
         wr = self.rect
         work_area = (wr.left, wr.top, wr.right, wr.bottom)
-        windows = self.tiling_windows
-        i = 0
-        gap = theme.gap
-        # tile the first n windows
-        w = len(windows)
-        n = w
-        if theme.max_tiling_areas > 0:
-            n = min(theme.max_tiling_areas, n)
-        r = None
-        self.tiling_areas = []
-        for left, top, right, bottom in theme.layout_tiler(work_area, n):
-            window = windows[i]
-            i += 1
-            # add gap
+        gap = self.theme.gap or 0
+        for left, top, right, bottom in self.theme.layout_tiler(work_area, num):
             if gap:
                 if left == wr.left:
                     left += gap
@@ -147,30 +182,24 @@ class WorkspaceState:
                     right -= gap
                 if bottom == wr.bottom:
                     bottom -= gap
-            left += gap
-            top += gap
-            right -= gap
-            bottom -= gap
-            r = Rect(left, top, right, bottom)
-            self.tiling_areas.append(r)
-            if i == n and w > n:  # when
-                break
-            window.set_restrict_rect(r)
-        # stack the rest
-        num_rest = w - n
-        if num_rest <= 0:
-            return
-        self._stack_the_rest(i - 1, num_rest, r)
+            yield Rect(left + gap, top + gap, right - gap, bottom - gap)
 
-    def _stack_the_rest(self, index: int, num_rest: int, bound: Rect):
+    def _stack_the_rest(self, bound: Rect):
+        """Stack all the rest tiling windows starting from index into the specified bound"""
         # window size
+        index = len(self.tiling_areas) - 1
+        n = len(self.tiling_windows)
         w = int(bound.width * self.theme.stacking_window_width)
         h = int(bound.height * self.theme.stacking_window_height)
         # offset between windows
+        n = len(self.tiling_windows)
+        num_rest = n - index - 1
         x_step = (bound.width - w) // num_rest
         y_step = (bound.height - h) // num_rest
         left, top = bound.left, bound.top
-        for i in range(index, len(self.tiling_windows)):
+        for i in range(index, n):
+            if not self.tiling_windows[i]:
+                continue
             self.tiling_windows[i].set_restrict_rect(Rect(left, top, left + w, top + h))
             left += x_step
             top += y_step
@@ -181,7 +210,8 @@ class WorkspaceState:
         if not self.theme.strict:
             return
         for window in self.tiling_windows:
-            window.restrict()
+            if window:
+                window.restrict()
 
     def tiling_index_from_cursor(self) -> int:
         """Get the index of the tiling area under the cursor"""

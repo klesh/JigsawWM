@@ -138,7 +138,9 @@ class Splash(Dialog):
             self.workspace_states.layout().addWidget(widget)
         h = self.workspace_states.height()
         w = self.width()
-        tiling_windows = monitor_state.workspaces[workspace_index].tiling_windows
+        tiling_windows = [
+            w for w in monitor_state.workspaces[workspace_index].tiling_windows if w
+        ]
         if self.windows != tiling_windows:
             self.deleteDirectChildren(self.container)
             self.windows = tiling_windows.copy()

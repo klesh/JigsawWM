@@ -28,6 +28,18 @@ wm = WindowManager(
             + (5 if 1 < si.ratio < 2 else 0),
         ),
         Theme(
+            name="Dwindle Static",
+            layout_tiler=tilers.ratio_dwindle_layout_tiler,
+            max_tiling_areas=3,
+            # windows with static index defined in rules would be placed into the specified position
+            static_layout=True,
+            strict=True,
+            gap=20,
+            new_window_as_master=True,
+            affinity_index=lambda si: (4 if si.inch >= 20 else 0)
+            + (5 if 1 < si.ratio < 2 else 0),
+        ),
+        Theme(
             name="Mono",
             layout_tiler=tilers.mono_layout_tiler,
             strict=True,
@@ -69,6 +81,10 @@ wm = WindowManager(
             exe_regex=r"\bObsidian\.exe$", title_regex=None, preferred_monitor_index=1
         ),
         WmRule(exe_regex=r"\bFeishu\.exe$", preferred_monitor_index=1),
+        # static layout
+        WmRule(exe_regex=r"\bNotepad\.exe$", static_window_index=2),
+        WmRule(exe_regex=r"\balacritty\.exe$", static_window_index=1),
+        WmRule(exe_regex=r"\bthorium\.exe$", static_window_index=0),
     ],
 )
 
