@@ -173,7 +173,8 @@ class Window:
     def title(self) -> str:
         """Retrieves the text of the specified window's title bar (if it has one)"""
         title = create_unicode_buffer(255)
-        user32.GetWindowTextW(self.handle, title, 255)
+        user32.GetWindowTextW(self.handle, title, 100)
+        user32.SetLastErrorEx(0)
         return str(title.value)
 
     @cached_property

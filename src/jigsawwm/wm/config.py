@@ -60,16 +60,16 @@ class WmRule:
             return True
         if not target:
             return False
-        return pattern.search(target)
+        return bool(pattern.search(str(target)))
 
-    def match(self, window: Window):
+    def match(self, window: Window) -> bool:
         """Check if window matches the rule"""
         exe_matched = self.match_pattern(self.exe_regex, window.exe)
-        title_matched = self.match_pattern(self.title_regex, window.title)
-        if self.exe_and_title:
-            return exe_matched and title_matched
-        else:
-            return exe_matched or title_matched
+        if exe_matched:
+            if not self.exe_and_title:
+                return True
+            return exe_matched and self.match_pattern(self.title_regex, window.title)
+        return False
 
     def __repr__(self):
         marks = ""

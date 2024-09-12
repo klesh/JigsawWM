@@ -165,7 +165,7 @@ class Splash(Dialog):
         x = rect.x() + (rect.width() - w) // 2
         y = rect.y() + (rect.height()) // 3
         self.setGeometry(x, y, w, h)
-        self.show()
+        self.showNormal()
         self._register_hooks()
 
     @Slot()
