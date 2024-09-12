@@ -291,11 +291,11 @@ class WindowManager(ThreadWorker):
 
     def next_window(self) -> Callable:
         """Activate the managed window next to the last activated managed window"""
-        return self.enqueue_splash(self.switch_window_splash, +1)
+        return self.switch_window_splash(+1)
 
     def prev_window(self) -> Callable:
         """Activate the managed window prior to the last activated managed window"""
-        return self.enqueue_splash(self.switch_window_splash, -1)
+        return self.switch_window_splash(-1)
 
     def swap_next(self):
         """Swap the current active managed window with its next in list"""
@@ -313,7 +313,7 @@ class WindowManager(ThreadWorker):
 
     def switch_monitor(self, delta: int):
         """Switch to another monitor by given offset"""
-        return self.enqueue_splash(self.virtdesk_state.switch_monitor_splash, delta)
+        return self.enqueue_splash(self.virtdesk_state.switch_monitor, delta)
 
     def move_to_monitor(self, delta: int):
         """Move active window to another monitor by offset"""
@@ -321,19 +321,19 @@ class WindowManager(ThreadWorker):
 
     def prev_theme(self):
         """Switch to previous theme in the themes list"""
-        return self.enqueue_splash(self.switch_theme_splash, -1)
+        return self.switch_theme_splash(-1)
 
     def next_theme(self) -> Callable:
         """Switch to next theme in the themes list"""
-        return self.enqueue_splash(self.switch_theme_splash, +1)
+        return self.switch_theme_splash(+1)
 
     def prev_monitor(self):
         """Switch to previous monitor"""
-        return self.enqueue_splash(self.switch_monitor_splash, -1)
+        return self.switch_monitor_splash(-1)
 
     def next_monitor(self):
         """Switch to next monitor"""
-        return self.enqueue_splash(self.switch_monitor_splash, +1)
+        return self.switch_monitor_splash(+1)
 
     def move_to_prev_monitor(self):
         """Move active window to previous monitor"""

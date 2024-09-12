@@ -203,6 +203,7 @@ class Task(Job):
         self.executor.submit(self.check_launch)
 
     def check_launch(self):
+        """Check the condition and launch the task"""
         if self.condition():
             self.launch_anyway()
 

@@ -227,6 +227,9 @@ class WorkspaceState:
             return
         if self.last_active_window is None:
             self.last_active_window = self.tiling_windows[0]
+        elif self.last_active_window not in self.tiling_windows:
+            self.last_active_window.activate()
+            return
         i = self.tiling_windows.index(self.last_active_window)
         i = (i + delta) % len(self.tiling_windows)
         self.last_active_window = self.tiling_windows[i]
