@@ -1,10 +1,10 @@
 """Hotkey handler for JigsawWM."""
 
 import logging
-from typing import Callable, List, Optional, Tuple, Set
+from typing import List, Optional, Set
 
 from jigsawwm.w32.vk import Modifers
-from .core import JmkEvent, JmkTrigger, JmkTriggers, JmkCombination, Vk
+from .core import JmkEvent, JmkTrigger, JmkTriggers, JmkTriggerDefs, Vk
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ class JmkHotkeys(JmkTriggers):
 
     def __init__(
         self,
-        hotkeys: List[Tuple[JmkCombination, Callable, Optional[Callable]]] = None,
+        hotkeys: JmkTriggerDefs = None,
     ):
         super().__init__(hotkeys)
         self.pressed_modifiers = set()

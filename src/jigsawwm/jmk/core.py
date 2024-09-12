@@ -89,6 +89,12 @@ class JmkTrigger:
             self.release_callback()
 
 
+JmkTriggerDef = typing.Tuple[
+    JmkCombination, typing.Callable, typing.Optional[typing.Callable]
+]
+JmkTriggerDefs = typing.List[JmkTriggerDef]
+
+
 class JmkTriggers(JmkHandler):
     """A handler that handles triggers."""
 
@@ -96,17 +102,12 @@ class JmkTriggers(JmkHandler):
 
     def __init__(
         self,
-        triggers: typing.List[
-            typing.Tuple[
-                JmkCombination, typing.Callable, typing.Optional[typing.Callable]
-            ]
-        ] = None,
+        triggers: JmkTriggerDefs = None,
     ):
         super().__init__()
         self.triggers = {}
         if triggers:
-            for args in triggers:
-                self.register(*args)
+            self.register_triggers(triggers)
 
     def check_comb(self, comb: typing.List[Vk]):
         """Check if a combination is valid."""
@@ -117,6 +118,14 @@ class JmkTriggers(JmkHandler):
             comb = parse_combination(comb)
         self.check_comb(comb)
         return expand_combination(comb)
+
+    def register_triggers(
+        self,
+        triggers: JmkTriggerDefs,
+    ):
+        """Register triggers"""
+        for args in triggers:
+            self.register(*args)
 
     def register(
         self,
@@ -384,7 +393,7 @@ class JmkCore(JmkHandler):
     :param layers: the layers
     """
 
-    layers: typing.List[JmkLayer]
+    layers: typing.List[JmkLayer] = [{}]
     active_layers: typing.Set[int]
     routes: JmkLayer
 
@@ -393,6 +402,13 @@ class JmkCore(JmkHandler):
         layers: typing.List[JmkLayer] = None,
     ):
         super().__init__()
+        self.active_layers = {0}
+        self.routes = {}
+        if layers:
+            self.register_layers(layers)
+
+    def register_layers(self, layers: typing.List[JmkLayer]):
+        """Register layers"""
         if len(layers) < 1:
             raise ValueError("layers must have at least one layer")
         self.layers = [{}]
@@ -401,8 +417,6 @@ class JmkCore(JmkHandler):
                 raise TypeError("layer must be a dict")
             for vk, handler in layer.items():
                 self.register(vk, handler, index)
-        self.active_layers = {0}
-        self.routes = {}
 
     def register(self, vk: Vk, handler: JmkLayerKey, layer: int = 0):
         """Register a key handler to a layer"""

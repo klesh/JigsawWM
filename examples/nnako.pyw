@@ -1,12 +1,4 @@
-from jmk import hks
-from log import *
-
-from jigsawwm import daemon, ui
-from jigsawwm.tiler import tilers
-from jigsawwm.w32.vk import Vk
-from jigsawwm.w32.window import inspect_active_window
-from jigsawwm.wm import Theme, WindowManager
-
+"""An example for nnako"""
 
 #
 # CONCEPT
@@ -44,146 +36,68 @@ from jigsawwm.wm import Theme, WindowManager
 # 8    CMD
 
 
-#
-# define window manager
-#
+from functools import partial
 
-wm = WindowManager(
-    themes=[
-        # Theme(
-        #     name="OBS Dwindle",
-        #     layout_tiler=tilers.obs_dwindle_layout_tiler,
-        #     icon_name="obs.png",
-        #     gap=2,
-        #     strict=True,
-        # ),
-        Theme(
-            name="static_bigscreen_8",
-            layout_tiler=tilers.static_bigscreen_8_layout_tiler,
-            static_layout=True,
-            static_windows_count=8,
-            strict=True,
-            gap=2,
-            new_window_as_master=True,
-        ),
-        Theme(
-            name="Dwindle",
-            layout_tiler=tilers.dwindle_layout_tiler,
-            strict=True,
-            gap=2,
-            new_window_as_master=True,
-        ),
-        Theme(
-            name="WideScreen Dwindle",
-            layout_tiler=tilers.widescreen_dwindle_layout_tiler,
-            icon_name="wide-dwindle.png",
-            gap=2,
-            strict=True,
-            new_window_as_master=True,
-        ),
-        Theme(
-            name="Mono",
-            layout_tiler=tilers.mono_layout_tiler,
-            strict=True,
-        ),
-    ],
-    ignore_exe_names=[
-        "ApplicationFrameHost.exe",  # ?
-        #        "chrome.exe",               # Chrome web browser
-        #        "Cloudflare WARP.exe",
-        #        "cmd.exe",                  # cmd consoles
-        #        "EXCEL.EXE",
-        "explorer.exe",  # ?
-        #        "freeplane.exe",            # mindmap editor
-        #        "javaw.exe",                # mindmap editor
-        #        "MediaInfo.exe",
-        "mintty.exe",  # ?
-        "msedge.exe",  # browser
-        #        "notepad++.exe",            # text editor
-        #        "openvpn-gui.exe",
-        "OUTLOOK.EXE",
-        "SnagitCapture.exe",
-        "SnagitEditor.exe",
-        "SnippingTool.exe",
-        #        "Teams.exe",
-        "TOTALCMD.EXE",
-        #        "yEd.exe",
-    ],
-    force_managed_exe_names=["Lens.exe"],
-    # TODO: rewrite by using WmRule with preferred window index
-    # here the wished initial sequence of applications in order to correctly
-    # fill the windows. these applications will not be ignored, so they don't
-    # need to be listed within the ignore_exe_names list.
-    init_exe_sequence=[
-        ["cmd.exe", "nvim"],  # code editor
-        ["cmd.exe", ""],  # debug console
-        ["notepad++.exe", ""],  # general text editor
-        ["javaw.exe", "freeplane"],  # mindmap editor
-        ["chrome.exe", ""],  # internet browser
-        ["Teams.exe", ""],  # messaging
-        ["yEd.exe", ""],  # diagramming
-        ["EXCEL.EXE", ""],  # organizational stuff
+from jigsawwm.app.daemon import Daemon
+from jigsawwm.jmk.core import Vk
+from jigsawwm.wm.manager import WmConfig
+from jigsawwm.wm.config import WmRule
+
+
+daemon = Daemon()
+
+daemon.wm.hotkeys = [
+    ([Vk.WIN, Vk.J], daemon.wm.manager.next_window),
+    ([Vk.WIN, Vk.K], daemon.wm.manager.prev_window),
+    ([Vk.WIN, Vk.SHIFT, Vk.J], daemon.wm.manager.swap_next),
+    ([Vk.WIN, Vk.SHIFT, Vk.K], daemon.wm.manager.swap_prev),
+    ("Win+/", daemon.wm.manager.set_master),
+    ([Vk.WIN, Vk.CONTROL, Vk.SPACE], daemon.wm.manager.next_theme),
+    ([Vk.WIN, Vk.U], daemon.wm.manager.prev_monitor),
+    ([Vk.WIN, Vk.I], daemon.wm.manager.next_monitor),
+    ([Vk.WIN, Vk.SHIFT, Vk.U], daemon.wm.manager.move_to_prev_monitor),
+    ([Vk.WIN, Vk.SHIFT, Vk.I], daemon.wm.manager.move_to_next_monitor),
+    ([Vk.WIN, Vk.CONTROL, Vk.I], daemon.wm.manager.inspect_active_window),
+    ("Win+Ctrl+a", partial(daemon.wm.manager.switch_workspace, 0)),
+    ("Win+Ctrl+s", partial(daemon.wm.manager.switch_workspace, 1)),
+    ("Win+Ctrl+d", partial(daemon.wm.manager.switch_workspace, 2)),
+    ("Win+Ctrl+f", partial(daemon.wm.manager.switch_workspace, 3)),
+    ("Win+Shift+a", partial(daemon.wm.manager.move_to_workspace, 0)),
+    ("Win+Shift+s", partial(daemon.wm.manager.move_to_workspace, 1)),
+    ("Win+Shift+d", partial(daemon.wm.manager.move_to_workspace, 2)),
+    ("Win+Shift+f", partial(daemon.wm.manager.move_to_workspace, 3)),
+    ("Win+Shift+Space", daemon.wm.manager.toggle_tilable),
+    ("Win+Ctrl+u", daemon.wm.manager.inspect_state),
+    (
+        "XBUTTON1+RBUTTON",
+        daemon.wm.manager.toggle_splash,
+    ),  # browser forward button + right button
+]
+
+daemon.wm.manager.config = WmConfig(
+    rules=[
+        WmRule(exe="cmd.exe", title="nvim", static_window_index=0),  # code editor
+        WmRule(exe="cmd.exe", static_window_index=1),  # debug console
+        WmRule(exe="notepad++.exe", static_window_index=2),  # general text editor
+        WmRule(
+            exe="javaw.exe", title="freeplane", static_window_index=3
+        ),  # mindmap editor
+        WmRule(exe="chrome.exe", static_window_index=4),  # internet browser
+        WmRule(exe="Teams.exe", static_window_index=5),  # messaging
+        WmRule(exe="yEd.exe", static_window_index=6),  # diagramming
+        WmRule(exe="EXCEL.EXE", static_window_index=7),  # organizational stuff
+        WmRule(exe="Len.exe", manageable=False),
+        WmRule(exe="ApplicationFrameHost.exe", manageable=False),
+        WmRule(exe="explorer.exe", manageable=False),
+        WmRule(exe="mintty.exe", manageable=False),
+        WmRule(exe="Len.exe", manageable=False),
+        WmRule(exe="msedge.exe", manageable=False),
+        WmRule(exe="OUTLOOK.EXE", manageable=False),
+        WmRule(exe="SnagitCapture.exe", manageable=False),
+        WmRule(exe="SnagitEditor.exe", manageable=False),
+        WmRule(exe="SnippingTool.exe", manageable=False),
+        WmRule(exe="TOTALCMD.exe", manageable=False),
     ],
 )
 
-
-#
-# define hotkeys
-#
-
-hotkeys = [
-    ([Vk.WIN, Vk.J], wm.activate_next, ui.hide_windows_splash),
-    ([Vk.WIN, Vk.K], wm.activate_prev, ui.hide_windows_splash),
-    ([Vk.WIN, Vk.SHIFT, Vk.J], wm.swap_next),
-    ([Vk.WIN, Vk.SHIFT, Vk.K], wm.swap_prev),
-    ("Win+/", wm.set_master),
-    ([Vk.WIN, Vk.SPACE], wm.next_theme),
-    ([Vk.WIN, Vk.U], wm.prev_monitor),
-    ([Vk.WIN, Vk.I], wm.next_monitor),
-    ([Vk.WIN, Vk.SHIFT, Vk.U], wm.move_to_prev_monitor),
-    ([Vk.WIN, Vk.SHIFT, Vk.I], wm.move_to_next_monitor),
-    ([Vk.WIN, Vk.CONTROL, Vk.I], inspect_active_window),
-]
-
-
-class WindowManagerService(daemon.Service):
-    name = "Window Manager"
-    is_running = False
-
-    def start(self):
-        self.is_running = True
-
-        #
-        # install hooks
-        #
-
-        wm.install_hooks()
-
-        #
-        # register hotkeys
-        #
-
-        for args in hotkeys:
-            hks.register(*args)
-
-    def stop(self):
-
-        #
-        # uninstall hooks
-        #
-
-        wm.uninstall_hooks()
-
-        #
-        # register hotkeys
-        #
-
-        for args in hotkeys:
-            hks.unregister(args[0])
-        self.is_running = False
-
-
-daemon.register(WindowManagerService)
-
-if __name__ == "__main__":
-    daemon.message_loop()
+daemon.start()

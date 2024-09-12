@@ -7,13 +7,10 @@ from ctypes import *  # pylint: disable=wildcard-import,unused-wildcard-import
 from ctypes.wintypes import *  # pylint: disable=wildcard-import,unused-wildcard-import
 
 from PySide6.QtCore import (
-    QEvent,
     QPoint,
     Qt,
     Signal,
     Slot,
-    QByteArray,
-    QObject,
 )
 from PySide6.QtGui import QImage, QCursor
 from PySide6.QtWidgets import QLabel, QSizePolicy, QWidget, QHBoxLayout, QVBoxLayout
@@ -21,6 +18,8 @@ from PySide6.QtWidgets import QLabel, QSizePolicy, QWidget, QHBoxLayout, QVBoxLa
 from jigsawwm.w32.window import Window, get_foreground_window
 from jigsawwm.w32 import hook
 from jigsawwm.wm.monitor_state import MonitorState
+from jigsawwm.jmk.jmk_service import JmkService
+from jigsawwm.jmk.core import JmkEvent, Vk
 
 from .app import app
 from .dialog import Dialog
@@ -31,6 +30,7 @@ logger = logging.getLogger(__name__)
 class Splash(Dialog):
     """The window list splash screen."""
 
+    jmk: JmkService
     show_splash = Signal(MonitorState)
     hide_splash = Signal()
     mouse_up_on_workspace = Signal(int)
@@ -43,8 +43,9 @@ class Splash(Dialog):
     workspaces: List[QWidget] = []
     fg_hwnd: Optional[int] = None
 
-    def __init__(self):
+    def __init__(self, jmk_service: JmkService):
         super().__init__()
+        self.jmk = jmk_service
         self.windows = []
         self.show_splash.connect(self.show_windows_splash)
         self.hide_splash.connect(self.hide_windows_splash)
@@ -65,38 +66,28 @@ class Splash(Dialog):
         # self._register_shellhook()
         logger.info("WindowsSplash init")
 
-    def _register_shellhook(self):
-        user32 = WinDLL("user32", use_last_error=True)
-        self.shellhook_msgid = user32.RegisterWindowMessageW("SHELLHOOK")
-        if not user32.RegisterShellHookWindow(self.winId()):
-            raise WinError(get_last_error())
-
     def _register_hooks(self):
+        logger.info("register hooks")
         self.mouse_hookid = hook.hook_mouse(self._on_system_mouse_move)
+        self.jmk.sysout.callbacks.add(self._on_system_key_event)
 
-    def _unregister_mousehook(self):
-        hook.unhook(self.mouse_hookid)
+    def _unregister_hooks(self):
+        logger.info("unregister hooks")
+        if self._on_system_key_event in self.jmk.sysout.callbacks:
+            self.jmk.sysout.callbacks.remove(self._on_system_key_event)
+        if self.mouse_hookid:
+            hook.unhook(self.mouse_hookid)
+            self.mouse_hookid = 0
 
     def _on_system_mouse_move(
         self, _ncode: int, msg_id: hook.MSLLHOOKMSGID, _data: hook.MSLLHOOKDATA
     ):
         if msg_id == hook.MSLLHOOKMSGID.WM_MOUSEMOVE:
             self.on_mouse_move()
-        elif msg_id == hook.MSLLHOOKMSGID.WM_LBUTTONUP:
-            self.on_mouse_up()
 
-    def nativeEvent(self, eventType: QByteArray | bytes, message: int) -> object:
-        if eventType == "windows_generic_MSG":
-            msg = MSG.from_address(int(message))
-            if msg.message == self.shellhook_msgid:
-                if msg.wParam == 1:
-                    self.created_windows.add(msg.hWnd)
-                    logger.debug("window %s created", msg.hWnd)
-                elif msg.wParam == 2:
-                    logger.debug("window %s destroyed", msg.hWnd)
-                elif msg.wParam == 4:
-                    logger.debug("window %s activated", msg.hWnd)
-        return super().nativeEvent(eventType, message)
+    def _on_system_key_event(self, evt: JmkEvent):
+        if evt.vk == Vk.LBUTTON and evt.pressed is False:
+            self.on_mouse_up()
 
     @Slot(MonitorState)
     def show_windows_splash(self, monitor_state: MonitorState):
@@ -181,8 +172,8 @@ class Splash(Dialog):
     def hide_windows_splash(self):
         """Hide the splash screen"""
         logger.info("WindowsSplash hide")
+        self._unregister_hooks()
         self.hide()
-        self._unregister_mousehook()
 
     def refresh_foreground_window(self):
         """Refresh the foreground window"""
@@ -215,9 +206,28 @@ class Splash(Dialog):
         if not self.geometry().contains(sys_pos):
             self.hide_windows_splash()
 
-    def eventFilter(self, src: QObject, evt: QEvent) -> bool:
-        logger.debug("obj: %s, evt: %s", src, evt)
-        super().eventFilter(src, evt)
+    # def _register_shellhook(self):
+    #     user32 = WinDLL("user32", use_last_error=True)
+    #     self.shellhook_msgid = user32.RegisterWindowMessageW("SHELLHOOK")
+    #     if not user32.RegisterShellHookWindow(self.winId()):
+    #         raise WinError(get_last_error())
+
+    # def nativeEvent(self, eventType: QByteArray | bytes, message: int) -> object:
+    #     if eventType == "windows_generic_MSG":
+    #         msg = MSG.from_address(int(message))
+    #         if msg.message == self.shellhook_msgid:
+    #             if msg.wParam == 1:
+    #                 self.created_windows.add(msg.hWnd)
+    #                 logger.debug("window %s created", msg.hWnd)
+    #             elif msg.wParam == 2:
+    #                 logger.debug("window %s destroyed", msg.hWnd)
+    #             elif msg.wParam == 4:
+    #                 logger.debug("window %s activated", msg.hWnd)
+    #     return super().nativeEvent(eventType, message)
+
+    # def eventFilter(self, src: QObject, evt: QEvent) -> bool:
+    #     logger.debug("obj: %s, evt: %s", src, evt)
+    #     super().eventFilter(src, evt)
 
     # def event(self, evt: QEvent) -> bool:
     #     logger.debug("evt: %s", evt)

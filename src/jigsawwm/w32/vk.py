@@ -223,6 +223,35 @@ class Vk(enum.IntEnum):
     def _missing_(cls, value):
         return cls.UNKNOWN
 
+    # alias
+    LCTRL = LCONTROL
+    LCTL = LCONTROL
+    LALT = LMENU
+    LSFT = LSHIFT
+    LSUPER = LWIN
+    RCTRL = RCONTROL
+    RCTL = RCONTROL
+    RALT = RMENU
+    RSFT = RSHIFT
+    RSUPER = RWIN
+    CTRL = CONTROL
+    ALT = MENU
+    SFT = SHIFT
+    SUPER = WIN
+    DASH = OEM_MINUS
+    EQUAL = OEM_PLUS
+    SEMICOLON = OEM_1
+    SLASH = OEM_2
+    BACKQUOTE = OEM_3
+    LBRACKET = OEM_4
+    BACKSLASH = OEM_5
+    RBRACKET = OEM_6
+    SINGLEQUOTE = OEM_7
+    COMMA = OEM_COMMA
+    PERIOD = OEM_PERIOD
+    PGUP = PRIOR
+    PGDN = NEXT
+
 
 VkAliases: typing.Dict[str, Vk] = {
     "LCTRL": Vk.LCONTROL,
@@ -254,35 +283,6 @@ VkAliases: typing.Dict[str, Vk] = {
 }
 
 
-class Vka:
-    LCTRL = Vk.LCONTROL
-    LCTL = Vk.LCONTROL
-    LALT = Vk.LMENU
-    LSFT = Vk.LSHIFT
-    LSUPER = Vk.LWIN
-    RCTRL = Vk.RCONTROL
-    RCTL = Vk.RCONTROL
-    RALT = Vk.RMENU
-    RSFT = Vk.RSHIFT
-    RSUPER = Vk.RWIN
-    CTRL = Vk.CONTROL
-    MENU = Vk.MENU
-    ALT = Vk.MENU
-    SFT = Vk.SHIFT
-    SUPER = Vk.WIN
-    DASH = Vk.OEM_MINUS
-    EQUAL = Vk.OEM_PLUS
-    SEMICOLON = Vk.OEM_1
-    SLASH = Vk.OEM_2
-    BACKQUOTE = Vk.OEM_3
-    LBRACKET = Vk.OEM_4
-    BACKSLASH = Vk.OEM_5
-    RBRACKET = Vk.OEM_6
-    SINGLEQUOTE = Vk.OEM_7
-    COMMA = Vk.OEM_COMMA
-    PERIOD = Vk.OEM_PERIOD
-
-
 Modifers = {
     Vk.LCONTROL,
     Vk.RCONTROL,
@@ -302,13 +302,14 @@ Modifers = {
 
 
 def parse_key(key: str) -> Vk:
+    """parse key in string to Vk"""
     key_name = key.strip().upper()
     # try alias
     key = VkAliases.get(key_name)
     # try name
     if key is None:
         if key_name not in Vk.__members__:
-            raise Exception(f"invalid key: {key_name}")
+            raise ValueError(f"invalid key: {key_name}")
         return Vk[key_name]
     return key
 
@@ -357,6 +358,7 @@ GetKeyState.restype = wintypes.SHORT
 
 
 def get_key_state(vk: Vk) -> bool:
+    """Retrieve key state from the OS"""
     return bool(GetKeyState(vk) & 0x8000)
 
 

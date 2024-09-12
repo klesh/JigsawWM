@@ -6,7 +6,7 @@ import time
 from typing import Dict, List, Callable, Optional
 from ctypes.wintypes import HWND, LONG, DWORD
 
-from jigsawwm.jmk import sysinout, Vk
+from jigsawwm.jmk.jmk_service import JmkService, Vk
 from jigsawwm.ui import Splash, app
 from jigsawwm.w32 import hook
 from jigsawwm.w32.winevent import WinEvent
@@ -14,8 +14,7 @@ from jigsawwm.w32.reg import get_current_desktop_id
 from jigsawwm.w32.window import Window, Rect
 from jigsawwm.worker import ThreadWorker
 
-from .theme import Theme
-from .config import WmConfig, WmRule
+from .config import WmConfig
 from .virtdesk_state import (
     VirtDeskState,
     MonitorState,
@@ -53,20 +52,12 @@ class WindowManager(ThreadWorker):
     _wait_mouse_released: bool = False
     _movesizing_window: Optional[Window] = None
     _movesizing_window_rect: Optional[Rect] = None
+    jmk: JmkService
 
-    def __init__(
-        self,
-        themes: List[Theme] = None,
-        rules: List[WmRule] = None,
-    ):
-        config = WmConfig(
-            themes=themes,
-            rules=rules,
-        )
-        config.prepare()
-        self.config = config
+    def __init__(self, jmk_service: JmkService):
+        self.jmk = jmk_service
         self.virtdesk_states = {}
-        self.splash = Splash()
+        self.splash = Splash(jmk_service)
         self.splash.mouse_up_on_workspace.connect(self.on_splash_workspace_mouse_up)
 
     def start(self):
@@ -150,13 +141,13 @@ class WindowManager(ThreadWorker):
         if (
             not self._wait_mouse_released
             and event == WinEvent.EVENT_OBJECT_PARENTCHANGE
-            and sysinout.state.get(Vk.LBUTTON)  # assuming JMK is enabled...
+            and self.jmk.sysout.state.get(Vk.LBUTTON)  # assuming JMK is enabled...
         ):
             # delay the sync until button released to avoid flickering
             self._wait_mouse_released = True
             return
         elif self._wait_mouse_released:
-            if not sysinout.state.get(Vk.LBUTTON):
+            if not self.jmk.sysout.state.get(Vk.LBUTTON):
                 self._wait_mouse_released = False
                 self.virtdesk_state.on_windows_changed()
             else:

@@ -8,6 +8,7 @@ from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
+
 def open_chrome_fav_folder(
     bookmarks_path: str,
     fav_folder: str = "daily",
@@ -39,15 +40,13 @@ def open_chrome_fav_folder(
     open_folder(folder)
 
 
-def open_firefox_fav_folder(
-    places_path,
-    fav_folder='daily'
-):
+def open_firefox_fav_folder(places_path, fav_folder="daily"):
     # Firefox profile path: Menu -> Help -> More Troubleshooting Information -> Application Basics -> Profile Folder
     # browser.open_firefox_fav_folder(r"C:\Users\Klesh\AppData\Roaming\Mozilla\Firefox\Profiles\jmhvf542.default-release\places.sqlite")
     # browser.open_firefox_fav_folder(r"C:\Users\Klesh\AppData\Roaming\Floorp\Profiles\qv6occsk.default-release\places.sqlite")
     import sqlite3
-    sql_query = f"""
+
+    sql_query = """
         select
             -- mb.title,
             mp.url
@@ -68,11 +67,12 @@ def open_firefox_fav_folder(
     con = sqlite3.connect(places_path)
     cur = con.cursor()
     res = cur.execute(sql_query, [fav_folder])
-    for url, in res.fetchall():
-        time.sleep(1) # open too fast will cause firefox to skip some tabs
+    for (url,) in res.fetchall():
+        time.sleep(1)  # open too fast will cause firefox to skip some tabs
         os.startfile(url)
     res.close()
     cur.close()
+
 
 @dataclass
 class BrowserProfile:
@@ -80,67 +80,75 @@ class BrowserProfile:
     path: str
     entry: Callable[[str, str], None]
 
+
 BROWSER_BOOKMARK_PATHS = {
     "chrome": BrowserProfile(
         name="chrome",
-        path=os.path.join(os.getenv("LOCALAPPDATA"),
+        path=os.path.join(
+            os.getenv("LOCALAPPDATA"),
             "Google",
             "Chrome",
             "User Data",
             "Default",
             "Bookmarks",
         ),
-        entry=open_chrome_fav_folder
+        entry=open_chrome_fav_folder,
     ),
     "thorium": BrowserProfile(
         name="chrome",
-        path=os.path.join(os.getenv("LOCALAPPDATA"),
+        path=os.path.join(
+            os.getenv("LOCALAPPDATA"),
             "Thorium",
             "User Data",
             "Default",
             "Bookmarks",
         ),
-        entry=open_chrome_fav_folder
+        entry=open_chrome_fav_folder,
     ),
     "edge": BrowserProfile(
         name="chrome",
-        path=os.path.join(os.getenv("LOCALAPPDATA"),
-        "Microsoft",
-        "Edge",
-        "User Data",
-        "Default",
-        "Bookmarks",
+        path=os.path.join(
+            os.getenv("LOCALAPPDATA"),
+            "Microsoft",
+            "Edge",
+            "User Data",
+            "Default",
+            "Bookmarks",
         ),
-        entry=open_chrome_fav_folder
+        entry=open_chrome_fav_folder,
     ),
-    "firefox": BrowserProfile( # to be done
+    "firefox": BrowserProfile(  # to be done
         name="chrome",
-        path=os.path.join(os.getenv("APPDATA"),
+        path=os.path.join(
+            os.getenv("APPDATA"),
             "Mozilla",
             "Firefox",
             "Profiles",
             "?",
             "places.sqlite",
         ),
-        entry=open_firefox_fav_folder
+        entry=open_firefox_fav_folder,
     ),
-    "floorp": BrowserProfile( # to be done
+    "floorp": BrowserProfile(  # to be done
         name="chrome",
-        path=os.path.join(os.getenv("APPDATA"),
+        path=os.path.join(
+            os.getenv("APPDATA"),
             "Floorp",
             "Profiles",
             "?",
             "places.sqlite",
         ),
-        entry=open_firefox_fav_folder
+        entry=open_firefox_fav_folder,
     ),
 }
+
 
 def open_fav_folder(browser_name, fav_folder):
     profile = BROWSER_BOOKMARK_PATHS.get(browser_name)
     if not profile:
         logger.error(f"Unsupported browser {browser_name}")
     profile.entry(profile.path, fav_folder)
+
 
 def wait_for_network_ready():
     import urllib.request
@@ -154,5 +162,8 @@ def wait_for_network_ready():
         except Exception as e:
             time.sleep(1)
 
+
 if __name__ == "__main__":
-    open_firefox_fav_folder(r"C:\Users\Klesh\AppData\Roaming\Floorp\Profiles\qv6occsk.default-release\places.sqlite")
+    open_firefox_fav_folder(
+        r"C:\Users\Klesh\AppData\Roaming\Floorp\Profiles\qv6occsk.default-release\places.sqlite"
+    )

@@ -3,7 +3,7 @@
 import re
 import logging
 from ctypes.wintypes import DWORD, HWND, LONG
-from typing import List, Set, Union
+from typing import List, Set, Union, Optional, Callable, Dict
 
 from jigsawwm.w32 import hook
 from jigsawwm.w32.sendinput import is_synthesized, vk_to_input, send_input
@@ -12,7 +12,6 @@ from jigsawwm.worker import ThreadWorker
 
 from .core import JmkHandler, JmkEvent, Vk
 
-state = {}
 logger = logging.getLogger(__name__)
 
 JMK_MSG_CLOSE = 0
@@ -31,6 +30,7 @@ class SystemInput(ThreadWorker, JmkHandler):
     focused_window: Window = None
     disabled: bool = False
     disabled_reason: str = None
+    next_handler_when_disabled: Optional[JmkHandler]
     bypass_exe: Set[str] = None
     pressed_key: Set[Vk] = set()
     window_detector: WindowDetector = None
@@ -113,9 +113,6 @@ class SystemInput(ThreadWorker, JmkHandler):
         if is_synthesized(msg):
             logger.debug("synthesized event %s, skipping", msg)
             return False
-        if self.disabled:
-            logger.debug("disabled due to %s, skipping %s", self.disabled_reason, msg)
-            return False
         # convert keyboard/mouse event to a unified virtual key representation
         vkey, pressed = None, None
         if isinstance(msgid, hook.KBDLLHOOKMSGID):
@@ -168,6 +165,12 @@ class SystemInput(ThreadWorker, JmkHandler):
             # logger.debug("unknown event %s, skipping", msg)
             return False
         self.enqueue(self.on_input, vkey, pressed, msg.flags, msg.dwExtraInfo)
+        # we still need to keep track of system input for the following modules:
+        #   - UI: detect mouse up on workspace widget
+        #   - WM: detect merging chrome tabs
+        if self.disabled:
+            logger.debug("disabled due to %s, skipping %s", self.disabled_reason, msg)
+            return False
 
         return True
 
@@ -181,17 +184,31 @@ class SystemInput(ThreadWorker, JmkHandler):
             self.pressed_key.remove(vkey)
         evt = JmkEvent(vkey, pressed, system=True, flags=flags, extra=extra)
         logger.debug("sys >>> %s", evt)
-        self.next_handler(evt)
+        if self.disabled:
+            if self.next_handler_when_disabled:
+                self.next_handler_when_disabled(evt)
+        else:
+            self.next_handler(evt)
 
 
 class SystemOutput(JmkHandler):
     """A system output handler that send input to system"""
 
+    disabled: bool = False
+    callbacks: Set[Callable[[JmkEvent], bool]]
+    state: Dict[Vk, bool] = {}
+
     def __init__(self, input_sender=send_input):
         """Initialize a system output handler"""
         self.input_sender = input_sender
+        self.callbacks = set()
 
     def __call__(self, evt: JmkEvent) -> bool:
         logger.debug("%s >>> sys", evt)
-        state[evt.vk] = evt.pressed
+        self.state[evt.vk] = evt.pressed
+        swallow = False
+        for callback in self.callbacks.copy():
+            swallow |= bool(callback(evt))
+        if swallow or self.disabled:
+            return
         self.input_sender(vk_to_input(evt.vk, evt.pressed, flags=evt.flags))

@@ -2,52 +2,93 @@
 
 import re
 import logging
-from dataclasses import dataclass, field
 from typing import Set, List, Dict, Optional
 from jigsawwm.w32.monitor import Monitor
 from jigsawwm.w32.window import Window
-from .theme import Theme
+from .theme import Theme, all_themes
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
 class WmRule:
     """WmRule holds the rule for managing windows"""
 
-    exe_regex: Optional[str] = None
-    exe_name: Optional[str] = None
-    title_regex: Optional[str] = None
+    exe_regex: Optional[re.Pattern] = None
+    title_regex: Optional[re.Pattern] = None
+    exe_and_title: bool
     preferred_monitor_index: Optional[int] = None
     preferred_workspace_index: Optional[int] = None
     static_window_index: Optional[int] = None
     manageable: Optional[bool] = None  # managed in workspace
     tilable: Optional[bool] = None  # is it tilable in a workspace
 
+    def __init__(
+        self,
+        exe: Optional[str] = None,
+        exe_is_literal: bool = True,
+        title: Optional[str] = None,
+        title_is_literal: bool = True,
+        exe_and_title: bool = True,
+        preferred_monitor_index: Optional[int] = None,
+        preferred_workspace_index: Optional[int] = None,
+        static_window_index: Optional[int] = None,
+        manageable: Optional[bool] = None,
+        tilable: Optional[bool] = None,
+    ):
+        if exe:
+            self.exe_regex = self.parse_pattern(exe, exe_is_literal)
+        if title:
+            self.title_regex = self.parse_pattern(title, title_is_literal)
+        self.exe_and_title = exe_and_title
+        self.preferred_monitor_index = preferred_monitor_index
+        self.preferred_workspace_index = preferred_workspace_index
+        self.static_window_index = static_window_index
+        self.manageable = manageable
+        self.tilable = tilable
 
-@dataclass
+    @staticmethod
+    def parse_pattern(pattern: str, literal: bool) -> re.Pattern:
+        """Parse regex pattern"""
+        if literal:
+            pattern = r"\b" + re.escape(pattern) + r"$"
+        return re.compile(pattern, re.I)
+
+    @staticmethod
+    def match_pattern(pattern: Optional[re.Pattern], target: str) -> bool:
+        if not pattern:
+            return True
+        if not target:
+            return False
+        return pattern.search(target)
+
+    def match(self, window: Window):
+        """Check if window matches the rule"""
+        exe_matched = self.match_pattern(self.exe_regex, window.exe)
+        title_matched = self.match_pattern(self.title_regex, window.title)
+        if self.exe_and_title:
+            return exe_matched and title_matched
+        else:
+            return exe_matched or title_matched
+
+
 class WmConfig:
     """WmConfig holds the configuration of the window manager"""
 
     themes: List[Theme] = None
     ignore_exe_names: Set[str] = None
     force_managed_exe_names: Set[str] = None
-    workspace_names: List[str] = field(default_factory=lambda: ["0", "1", "2", "3"])
+    workspace_names: List[str]
     rules: Optional[List[WmRule]] = None
-    _monitor_themes: Dict[str, Theme] = field(default_factory=dict)
+    _monitor_themes: Dict[str, Theme]
     _rules_regexs: List[List[re.Pattern]] = None
 
-    def prepare(self):
-        """Prepare the configuration"""
-        if self.rules:
-            self._rules_regexs = []
-            for rule in self.rules:
-                self._rules_regexs.append(
-                    [
-                        re.compile(rule.exe_regex) if rule.exe_regex else None,
-                        re.compile(rule.title_regex) if rule.title_regex else None,
-                    ]
-                )
+    def __init__(self, themes: List[str] = None, rules: List[WmRule] = None):
+        self.themes = (
+            [t for t in all_themes if t.name in themes] if themes else all_themes
+        )
+        self.rules = rules
+        self.workspace_names = ["0", "1", "2", "3"]
+        self._monitor_themes = {}
 
     def get_theme_index(self, theme_name: str) -> int:
         """Retrieves the index of given theme name, useful to switching theme"""
@@ -77,15 +118,6 @@ class WmConfig:
 
     def find_rule_for_window(self, window: Window) -> Optional[WmRule]:
         """Find the rule for the window"""
-        if not self._rules_regexs:
-            return
-        for i, regexs in enumerate(self._rules_regexs):
-            exe_regex, title_regex = regexs
-            window_exe = window.exe
-            if exe_regex and (not window_exe or not exe_regex.search(window_exe)):
-                continue
-            if title_regex and (
-                not window.title or not title_regex.search(window.title)
-            ):
-                continue
-            return self.rules[i]
+        for rule in self.rules:
+            if rule.match(window):
+                return rule
