@@ -250,6 +250,8 @@ class VirtDeskState:
         """Reorder windows"""
         if workspace is None:
             window = self.window_detector.foreground_window()
+            while window.parent:
+                window = window.parent
             if not window.manageable or not window.tilable:
                 return
             workspace = window.attrs[WORKSPACE_STATE]
