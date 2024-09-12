@@ -55,6 +55,7 @@ class WmRule:
 
     @staticmethod
     def match_pattern(pattern: Optional[re.Pattern], target: str) -> bool:
+        """Match pattern"""
         if not pattern:
             return True
         if not target:
@@ -69,6 +70,16 @@ class WmRule:
             return exe_matched and title_matched
         else:
             return exe_matched or title_matched
+
+    def __repr__(self):
+        marks = ""
+        if self.manageable:
+            marks += "M"
+        if self.tilable:
+            marks += "T"
+        if marks:
+            marks = f" ({marks})"
+        return f"<WmRule exe={self.exe_regex} title={self.title_regex} pmi={self.preferred_monitor_index} pwi={self.preferred_workspace_index}{marks}>"
 
 
 class WmConfig:
