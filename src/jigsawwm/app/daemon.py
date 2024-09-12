@@ -186,6 +186,7 @@ class Daemon:
                             "trayicon_triggerred", exc_info=True, stack_info=True
                         )
             return
+        self.refresh_traymenu()
 
     def register(self, job: Job):
         """Register a job to the daemon service"""
