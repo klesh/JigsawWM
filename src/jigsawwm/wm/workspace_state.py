@@ -61,7 +61,7 @@ class WorkspaceState:
             w = self.last_active_window
             if not w and self.tiling_windows:
                 w = self.tiling_windows[0]
-            if w:
+            if w and w.exists():
                 w.activate()
 
     def set_theme(self, theme: Theme):
