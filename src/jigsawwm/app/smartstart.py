@@ -13,16 +13,23 @@ from .state import state_manager
 logger = logging.getLogger(__name__)
 
 
-def daily_once(name: str, day_start: Optional[time] = time(hour=8)):
-    """Returns True if the given name has not been called today"""
+def is_today_done(task_name: str, day_start: Optional[time] = time(hour=8)):
+    """Check if today task was done"""
     now = datetime.now().astimezone()
     if now.time() < day_start:
+        logger.info("day has not yet started: %d", day_start)
         return False
     today = now.date()
-    last_date = state_manager.getdate("daily", name)
-    state_manager.setdate("daily", name, today)
-    state_manager.save()
+    last_date = state_manager.getdate("daily", task_name)
     return last_date != today
+
+
+def mark_today_done(task_name: str):
+    """Set tody task done"""
+    today = datetime.now().astimezone().date()
+    state_manager.setdate("daily", task_name, today)
+    state_manager.save()
+    logger.info("today task %s has been marked as done", task_name)
 
 
 def start_if_not_running(exe_path: str, name_only: bool = True):

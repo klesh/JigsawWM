@@ -6,26 +6,31 @@ from mailcalaid.cal.holiday import ChinaHolidayBook, NagerDateHolidayBook
 
 from .job import Task
 from .browser import open_fav_folder, wait_for_network_ready
-from .smartstart import daily_once, start_if_not_running
+from .smartstart import is_today_done, mark_today_done, start_if_not_running
 
 
 class DailyWebsites(Task):
     """Open all bookmarks in given fav folder once per day"""
 
-    name = "daily routine"
+    name = "daily websites"
     browser_name: str
     fav_folder: str
+    test_url: str
 
-    def __init__(self, browser_name: str, fav_folder: str):
+    def __init__(
+        self, browser_name: str, fav_folder: str, test_url: str = "https://bing.com"
+    ):
         self.browser_name = browser_name
         self.fav_folder = fav_folder
+        self.test_url = test_url
 
     def run(self):
-        wait_for_network_ready()
+        wait_for_network_ready(self.test_url)
         open_fav_folder(self.browser_name, self.fav_folder)
+        mark_today_done(self.name)
 
     def condition(self):
-        return daily_once("daily websites")
+        return is_today_done(self.name)
 
 
 class WorkdayAutoStart(Task):

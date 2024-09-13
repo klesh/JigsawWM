@@ -1,8 +1,12 @@
+"""Useful functions to access browsers data"""
+
 import time
+import sqlite3
 import json
 import os
 import os.path
 import logging
+import urllib.request
 from typing import Callable
 from dataclasses import dataclass
 
@@ -15,6 +19,7 @@ def open_chrome_fav_folder(
     root_folder: str = "bookmark_bar",
     start_proto: str = None,
 ):
+    """Open chrome fav folder"""
     bookmarks = None
     with open(bookmarks_path, encoding="utf8") as f:
         bookmarks = json.load(f)
@@ -41,10 +46,10 @@ def open_chrome_fav_folder(
 
 
 def open_firefox_fav_folder(places_path, fav_folder="daily"):
+    """Open firefox fav folder"""
     # Firefox profile path: Menu -> Help -> More Troubleshooting Information -> Application Basics -> Profile Folder
     # browser.open_firefox_fav_folder(r"C:\Users\Klesh\AppData\Roaming\Mozilla\Firefox\Profiles\jmhvf542.default-release\places.sqlite")
     # browser.open_firefox_fav_folder(r"C:\Users\Klesh\AppData\Roaming\Floorp\Profiles\qv6occsk.default-release\places.sqlite")
-    import sqlite3
 
     sql_query = """
         select
@@ -76,6 +81,8 @@ def open_firefox_fav_folder(places_path, fav_folder="daily"):
 
 @dataclass
 class BrowserProfile:
+    """Browser profile"""
+
     name: str
     path: str
     entry: Callable[[str, str], None]
@@ -144,26 +151,28 @@ BROWSER_BOOKMARK_PATHS = {
 
 
 def open_fav_folder(browser_name, fav_folder):
+    """Open browser's fav folder"""
     profile = BROWSER_BOOKMARK_PATHS.get(browser_name)
     if not profile:
-        logger.error(f"Unsupported browser {browser_name}")
+        logger.error("Unsupported browser %s", browser_name)
     profile.entry(profile.path, fav_folder)
 
 
-def wait_for_network_ready():
-    import urllib.request
-    import time
+def wait_for_network_ready(test_url: str):
+    """sleep untill the network is ready"""
 
     while True:
         try:
-            res = urllib.request.urlopen("https://baidu.com", timeout=3)
+            res = urllib.request.urlopen(test_url, timeout=3)
             if res:
                 break
-        except Exception as e:
+        except:  # pylint: disable=bare-except
+            logger.debug("wailt for network to be ready")
             time.sleep(1)
 
 
 if __name__ == "__main__":
-    open_firefox_fav_folder(
-        r"C:\Users\Klesh\AppData\Roaming\Floorp\Profiles\qv6occsk.default-release\places.sqlite"
-    )
+    wait_for_network_ready("https://bing.com")
+    # open_firefox_fav_folder(
+    #     r"C:\Users\Klesh\AppData\Roaming\Floorp\Profiles\qv6occsk.default-release\places.sqlite"
+    # )

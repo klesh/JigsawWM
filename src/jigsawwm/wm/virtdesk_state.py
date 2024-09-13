@@ -111,7 +111,7 @@ class VirtDeskState:
         """Apply rule to window"""
         rule = self.config.find_rule_for_window(window)
         if rule:
-            logger.info("applying rule %s on %s", rule, window)
+            logger.debug("applying rule %s on %s", rule, window)
             if rule.manageable is not None:
                 window.manageable = rule.manageable
             if rule.tilable is not None:
