@@ -37,7 +37,7 @@ MANAGEABLE_CLASSNAME_BLACKLIST = {
     "Default IME",
     "MSCTFIME UI",
 }
-MANAGEABLE_EXE_BLACKLIST = {
+APPLICABLE_EXE_BLACKLIST = {
     "msedge.exe",  # stupid copilot
     "msedgewebview2.exe",  # this shit would display a invisible widow and hide it right away, what the heck
     # "msrdc.exe",  # WSL
@@ -66,8 +66,9 @@ class Window:
     compensated_rect: Rect = None
     restricted_actual_rect: Rect = None
     attrs: dict = field(default_factory=dict)
-    untilable_reason: Optional[str] = None
+    unapplicable_reason: Optional[str] = None
     unmanageable_reason: Optional[str] = None
+    untilable_reason: Optional[str] = None
     parent: Optional["Window"] = None
     manageable_children: Set["Window"] = None
     off: bool = False
@@ -128,10 +129,8 @@ class Window:
 
     def check_unmanageable(self) -> str:
         """Check if window is a app window which could be managed"""
-        if process.is_elevated(self.pid):
-            return "admin window"
-        if not self.is_toplevel:
-            return "not a top-level window"
+        if not self.applicable:
+            return "not applicable"
         # all the following windows should be manageable
         #
         # dbeaver preference window
@@ -155,13 +154,27 @@ class Window:
             return "%s cloaked"
         if self.class_name in MANAGEABLE_CLASSNAME_BLACKLIST:
             return "blacklisted"
-        if self.exe_name in MANAGEABLE_EXE_BLACKLIST:
-            return "exe blacklisted"
         exstyle = self.get_exstyle()
         if WindowExStyle.TRANSPARENT in exstyle:
             return "WindowExStyle.TRANSPARENT"
+        return None
+
+    @cached_property
+    def applicable(self):
+        """Retrieve if window is rule applicable"""
+        self.unapplicable_reason = self.check_unapplicable()
+        return not self.unapplicable_reason
+
+    def check_unapplicable(self):
+        """Check if window can be applied with rule"""
+        if not self.is_toplevel:
+            return "not a top-level window"
         if not self.exe:
             return "no executable path"
+        if self.exe_name in APPLICABLE_EXE_BLACKLIST:
+            return "exe blacklisted"
+        if process.is_elevated(self.pid):
+            return "admin window"
         return None
 
     @property

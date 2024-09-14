@@ -109,6 +109,8 @@ class VirtDeskState:
 
     def apply_rule_to_window(self, window: Window) -> bool:
         """Apply rule to window"""
+        if not window.applicable:
+            return
         rule = self.config.find_rule_for_window(window)
         if rule:
             logger.debug("applying rule %s on %s", rule, window)
