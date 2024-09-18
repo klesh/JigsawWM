@@ -128,7 +128,10 @@ class MonitorState:
 
     def remove_window(self, w: Window):
         """Remove windows from the active workspace of the monitor"""
-        ws: WorkspaceState = w.attrs[WORKSPACE_STATE]
+        ws: WorkspaceState = w.attrs.get(WORKSPACE_STATE)
+        if not ws:
+            logger.warning("window doesn't have workspacke attribute: %s", ws)
+            return
         ws.windows.remove(w)
         logger.info("removed window %s from %s", w, ws)
         for c in w.manageable_children:

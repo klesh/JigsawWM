@@ -34,7 +34,6 @@ class VirtDeskState:
     desktop_id: bytearray
     config: WmConfig
     monitor_states: Dict[Monitor, MonitorState] = {}
-    active_monitor_index: int = 0
     window_detector: WindowDetector
     monitor_detector: MonitorDetector
     no_ws_switching_untill = 0
@@ -74,8 +73,9 @@ class VirtDeskState:
                 for ws in ms.workspaces:
                     windows_tobe_rearranged |= ws.windows
         # rearrange windows
+        mi = self.monitor_detector.monitors.index(self.monitor_state_from_cursor())
         for w in windows_tobe_rearranged:
-            msi = w.attrs.get(PREFERRED_MONITOR_INDEX, self.active_monitor_index)
+            msi = w.attrs.get(PREFERRED_MONITOR_INDEX, mi)
             ms = self.monitor_state_from_index(msi)
             wsi = w.attrs.get(PREFERRED_WORKSPACE_INDEX, ms.active_workspace_index)
             ms.add_window(w, wsi)
@@ -203,13 +203,10 @@ class VirtDeskState:
             # child windows got spread across multiple workspaces
             logger.warning("workspace switching happened too frequently, possible loop")
             return
-        if MONITOR_STATE not in window.attrs:
+        # closing window using taskbar right click menu would cause the window to be activated then closed
+        if not window.exists() or MONITOR_STATE not in window.attrs:
             return
         ms: MonitorState = window.attrs[MONITOR_STATE]
-        self.active_monitor_index = ms.index
-        logger.debug(
-            "set active_monitor_index: %d due to %s", self.active_monitor_index, window
-        )
         ws: WorkspaceState = window.attrs[WORKSPACE_STATE]
         ws.last_active_window = window
         if not ws.showing:
@@ -234,13 +231,6 @@ class VirtDeskState:
         """Retrieve monitor_state from index"""
         index = index % len(self.monitor_detector.monitors)
         return self.monitor_states[self.monitor_detector.monitors[index]]
-
-    @property
-    def monitor_state(self) -> MonitorState:
-        """Retrieve current active monitor's state"""
-        return self.monitor_states[
-            self.monitor_detector.monitors[self.active_monitor_index]
-        ]
 
     def reorder_windows(
         self,
@@ -318,7 +308,6 @@ class VirtDeskState:
         """Switch to another monitor"""
         srcms = self.monitor_state_from_cursor()
         dstms = self.monitor_state_from_index(srcms.index + delta)
-        self.active_monitor_index = dstms.index
         window = dstms.workspace.last_active_window
         if not window and dstms.workspace.tiling_windows:
             window = dstms.workspace.tiling_windows[0]

@@ -240,7 +240,7 @@ class WorkspaceState:
         if show != window.off:
             logger.debug("%s already %s", self, "showing" if show else "hiding")
             return
-        logger.debug("%s toggle showing to %s", self, show)
+        logger.debug("%s toggle %s showing to %s", self, window, show)
         r = window.get_rect()
         logger.debug(
             "%s window rect %s,  mr: %s, alter_rect: %s",

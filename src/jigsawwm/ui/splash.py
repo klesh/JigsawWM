@@ -64,6 +64,7 @@ class Splash(Dialog):
         self.workspace_states.setFixedHeight(100)
         self.root_layout.insertWidget(1, self.workspace_states)
         # self._register_shellhook()
+        self._register_hooks()
         logger.info("WindowsSplash init")
 
     def _register_hooks(self):
@@ -82,11 +83,11 @@ class Splash(Dialog):
     def _on_system_mouse_move(
         self, _ncode: int, msg_id: hook.MSLLHOOKMSGID, _data: hook.MSLLHOOKDATA
     ):
-        if msg_id == hook.MSLLHOOKMSGID.WM_MOUSEMOVE:
+        if msg_id == hook.MSLLHOOKMSGID.WM_MOUSEMOVE and not self.isHidden():
             self.on_mouse_move()
 
     def _on_system_key_event(self, evt: JmkEvent):
-        if evt.vk == Vk.LBUTTON and evt.pressed is False:
+        if evt.vk == Vk.LBUTTON and evt.pressed is False and not self.isHidden():
             self.on_mouse_up()
 
     @Slot(MonitorState)
@@ -166,13 +167,11 @@ class Splash(Dialog):
         y = rect.y() + (rect.height()) // 3
         self.setGeometry(x, y, w, h)
         self.showNormal()
-        self._register_hooks()
 
     @Slot()
     def hide_windows_splash(self):
         """Hide the splash screen"""
         logger.info("WindowsSplash hide")
-        self._unregister_hooks()
         self.hide()
 
     def refresh_foreground_window(self):

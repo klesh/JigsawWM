@@ -178,11 +178,6 @@ class Window:
         return None
 
     @property
-    def is_child(self) -> bool:
-        """Check if window is a child window"""
-        return self.parent_handle or (self.get_exstyle() & WindowExStyle.LAYERED)
-
-    @property
     def title(self) -> str:
         """Retrieves the text of the specified window's title bar (if it has one)"""
         title = create_unicode_buffer(255)
