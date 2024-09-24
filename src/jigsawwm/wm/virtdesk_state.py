@@ -73,7 +73,9 @@ class VirtDeskState:
                 for ws in ms.workspaces:
                     windows_tobe_rearranged |= ws.windows
         # rearrange windows
-        mi = self.monitor_detector.monitors.index(self.monitor_state_from_cursor())
+        mi = self.monitor_detector.monitors.index(
+            self.monitor_detector.monitor_from_cursor()
+        )
         for w in windows_tobe_rearranged:
             msi = w.attrs.get(PREFERRED_MONITOR_INDEX, mi)
             ms = self.monitor_state_from_index(msi)
@@ -311,7 +313,7 @@ class VirtDeskState:
         window = dstms.workspace.last_active_window
         if not window and dstms.workspace.tiling_windows:
             window = dstms.workspace.tiling_windows[0]
-        if window.exists():
+        if window and window.exists():
             window.activate()
         else:
             set_cursor_pos(dstms.rect.center_x, dstms.rect.center_y)

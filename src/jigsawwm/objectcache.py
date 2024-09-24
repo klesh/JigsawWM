@@ -74,7 +74,7 @@ class ChangeDetector:
         current_keys = self.current_keys()
         if self.previous_keys is None:
             self.previous_keys = current_keys
-            return 1, current_keys, set()
+            return True, current_keys, set()
         new_keys = current_keys - self.previous_keys
         removed_keys = self.previous_keys - current_keys
         self.previous_keys = current_keys

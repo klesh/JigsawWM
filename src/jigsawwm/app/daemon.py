@@ -102,6 +102,8 @@ class Daemon:
     def stop(self):
         """Stop the Daemon"""
         logger.info("Daemon stopping")
+        sys.excepthook = self.sysexcepthook
+        self.sysexcepthook = None
         for job in self.jobs:
             job.stop()
             job.shutdown()

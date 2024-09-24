@@ -41,12 +41,6 @@ class WindowDetector(ObjectCache, ChangeDetector):
             return self.created(w) or w
         return w
 
-    def _created(self, val: Window):
-        if val.manageable and val.parent_handle:
-            val.parent = self.get_window(val.parent_handle)
-            val.parent.manageable_children.add(val)
-        return self.created(val) if self.created else None
-
     def is_valid(self, val: Window) -> bool:
         """Check if the window is still valid"""
         return val.exists()
@@ -70,12 +64,16 @@ class WindowDetector(ObjectCache, ChangeDetector):
         if changed:
             self.windows = set(map(self.get_window, self.previous_keys))
         removed_windows = set(map(self.get_window, removed_keys))
+        new_windows = set(map(self.get_window, new_keys))
         for w in removed_windows:
             if w.parent:
                 w.parent.manageable_children.remove(w)
+        for w in new_windows:
+            if w.parent_handle:
+                self.get_window(w.parent_handle).manageable_children.add(w)
         return WindowsChange(
             changed,
-            set(map(self.get_window, new_keys)),
+            new_windows,
             removed_windows,
         )
 
