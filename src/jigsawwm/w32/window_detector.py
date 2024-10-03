@@ -37,9 +37,14 @@ class WindowDetector(ObjectCache, ChangeDetector):
     def _create(self, key: HWND) -> Window:
         """Create a window for the cache based on the HWND value"""
         w = Window(key)
-        if self.created:
-            return self.created(w) or w
         return w
+
+    def _created(self, val: Window):
+        """A callback when a new object is created"""
+        if val.parent_handle:
+            val.parent = self.get_window(val.parent_handle)
+        if self.created:
+            return self.created(val) or val
 
     def is_valid(self, val: Window) -> bool:
         """Check if the window is still valid"""
@@ -69,8 +74,8 @@ class WindowDetector(ObjectCache, ChangeDetector):
             if w.parent:
                 w.parent.manageable_children.remove(w)
         for w in new_windows:
-            if w.parent_handle:
-                self.get_window(w.parent_handle).manageable_children.add(w)
+            if w.parent:
+                w.parent.manageable_children.add(w)
         return WindowsChange(
             changed,
             new_windows,

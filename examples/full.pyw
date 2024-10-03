@@ -13,6 +13,8 @@ from jigsawwm.jmk.jmk_service import (
     send_now,
     send_today_compact,
     send_now_compact,
+    ctrl_w,
+    ctrl_shift_w,
 )
 from jigsawwm.wm.manager import WmConfig
 from jigsawwm.wm.config import WmRule
@@ -31,6 +33,8 @@ daemon.jmk.core.register_layers(
             Vk.OEM_PERIOD: JmkTapHold(tap=Vk.OEM_PERIOD, hold=2),
             # hold space for SHIFT, tap for space
             Vk.SPACE: JmkTapHold(tap=Vk.SPACE, hold=Vk.LSHIFT),
+            # hold backward mouse button to switch to layer 2
+            Vk.XBUTTON1: JmkTapHold(tap=Vk.XBUTTON1, hold=2),
         },
         {  # layer 1
             # left hand
@@ -55,6 +59,10 @@ daemon.jmk.core.register_layers(
             Vk.T: JmkTapHold(on_tap=send_today, on_hold_down=send_now),
             Vk.C: JmkTapHold(on_tap=send_today_compact, on_hold_down=send_now_compact),
         },
+        {  # layer 2
+            Vk.MBUTTON: JmkTapHold(on_tap=ctrl_w, hold=ctrl_shift_w),
+            Vk.RBUTTON: JmkKey(daemon.wm.manager.toggle_splash),
+        },
     ]
 )
 daemon.jmk.hotkeys.register_triggers(
@@ -68,7 +76,6 @@ daemon.jmk.hotkeys.register_triggers(
         ([Vk.WIN, Vk.N], minimize_active_window),
         # Win+m to maximize active window
         ([Vk.WIN, Vk.M], toggle_maximize_active_window),
-        ([Vk.XBUTTON1, Vk.MBUTTON], "LCtrl+w"),
     ]
 )
 
@@ -94,10 +101,6 @@ daemon.wm.hotkeys = [
     ("Win+Shift+f", partial(daemon.wm.manager.move_to_workspace, 3)),
     ("Win+Shift+Space", daemon.wm.manager.toggle_tilable),
     ("Win+Ctrl+u", daemon.wm.manager.inspect_state),
-    (
-        "XBUTTON1+RBUTTON",
-        daemon.wm.manager.toggle_splash,
-    ),  # browser forward button + right button
 ]
 
 daemon.wm.manager.config = WmConfig(

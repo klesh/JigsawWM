@@ -10,10 +10,7 @@ def inspect_virtdesk_states(virtdesk_states):
     for vdid, vdstate in virtdesk_states.items():
         logger.info("virt_desk: %s", vdid)
         for monitor, ms in vdstate.monitor_states.items():
-            logger.info(
-                "  %s",
-                ms,
-            )
+            logger.info("  %s hmon=%s", ms, monitor.handle)
             for ws in ms.workspaces:
                 logger.info(
                     "      %s workspace: %s", ws.name, "*" if ws.showing else " "

@@ -104,8 +104,9 @@ class VirtDeskState:
         if result.removed_windows:
             logger.info("window disappeared: %s", result.removed_windows)
             for w in result.removed_windows:
-                monitor_state: MonitorState = w.attrs[MONITOR_STATE]
-                monitor_state.remove_window(w)
+                if MONITOR_STATE in w.attrs:
+                    monitor_state: MonitorState = w.attrs[MONITOR_STATE]
+                    monitor_state.remove_window(w)
         for ms in self.monitor_states.values():
             ms.workspace.sync_windows()
 
@@ -151,6 +152,8 @@ class VirtDeskState:
                 w.off = True
                 ms, ws = result
                 ms.assign_window(w, workspace=ws)
+                w.attrs[PREFERRED_MONITOR_INDEX] = ms.index
+                w.attrs[PREFERRED_WORKSPACE_INDEX] = ws.index
                 self.window_detector.windows.add(w)
 
     def find_ws_for_hidden_window(
@@ -164,10 +167,6 @@ class VirtDeskState:
             for ws in ms.workspaces:
                 if ws.alter_rect.contains_rect_center(rect):
                     return ms, ws
-                if window.exe_name == "7zFM.exe":
-                    logger.debug(
-                        "ws rect %s doesn not contains %s", ws.alter_rect, rect
-                    )
 
     def distribute_new_windows(self, windows: List[Window]):
         """Distribute new windows to the right monitor and workspace - respect rules for windows"""
@@ -227,7 +226,10 @@ class VirtDeskState:
 
     def monitor_state_from_cursor(self) -> MonitorState:
         """Retrieve monitor_state from current cursor"""
-        return self.monitor_states[self.monitor_detector.monitor_from_cursor()]
+        m = self.monitor_detector.monitor_from_cursor()
+        if m not in self.monitor_states:
+            self.on_monitors_changed()
+        return self.monitor_states[m]
 
     def monitor_state_from_index(self, index: int) -> MonitorState:
         """Retrieve monitor_state from index"""

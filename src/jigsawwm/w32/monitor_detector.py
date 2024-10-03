@@ -75,7 +75,7 @@ class MonitorDetector(ObjectCache, ChangeDetector):
 
     def monitor_from_cursor(self) -> Monitor:
         """Retrieves monitor from the cursor"""
-        return self.get_monitor(monitor_from_cursor())
+        return self.get_monitor(monitor_from_cursor()) or self.monitors[0]
 
     def monitor_from_window(self, hwnd: int) -> Optional[Monitor]:
         """Retrieves monitor from a window"""

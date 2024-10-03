@@ -161,10 +161,12 @@ class MonitorState:
             logger.warning(
                 "window %s already in workspace index %s", window, workspace_index
             )
+            self.workspace.restrict()
             return
         # should move all windows
         while window.parent:
             window = window.parent
+        window.attrs[PREFERRED_WORKSPACE_INDEX] = workspace_index
         self.remove_window(window)
         self.add_window(window, workspace_index=workspace_index)
         self.workspace.sync_windows()

@@ -189,12 +189,8 @@ class Monitor:
         return hash(self.handle)
 
     def __repr__(self):
-        info = self.get_info()
-        if info is None:
-            return f"<Monitor: {self.name} {self.handle} gone>"
-        # rect = info.rcMonitor
-        rect = info.rcWork
-        return f"<Monitor hmon={self.handle} {self.name} {self.handle} {rect.left} {rect.top} {rect.right-rect.left} {rect.bottom-rect.top} {self.get_scale_factor()/100}>"
+        rect = self.get_work_rect()
+        return f"<Monitor hmon={self.handle} name={self.name} rect={rect} scale={self.get_scale_factor()/100}>"
 
     @cached_property
     def name(self) -> str:
@@ -207,7 +203,10 @@ class Monitor:
         :returns: monitor rectangle
         :rtype: Rect
         """
-        return Rect.from_win_rect(self.get_info().rcMonitor)
+        info = self.get_info()
+        if not info:
+            return None
+        return Rect.from_win_rect(info.rcMonitor)
 
     def get_work_rect(self) -> Rect:
         """Retrieves monitor rectangle
@@ -215,7 +214,10 @@ class Monitor:
         :returns: monitor rectangle
         :rtype: Rect
         """
-        return Rect.from_win_rect(self.get_info().rcWork)
+        info = self.get_info()
+        if not info:
+            return None
+        return Rect.from_win_rect(info.rcWork)
 
     def get_info(self) -> MONITORINFOEX:
         """Retrieves monitor information

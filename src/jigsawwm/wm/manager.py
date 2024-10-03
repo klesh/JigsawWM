@@ -58,7 +58,7 @@ class WindowManager(ThreadWorker):
         self.jmk = jmk_service
         self.virtdesk_states = {}
         self.splash = Splash(jmk_service)
-        self.splash.mouse_up_on_workspace.connect(self.on_splash_workspace_mouse_up)
+        self.splash.on_move_to_workspace.connect(self.on_splash_workspace_mouse_up)
 
     def start(self):
         """Start the WindowManagerCore service"""
@@ -127,7 +127,7 @@ class WindowManager(ThreadWorker):
 
     def on_screen_event(self, ts: float):
         """Handle screen event"""
-        self.sleep_till(ts + 0.5)
+        self.sleep_till(ts + 2)
         self.virtdesk_state.on_monitors_changed()
 
     def on_window_event(self, event: WinEvent, hwnd: HWND, ts: float):

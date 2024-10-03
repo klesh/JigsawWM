@@ -131,6 +131,8 @@ class Window:
         """Check if window is a app window which could be managed"""
         if not self.applicable:
             return "not applicable"
+        if self.is_modal_window:
+            return None
         # all the following windows should be manageable
         #
         # dbeaver preference window
@@ -176,6 +178,19 @@ class Window:
         if process.is_elevated(self.pid):
             return "admin window"
         return None
+
+    @cached_property
+    def is_modal_window(self) -> bool:
+        """Check if window is a modal window"""
+        if not self.is_toplevel:
+            return False
+        owner_handle = user32.GetWindow(self.handle, 4)
+        if not owner_handle:
+            return False
+        if not user32.IsTopLevelWindow(owner_handle):
+            return False
+        owner_style = WindowStyle(user32.GetWindowLongA(owner_handle, -16))
+        return WindowStyle.DISABLED in owner_style
 
     @property
     def title(self) -> str:
@@ -389,7 +404,8 @@ class Window:
         """
         rect = RECT()
         if not user32.GetWindowRect(self.handle, pointer(rect)):
-            raise WinError(get_last_error())
+            # raise WinError(get_last_error())
+            return Rect(0, 0, 0, 0)
         return Rect.from_win_rect(rect)
 
     def set_rect(self, rect: Rect):
@@ -648,18 +664,27 @@ def topo_sort_windows(windows: Iterable[Window]):
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
-        param = sys.argv[1]
-        if param.isdigit():
-            Window(int(param)).inspect()
-        elif param == "app":
+        action, args = sys.argv[1], sys.argv[2:]
+        if action == "inspect":
+            Window(int(args[0])).inspect()
+        elif action == "rescue":
+            w = Window(int(args[0]))
+            w.set_rect(Rect(0, 0, 800, 600))
+            w.show()
+        elif action == "exe":
             for wd in map(
                 Window,
                 filter_windows(
-                    lambda hwnd: (
-                        Window(hwnd)
-                        if Window(hwnd).manageable and Window(hwnd).is_visible
-                        else None
-                    )
+                    lambda hwnd: Window(hwnd).exe_name.lower() == sys.argv[2].lower()
+                ),
+            ):
+                print()
+                wd.inspect()
+        elif action == "app":
+            for wd in map(
+                Window,
+                filter_windows(
+                    lambda hwnd: (Window(hwnd).manageable and Window(hwnd).is_visible)
                 ),
             ):
                 print()

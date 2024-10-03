@@ -56,6 +56,11 @@ def send_now_compact():
     send_text(datetime.now().strftime("%Y%m%d%H%M%S"))
 
 
-def send_ctrl_w():
+def ctrl_w():
     """Send Ctrl+w"""
     send_combination(Vk.LCONTROL, Vk.W)
+
+
+def ctrl_shift_w():
+    """Send Ctrl+w"""
+    send_combination(Vk.LCONTROL, Vk.SHIFT, Vk.W)
