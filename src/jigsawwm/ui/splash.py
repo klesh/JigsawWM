@@ -33,7 +33,8 @@ class Splash(Dialog):
     jmk: JmkService
     show_splash = Signal(MonitorState)
     hide_splash = Signal()
-    mouse_up_on_workspace = Signal(int)
+    on_move_to_workspace = Signal(int)
+    on_mouse_up_signal = Signal()
     monitor_state: QLabel
     workspace_states: QWidget
     windows: List[Window]
@@ -70,6 +71,7 @@ class Splash(Dialog):
     def _register_hooks(self):
         logger.info("register hooks")
         self.mouse_hookid = hook.hook_mouse(self._on_system_mouse_move)
+        self.on_mouse_up_signal.connect(self.on_mouse_up)
         self.jmk.sysout.callbacks.add(self._on_system_key_event)
 
     def _unregister_hooks(self):
@@ -88,7 +90,7 @@ class Splash(Dialog):
 
     def _on_system_key_event(self, evt: JmkEvent):
         if evt.vk == Vk.LBUTTON and evt.pressed is False and not self.isHidden():
-            self.on_mouse_up()
+            self.on_mouse_up_signal.emit()
 
     @Slot(MonitorState)
     def show_windows_splash(self, monitor_state: MonitorState):
@@ -166,7 +168,7 @@ class Splash(Dialog):
         x = rect.x() + (rect.width() - w) // 2
         y = rect.y() + (rect.height()) // 3
         self.setGeometry(x, y, w, h)
-        self.showNormal()
+        self.show()
 
     @Slot()
     def hide_windows_splash(self):
@@ -187,6 +189,7 @@ class Splash(Dialog):
 
     def on_mouse_move(self):
         """On system cursor move"""
+        logger.debug("on_mouse_move")
         pos = self.workspace_states.mapFromGlobal(QCursor.pos())
         for wsw in self.workspaces:
             wsw.setProperty("hover", wsw.geometry().contains(pos))
@@ -194,13 +197,14 @@ class Splash(Dialog):
 
     def on_mouse_up(self):
         """On system mouse button up"""
+        logger.debug("on_mouse_up")
         if self.isHidden():
             return
         sys_pos = QCursor.pos()
         pos = self.workspace_states.mapFromGlobal(sys_pos)
         for i, wsw in enumerate(self.workspaces):
             if wsw.geometry().contains(pos):
-                self.mouse_up_on_workspace.emit(i)
+                self.on_move_to_workspace.emit(i)
                 return
         if not self.geometry().contains(sys_pos):
             self.hide_windows_splash()
