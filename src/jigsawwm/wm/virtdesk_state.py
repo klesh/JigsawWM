@@ -104,9 +104,11 @@ class VirtDeskState:
         if result.removed_windows:
             logger.info("window disappeared: %s", result.removed_windows)
             for w in result.removed_windows:
-                if MONITOR_STATE in w.attrs:
-                    monitor_state: MonitorState = w.attrs[MONITOR_STATE]
-                    monitor_state.remove_window(w)
+                if MONITOR_STATE not in w.attrs:
+                    logger.warning("window %s has no monitor state", w)
+                    continue
+                monitor_state: MonitorState = w.attrs[MONITOR_STATE]
+                monitor_state.remove_window(w)
         for ms in self.monitor_states.values():
             ms.workspace.sync_windows()
 
@@ -181,6 +183,9 @@ class VirtDeskState:
     def distribute_window_by_parent(self, window: Window):
         """Distribute window to its parent's workspace"""
         logger.info("distributing %s to its parent's workspace", window)
+        if MONITOR_STATE not in window.parent.attrs:
+            logger.warning("parent window %s has no monitor state", window.parent)
+            return
         ms: MonitorState = window.parent.attrs[MONITOR_STATE]
         ws: WorkspaceState = window.parent.attrs[WORKSPACE_STATE]
         ms.assign_window(window, workspace=ws)
@@ -205,7 +210,10 @@ class VirtDeskState:
             logger.warning("workspace switching happened too frequently, possible loop")
             return
         # closing window using taskbar right click menu would cause the window to be activated then closed
-        if not window.exists() or MONITOR_STATE not in window.attrs:
+        if not window.exists():
+            logger.warning("window doesn't %s exists", window)
+        if MONITOR_STATE not in window.attrs:
+            logger.warning("window %s has no monitor state", window)
             return
         ms: MonitorState = window.attrs[MONITOR_STATE]
         ws: WorkspaceState = window.attrs[WORKSPACE_STATE]
@@ -332,6 +340,9 @@ class VirtDeskState:
         window = window or self.window_detector.foreground_window()
         if not window.manageable:
             return
+        if MONITOR_STATE not in window.attrs:
+            logger.warning("window %s has no monitor state", window)
+            return
         src_ms: MonitorState = window.attrs[MONITOR_STATE]
         if dst_ms is None:
             preferred_monitor_index = (src_ms.index + delta) % len(
@@ -354,6 +365,9 @@ class VirtDeskState:
         """Switch to a specific workspace"""
         window = window or self.window_detector.foreground_window()
         if not window.manageable:
+            return
+        if MONITOR_STATE not in window.attrs:
+            logger.warning("window %s has no monitor state", window)
             return
         ms: MonitorState = window.attrs[MONITOR_STATE]
         ms.move_to_workspace(window, workspace_index)

@@ -24,7 +24,10 @@ signal.signal(signal.SIGINT, signal.SIG_DFL)
 logFormatter = logging.Formatter(
     "%(asctime)s [%(name)s] [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s"
 )
-fileHandler = logging.FileHandler("jigsaw.log", mode="w", encoding="utf-8")
+logging_path = os.getenv("JWM_LOGGING_PATH")
+if not logging_path:
+    logging_path = os.path.join(os.getenv("LOCALAPPDATA"), "jigsawwm", "jigsawwm.log")
+fileHandler = logging.FileHandler(logging_path, mode="w", encoding="utf-8")
 fileHandler.setFormatter(logFormatter)
 consoleHandler = logging.StreamHandler()
 consoleHandler.setFormatter(logFormatter)

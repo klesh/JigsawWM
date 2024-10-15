@@ -450,7 +450,10 @@ class Window:
                 round(rect.right + r.right - b.right),
                 round(rect.bottom + r.bottom - b.bottom),
             )
-            self.set_rect(self.compensated_rect)
+            try:
+                self.set_rect(self.compensated_rect)
+            except Exception as e:  # pylint: disable=broad-except
+                logger.warning("set compensated rect failed: %s", e)
         self.restricted_actual_rect = self.get_rect()
 
     def restrict(self):

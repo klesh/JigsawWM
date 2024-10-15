@@ -225,6 +225,9 @@ class WindowManager(ThreadWorker):
         if not self._movesizing_window:
             return
         self._movesizing_window = None
+        if MONITOR_STATE not in window.attrs:
+            logger.warning("window %s doesn't have MONITOR_STATE", window)
+            return
         # when dragging chrome tab into a new window, the window will not have MONITOR_STATE
         ms: MonitorState = window.attrs[MONITOR_STATE]
         dst_ms = self.virtdesk_state.monitor_state_from_cursor()
