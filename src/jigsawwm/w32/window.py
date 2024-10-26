@@ -566,6 +566,7 @@ class Window:
             print("window doesn't exist anymore")
             return
         print(self, file=file)
+        print("title        :", self.title, file=file)
         print("pid          :", self.pid, file=file)
         print("class name   :", self.class_name, file=file)
         print("exe path     :", self.exe, file=file)

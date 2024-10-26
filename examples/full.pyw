@@ -115,12 +115,15 @@ daemon.wm.manager.config = WmConfig(
         WmRule(exe="7zFM.exe", tilable=False),
         WmRule(exe="fdm.exe", tilable=False),
         WmRule(exe="foobar2000.exe", tilable=False),
-        WmRule(exe="ApplicationFrameHost.exe", tilable=False),
         WmRule(exe="notepad++.exe", tilable=False),
         WmRule(exe="PotPlayerMini64.exe", tilable=False),
         WmRule(exe="openvpn-gui.exe", tilable=False),
         WmRule(exe="Obsidian.exe", preferred_monitor_index=1),
         WmRule(exe="Feishu.exe", preferred_monitor_index=1),
+        # WmRule(
+        #     exe="ApplicationFrameHost.exe", title="PDF Reader by Xodo", tilable=True
+        # ),
+        # WmRule(exe="ApplicationFrameHost.exe", tilable=False),
     ],
 )
 
@@ -139,7 +142,7 @@ daemon.register(
 
 daemon.register(CaffeineService())
 
-daemon.register(DailyWebsites(browser_name="chrome", fav_folder="daily"))
+daemon.register(DailyWebsites(browser_name="thorium", fav_folder="daily"))
 daemon.register(
     WorkdayAutoStart(
         country_code="CN",

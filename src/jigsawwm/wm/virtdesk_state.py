@@ -309,8 +309,11 @@ class VirtDeskState:
         window.tilable = not window.tilable
         if not window.tilable:
             window.shrink()
-        workspace_state: WorkspaceState = window.attrs[WORKSPACE_STATE]
-        workspace_state.sync_windows()
+        if WORKSPACE_STATE not in window.attrs:
+            self.monitor_state_from_cursor().assign_window(window)
+        else:
+            workspace_state: WorkspaceState = window.attrs[WORKSPACE_STATE]
+            workspace_state.sync_windows()
 
     ########################################
     # Monitor related methods

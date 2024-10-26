@@ -102,7 +102,7 @@ BROWSER_BOOKMARK_PATHS = {
         entry=open_chrome_fav_folder,
     ),
     "thorium": BrowserProfile(
-        name="chrome",
+        name="thorium",
         path=os.path.join(
             os.getenv("LOCALAPPDATA"),
             "Thorium",
@@ -113,7 +113,7 @@ BROWSER_BOOKMARK_PATHS = {
         entry=open_chrome_fav_folder,
     ),
     "edge": BrowserProfile(
-        name="chrome",
+        name="edge",
         path=os.path.join(
             os.getenv("LOCALAPPDATA"),
             "Microsoft",
@@ -125,7 +125,7 @@ BROWSER_BOOKMARK_PATHS = {
         entry=open_chrome_fav_folder,
     ),
     "firefox": BrowserProfile(  # to be done
-        name="chrome",
+        name="firefox",
         path=os.path.join(
             os.getenv("APPDATA"),
             "Mozilla",
@@ -137,7 +137,7 @@ BROWSER_BOOKMARK_PATHS = {
         entry=open_firefox_fav_folder,
     ),
     "floorp": BrowserProfile(  # to be done
-        name="chrome",
+        name="floorp",
         path=os.path.join(
             os.getenv("APPDATA"),
             "Floorp",
