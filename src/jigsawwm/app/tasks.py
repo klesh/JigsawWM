@@ -16,16 +16,22 @@ class DailyWebsites(Task):
     browser_name: str
     fav_folder: str
     test_url: str
+    proxy_url: str
 
     def __init__(
-        self, browser_name: str, fav_folder: str, test_url: str = "https://bing.com"
+        self,
+        browser_name: str,
+        fav_folder: str,
+        test_url: str = "https://bing.com",
+        proxy_url: str = None,
     ):
         self.browser_name = browser_name
         self.fav_folder = fav_folder
         self.test_url = test_url
+        self.proxy_url = proxy_url
 
     def run(self):
-        wait_for_network_ready(self.test_url)
+        wait_for_network_ready(self.test_url, self.proxy_url)
         open_fav_folder(self.browser_name, self.fav_folder)
         mark_today_done(self.name)
 

@@ -120,6 +120,7 @@ daemon.wm.manager.config = WmConfig(
         WmRule(exe="openvpn-gui.exe", tilable=False),
         WmRule(exe="Obsidian.exe", preferred_monitor_index=1),
         WmRule(exe="Feishu.exe", preferred_monitor_index=1),
+        WmRule(exe="peazip.exe", tilable=False),
         # WmRule(
         #     exe="ApplicationFrameHost.exe", title="PDF Reader by Xodo", tilable=True
         # ),
@@ -142,7 +143,14 @@ daemon.register(
 
 daemon.register(CaffeineService())
 
-daemon.register(DailyWebsites(browser_name="thorium", fav_folder="daily"))
+daemon.register(
+    DailyWebsites(
+        browser_name="thorium",
+        fav_folder="daily",
+        test_url="https://google.com",
+        proxy_url="http://localhost:7890",
+    )
+)
 daemon.register(
     WorkdayAutoStart(
         country_code="CN",

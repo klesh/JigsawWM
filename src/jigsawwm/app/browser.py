@@ -158,8 +158,14 @@ def open_fav_folder(browser_name, fav_folder):
     profile.entry(profile.path, fav_folder)
 
 
-def wait_for_network_ready(test_url: str):
+def wait_for_network_ready(test_url: str, proxy_url: str = None):
     """sleep untill the network is ready"""
+    if proxy_url:
+        proxy_support = urllib.request.ProxyHandler(
+            {"http": proxy_url, "https": proxy_url}
+        )
+        opener = urllib.request.build_opener(proxy_support)
+        urllib.request.install_opener(opener)
 
     while True:
         try:
@@ -167,7 +173,7 @@ def wait_for_network_ready(test_url: str):
             if res:
                 break
         except:  # pylint: disable=bare-except
-            logger.debug("wailt for network to be ready")
+            logger.debug("test network by accessing %s", test_url)
             time.sleep(1)
 
 

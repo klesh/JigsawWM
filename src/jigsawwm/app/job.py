@@ -209,7 +209,7 @@ class Task(Job):
 
     def launch_anyway(self):
         """Launch the task without checking the condition"""
-        self.run()
+        self.executor.submit(self.run)
 
     @property
     def text(self):
