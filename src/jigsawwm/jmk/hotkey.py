@@ -72,7 +72,7 @@ class JmkHotkeys(JmkTriggers):
                     return
                 elif (
                     self.resend
-                ):  # modifier key released first, so we resend previous event
+                ):  # modifier key got released first, so we have to resend the previous key event
                     logger.debug("resend >>> %s", self.resend)
                     self.next_handler(self.resend)
                     self.resend = None
