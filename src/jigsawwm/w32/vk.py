@@ -1,6 +1,6 @@
 import enum
 import typing
-from ctypes import wintypes, WinDLL
+from ctypes import WinDLL, wintypes
 
 
 class Vk(enum.IntEnum):
@@ -357,10 +357,10 @@ GetKeyState = WinDLL("user32").GetKeyState
 GetKeyState.restype = wintypes.SHORT
 
 
-def get_key_state(vk: Vk) -> bool:
+def is_key_down(vk: Vk) -> bool:
     """Retrieve key state from the OS"""
     return bool(GetKeyState(vk) & 0x8000)
 
 
 if __name__ == "__main__":
-    print(get_key_state(Vk.SHIFT))
+    print(is_key_down(Vk.SHIFT))
