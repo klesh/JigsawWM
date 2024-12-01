@@ -1,16 +1,16 @@
 """System input/output interfacing"""
 
-import re
 import logging
+import re
 from ctypes.wintypes import DWORD, HWND, LONG
-from typing import List, Set, Union, Optional, Callable, Dict
+from typing import Callable, Dict, List, Optional, Set, Union
 
 from jigsawwm.w32 import hook
-from jigsawwm.w32.sendinput import is_synthesized, vk_to_input, send_input
+from jigsawwm.w32.sendinput import is_synthesized, send_input, vk_to_input
 from jigsawwm.w32.window_detector import Window, WindowDetector
 from jigsawwm.worker import ThreadWorker
 
-from .core import JmkHandler, JmkEvent, Vk
+from .core import JmkEvent, JmkHandler, Vk
 
 logger = logging.getLogger(__name__)
 
