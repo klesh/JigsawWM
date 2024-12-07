@@ -3,8 +3,9 @@
 import logging
 from typing import List, Optional, Set
 
-from jigsawwm.w32.vk import Modifers
-from .core import JmkEvent, JmkTrigger, JmkTriggers, JmkTriggerDefs, Vk
+from jigsawwm.w32.vk import Modifers, is_key_down
+
+from .core import JmkEvent, JmkTrigger, JmkTriggerDefs, JmkTriggers, Vk
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,12 @@ class JmkHotkeys(JmkTriggers):
         if evt.vk == Vk.WHEEL_UP or evt.vk == Vk.WHEEL_DOWN:
             pressed_keys.add(evt.vk)
         logger.debug("current pressed keys: %s", pressed_keys)
+        if hotkey:
+            # keyup events might be missed
+            for pk in self.pressed_modifiers.copy():
+                if not is_key_down(pk):
+                    logger.info("missed keyup event: %s", pk)
+                    self.pressed_modifiers.remove(pk)
         return hotkey
 
     def __call__(self, evt: JmkEvent):
