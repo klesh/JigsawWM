@@ -2,23 +2,23 @@
 
 from functools import partial
 
-from jigsawwm.w32.window import minimize_active_window, toggle_maximize_active_window
 from jigsawwm.app.daemon import Daemon
 from jigsawwm.app.job import ProcessService
-from jigsawwm.app.services import CaffeineService
+from jigsawwm.app.services import CaffeineService, SitStandService
 from jigsawwm.app.tasks import DailyWebsites, WorkdayAutoStart
-from jigsawwm.jmk.core import Vk, JmkTapHold, JmkKey
+from jigsawwm.jmk.core import JmkKey, JmkTapHold, Vk
 from jigsawwm.jmk.jmk_service import (
-    send_today,
-    send_now,
-    send_today_compact,
-    send_now_compact,
-    ctrl_w,
     ctrl_shift_w,
+    ctrl_w,
+    send_now,
+    send_now_compact,
+    send_today,
+    send_today_compact,
 )
-from jigsawwm.wm.manager import WmConfig
+from jigsawwm.w32.powerprofile import suspend_system
+from jigsawwm.w32.window import minimize_active_window, toggle_maximize_active_window
 from jigsawwm.wm.config import WmRule
-
+from jigsawwm.wm.manager import WmConfig
 
 daemon = Daemon()
 
@@ -34,7 +34,7 @@ daemon.jmk.core.register_layers(
             # hold space for SHIFT, tap for space
             Vk.SPACE: JmkTapHold(tap=Vk.SPACE, hold=Vk.LSHIFT),
             # hold backward mouse button to switch to layer 2
-            Vk.XBUTTON1: JmkTapHold(tap=Vk.XBUTTON1, hold=2),
+            Vk.XBUTTON1: JmkTapHold(tap=Vk.XBUTTON1, hold=2, term=0.4),
         },
         {  # layer 1
             # left hand
@@ -58,6 +58,7 @@ daemon.jmk.core.register_layers(
             # helper
             Vk.T: JmkTapHold(on_tap=send_today, on_hold_down=send_now),
             Vk.C: JmkTapHold(on_tap=send_today_compact, on_hold_down=send_now_compact),
+            Vk.BACK: JmkKey(suspend_system),
         },
         {  # layer 2
             Vk.MBUTTON: JmkTapHold(on_tap=ctrl_w, hold=ctrl_shift_w),
@@ -142,6 +143,7 @@ daemon.register(
 )
 
 daemon.register(CaffeineService())
+daemon.register(SitStandService())
 
 daemon.register(
     DailyWebsites(

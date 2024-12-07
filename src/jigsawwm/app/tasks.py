@@ -2,10 +2,11 @@
 
 from datetime import timedelta
 from typing import List
+
 from mailcalaid.cal.holiday import ChinaHolidayBook, NagerDateHolidayBook
 
-from .job import Task
 from .browser import open_fav_folder, wait_for_network_ready
+from .job import Task
 from .smartstart import is_today_done, mark_today_done, start_if_not_running
 
 
@@ -31,11 +32,11 @@ class DailyWebsites(Task):
         self.proxy_url = proxy_url
 
     def run(self):
-        wait_for_network_ready(self.test_url, self.proxy_url)
         open_fav_folder(self.browser_name, self.fav_folder)
         mark_today_done(self.name)
 
     def condition(self):
+        wait_for_network_ready(self.test_url, self.proxy_url)
         return is_today_done(self.name)
 
 
