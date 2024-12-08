@@ -4,7 +4,7 @@ from functools import partial
 
 from jigsawwm.app.daemon import Daemon
 from jigsawwm.app.job import ProcessService
-from jigsawwm.app.services import CaffeineService, SitStandService
+from jigsawwm.app.services import CaffeineService
 from jigsawwm.app.tasks import DailyWebsites, WorkdayAutoStart
 from jigsawwm.jmk.core import JmkKey, JmkTapHold, Vk
 from jigsawwm.jmk.jmk_service import (
@@ -143,7 +143,6 @@ daemon.register(
 )
 
 daemon.register(CaffeineService())
-daemon.register(SitStandService())
 
 daemon.register(
     DailyWebsites(
