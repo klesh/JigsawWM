@@ -27,7 +27,10 @@ logFormatter = logging.Formatter(
 logging_path = os.getenv("JWM_LOGGING_PATH")
 if not logging_path:
     logging_path = os.path.join(os.getenv("LOCALAPPDATA"), "jigsawwm", "jigsawwm.log")
-fileHandler = logging.FileHandler(logging_path, mode="w", encoding="utf-8")
+logging_dir = os.path.dirname(logging_path)
+if not os.path.exists(logging_dir):
+    os.mkdir(logging_dir)
+fileHandler = logging.FileHandler(logging_path, mode="w+", encoding="utf-8")
 fileHandler.setFormatter(logFormatter)
 consoleHandler = logging.StreamHandler()
 consoleHandler.setFormatter(logFormatter)

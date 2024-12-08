@@ -1,10 +1,11 @@
 """An example of setting up all features"""
 
+import os
 from functools import partial
 
 from jigsawwm.app.daemon import Daemon
 from jigsawwm.app.job import ProcessService
-from jigsawwm.app.services import CaffeineService, SitStandService
+from jigsawwm.app.services import CaffeineService
 from jigsawwm.app.tasks import DailyWebsites, WorkdayAutoStart
 from jigsawwm.jmk.core import JmkKey, JmkTapHold, Vk
 from jigsawwm.jmk.jmk_service import (
@@ -133,17 +134,16 @@ daemon.register(
     ProcessService(
         name="syncthing",
         args=[
-            r"C:\Users\Klesh\Programs\syncthing\syncthing.exe",
+            r"syncthing.exe",
             "-no-browser",
             "-no-restart",
             "-no-upgrade",
         ],
-        log_path=r"C:\Users\Klesh\Programs\syncthing\syncthing.log",
+        log_path=os.path.join(os.getenv("LOCALAPPDATA"), "syncthing.log"),
     )
 )
 
 daemon.register(CaffeineService())
-daemon.register(SitStandService())
 
 daemon.register(
     DailyWebsites(
