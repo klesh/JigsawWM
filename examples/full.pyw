@@ -60,6 +60,7 @@ daemon.jmk.core.register_layers(
             Vk.T: JmkTapHold(on_tap=send_today, on_hold_down=send_now),
             Vk.C: JmkTapHold(on_tap=send_today_compact, on_hold_down=send_now_compact),
             Vk.BACK: JmkKey(suspend_system),
+            Vk.CAPITAL: JmkKey(Vk.CAPITAL),
         },
         {  # layer 2
             Vk.MBUTTON: JmkTapHold(on_tap=ctrl_w, hold=ctrl_shift_w),

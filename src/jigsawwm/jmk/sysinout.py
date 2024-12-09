@@ -5,12 +5,14 @@ import re
 from ctypes.wintypes import DWORD, HWND, LONG
 from typing import Callable, Dict, List, Optional, Set, Union
 
+from jigsawwm.ui import system_event_listener
 from jigsawwm.w32 import hook
 from jigsawwm.w32.sendinput import is_synthesized, send_input, vk_to_input
+from jigsawwm.w32.vk import Vk, is_key_down
 from jigsawwm.w32.window_detector import Window, WindowDetector
 from jigsawwm.worker import ThreadWorker
 
-from .core import JmkEvent, JmkHandler, Vk
+from .core import JmkEvent, JmkHandler
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +34,7 @@ class SystemInput(ThreadWorker, JmkHandler):
     disabled_reason: str = None
     next_handler_when_disabled: Optional[JmkHandler]
     bypass_exe: Set[str] = None
-    pressed_key: Set[Vk] = set()
+    pressed_evts: Dict[Vk, JmkEvent] = {}
     window_detector: WindowDetector = None
 
     def __init__(
@@ -47,8 +49,9 @@ class SystemInput(ThreadWorker, JmkHandler):
         }
         if bypass_exe:
             self.bypass_exe |= bypass_exe
-        self.pressed_key = set()
+        self.pressed_evts = {}
         self.window_detector = window_cache or WindowDetector()
+        system_event_listener.on_system_resumed.connect(self.on_system_resumed)
 
     def start(self):
         """Start the system input handler"""
@@ -90,16 +93,18 @@ class SystemInput(ThreadWorker, JmkHandler):
         """Handles the window focus change event"""
         window = self.window_detector.get_window(hwnd)
         if window.is_elevated:
-            logger.debug("focused window %s is elevated", window)
+            logger.info("focused window %s is elevated", window)
             self.disabled = True
             self.disabled_reason = "elevated window focused"
             return
         if self.bypass_exe and window.exe_name.lower() in self.bypass_exe:
-            logger.debug("focused window %s is blacklisted", window)
+            logger.info("focused window %s is blacklisted", window)
             self.disabled = True
             return
-        logger.debug("focused window %s is a normal, jmk ENABLED !!!", window)
-        self.disabled = False
+        logger.info("focused window %s is a normal, jmk ENABLED !!!", window)
+        if self.disabled:
+            self.on_system_resumed()
+            self.disabled = False
 
     def input_event(
         self,
@@ -174,21 +179,37 @@ class SystemInput(ThreadWorker, JmkHandler):
 
         return True
 
+    def on_system_resumed(self):
+        """Handles the system resumed event"""
+        logger.info("system resumed, fixing release events")
+        self.enqueue(self.fix_release)
+
     def on_input(self, vkey: Vk, pressed: bool, flags=0, extra=0):
         """Handles the keyboard keys/mouse buttons events"""
-        # bypass events when disabled unless it's a keyup event of a pressed key
-
-        if pressed:
-            self.pressed_key.add(vkey)
-        elif vkey in self.pressed_key:
-            self.pressed_key.remove(vkey)
+        # keyup events might be missed, so we need to keep track of pressed keys
         evt = JmkEvent(vkey, pressed, system=True, flags=flags, extra=extra)
+        if pressed:
+            self.pressed_evts[vkey] = evt
+        elif vkey in self.pressed_evts:
+            del self.pressed_evts[vkey]
+        # bypass events when disabled unless it's a keyup event of a pressed key
         logger.debug("sys >>> %s", evt)
         if self.disabled:
             if self.next_handler_when_disabled:
                 self.next_handler_when_disabled(evt)
         else:
             self.next_handler(evt)
+
+    def fix_release(self):
+        """Fix the release event of a key that was missed"""
+        for pk in list(self.pressed_evts.keys()):
+            if not is_key_down(pk):
+                logger.info("fixing release of %s", pk.name)
+                # pevt = self.pressed_evts[pk]
+                # self.on_input(pk, False, flags=pevt.flags, extra=pevt.extra)
+                pevt = self.pressed_evts.pop(pk)
+                pevt.pressed = False
+                self.next_handler(pevt)
 
 
 class SystemOutput(JmkHandler):
@@ -204,11 +225,11 @@ class SystemOutput(JmkHandler):
         self.callbacks = set()
 
     def __call__(self, evt: JmkEvent) -> bool:
-        logger.debug("%s >>> sys", evt)
         self.state[evt.vk] = evt.pressed
         swallow = False
         for callback in self.callbacks.copy():
             swallow |= bool(callback(evt))
         if swallow or self.disabled:
             return
+        logger.debug("%s >>> sys", evt)
         self.input_sender(vk_to_input(evt.vk, evt.pressed, flags=evt.flags))
