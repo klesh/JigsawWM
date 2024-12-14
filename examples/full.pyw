@@ -28,6 +28,7 @@ daemon.jmk.core.register_layers(
         {  # layer 0
             # map capslock to ctrl when held and `  when tapped
             Vk.CAPITAL: JmkTapHold(tap=Vk.ESCAPE, hold=Vk.LCONTROL),
+            Vk.RETURN: JmkTapHold(tap=Vk.RETURN, hold=Vk.RCONTROL),
             # hold TAB to switch to layer 1
             Vk.TAB: JmkTapHold(tap=Vk.TAB, hold=1),
             # hold ' to switch to layer 2
@@ -79,6 +80,9 @@ daemon.jmk.hotkeys.register_triggers(
         ([Vk.WIN, Vk.N], minimize_active_window),
         # Win+m to maximize active window
         ([Vk.WIN, Vk.M], toggle_maximize_active_window),
+        ([Vk.RCONTROL, Vk.SLASH], "RCtrl+x"),
+        ([Vk.RCONTROL, Vk.PERIOD], "RCtrl+c"),
+        ([Vk.RCONTROL, Vk.COMMA], "RCtrl+v"),
     ]
 )
 
@@ -124,6 +128,7 @@ daemon.wm.manager.config = WmConfig(
         WmRule(exe="Obsidian.exe", preferred_monitor_index=1),
         WmRule(exe="Feishu.exe", preferred_monitor_index=1),
         WmRule(exe="peazip.exe", tilable=False),
+        WmRule(exe="gemini-next-chat.exe", manageable=False),
         # WmRule(
         #     exe="ApplicationFrameHost.exe", title="PDF Reader by Xodo", tilable=True
         # ),
