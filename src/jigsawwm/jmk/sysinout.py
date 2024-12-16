@@ -32,6 +32,7 @@ class SystemInput(ThreadWorker, JmkHandler):
     focused_window: Window = None
     disabled: bool = False
     disabled_reason: str = None
+    is_running: bool = True
     next_handler_when_disabled: Optional[JmkHandler]
     bypass_exe: Set[str] = None
     pressed_evts: Dict[Vk, JmkEvent] = {}
@@ -115,6 +116,8 @@ class SystemInput(ThreadWorker, JmkHandler):
         """Handles keyboard events and call callback if the combination
         had been registered
         """
+        if self.is_running is False:
+            return False
         if is_synthesized(msg):
             logger.debug("synthesized event %s, skipping", msg)
             return False

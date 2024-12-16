@@ -1,19 +1,19 @@
 """Jmk Service"""
 
 from datetime import datetime
-from jigsawwm.app.job import Service
-from jigsawwm.w32.sendinput import send_combination, send_text, Vk
 
-from .sysinout import SystemInput, SystemOutput
+from jigsawwm.app.job import Service
+from jigsawwm.w32.sendinput import Vk, send_combination, send_text
+
 from .core import JmkCore
 from .hotkey import JmkHotkeys
+from .sysinout import SystemInput, SystemOutput
 
 
 class JmkService(Service):
     """JMK service"""
 
     name = "jmk"
-    is_running = False
 
     def __init__(self):
         self.sysin = SystemInput()
@@ -25,12 +25,14 @@ class JmkService(Service):
         self.sysin.start()
 
     def start(self):
-        self.is_running = True
+        self.sysin.is_running = True
 
     def stop(self):
-        self.is_running = False
-        self.sysin.disabled = True
-        self.sysout.disabled = True
+        self.sysin.is_running = False
+
+    @property
+    def is_running(self):
+        return self.sysin.is_running
 
     def shutdown(self):
         self.sysin.stop()
