@@ -16,7 +16,6 @@ from jigsawwm.jmk.jmk_service import (
     send_today,
     send_today_compact,
 )
-from jigsawwm.w32.powerprofile import suspend_system
 from jigsawwm.w32.window import minimize_active_window, toggle_maximize_active_window
 from jigsawwm.wm.config import WmRule
 from jigsawwm.wm.manager import WmConfig
@@ -28,7 +27,7 @@ daemon.jmk.core.register_layers(
         {  # layer 0
             # map capslock to ctrl when held and `  when tapped
             Vk.CAPITAL: JmkTapHold(tap=Vk.ESCAPE, hold=Vk.LCONTROL),
-            Vk.RETURN: JmkTapHold(tap=Vk.RETURN, hold=Vk.RCONTROL),
+            Vk.RETURN: JmkTapHold(tap=Vk.RETURN, hold=Vk.LCONTROL),
             # hold TAB to switch to layer 1
             Vk.TAB: JmkTapHold(tap=Vk.TAB, hold=1),
             # hold ' to switch to layer 2
@@ -60,7 +59,7 @@ daemon.jmk.core.register_layers(
             # helper
             Vk.T: JmkTapHold(on_tap=send_today, on_hold_down=send_now),
             Vk.C: JmkTapHold(on_tap=send_today_compact, on_hold_down=send_now_compact),
-            Vk.BACK: JmkKey(suspend_system),
+            # Vk.BACK: JmkKey(suspend_system),
             Vk.CAPITAL: JmkKey(Vk.CAPITAL),
         },
         {  # layer 2
