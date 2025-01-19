@@ -3,28 +3,27 @@
 import logging
 import os
 import time
-from typing import Dict, List, Callable, Optional
-from ctypes.wintypes import HWND, LONG, DWORD
+from ctypes.wintypes import DWORD, HWND, LONG
+from typing import Callable, Dict, List, Optional
 
 from jigsawwm.jmk.jmk_service import JmkService, Vk
 from jigsawwm.ui import Splash, app
 from jigsawwm.w32 import hook
-from jigsawwm.w32.winevent import WinEvent
 from jigsawwm.w32.reg import get_current_desktop_id
-from jigsawwm.w32.window import Window, Rect
+from jigsawwm.w32.window import Rect, Window
+from jigsawwm.w32.winevent import WinEvent
 from jigsawwm.worker import ThreadWorker
 
 from .config import WmConfig
-from .virtdesk_state import (
-    VirtDeskState,
-    MonitorState,
-    WorkspaceState,
-    MONITOR_STATE,
-    WORKSPACE_STATE,
-    PREFERRED_WINDOW_INDEX,
-)
 from .debug_state import inspect_virtdesk_states
-
+from .virtdesk_state import (
+    MONITOR_STATE,
+    PREFERRED_WINDOW_INDEX,
+    WORKSPACE_STATE,
+    MonitorState,
+    VirtDeskState,
+    WorkspaceState,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -363,7 +362,7 @@ class WindowManager(ThreadWorker):
 
         self.enqueue(toggle_splash)
 
-    def switch_workspace(
+    def switch_to_workspace(
         self,
         workspace_index: int,
     ) -> Callable:
@@ -373,9 +372,39 @@ class WindowManager(ThreadWorker):
             workspace_index,
         )
 
+    def switch_workspace_delta(
+        self,
+        delta: int,
+    ) -> Callable:
+        """Switch to workspace by offset"""
+        return self.switch_to_workspace(
+            self.virtdesk_state.monitor_state_from_cursor().active_workspace_index
+            + delta
+        )
+
+    def next_workspace(self) -> Callable:
+        """Switch to next workspace"""
+        return self.switch_workspace_delta(+1)
+
+    def prev_workspace(self) -> Callable:
+        """Switch to next workspace"""
+        return self.switch_workspace_delta(-1)
+
     def move_to_workspace(self, workspace_index: int):
         """Move active window to a specific workspace"""
         self.enqueue(self.virtdesk_state.move_to_workspace, workspace_index)
+
+    def move_to_workspace_delta(self, delta: int):
+        """Move active window to a workspace by offset"""
+        self.enqueue(self.virtdesk_state.move_to_workspace, delta, is_delta=True)
+
+    def move_to_next_workspace(self):
+        """Move active window to next workspace"""
+        return self.move_to_workspace_delta(+1)
+
+    def move_to_prev_workspace(self):
+        """Move active window to previous workspace"""
+        return self.move_to_workspace_delta(-1)
 
     ########################################
     # Other helper functions

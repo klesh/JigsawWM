@@ -1,25 +1,25 @@
 """Virtual Desktop State module"""
 
-import time
 import logging
-from typing import Dict, Optional, Tuple, Callable, List
+import time
+from typing import Callable, Dict, List, Optional, Tuple
 
-from jigsawwm.w32.monitor_detector import MonitorDetector, Monitor
-from jigsawwm.w32.window_detector import WindowDetector, Window
-from jigsawwm.w32.window import topo_sort_windows
 from jigsawwm.w32.monitor import set_cursor_pos
+from jigsawwm.w32.monitor_detector import Monitor, MonitorDetector
+from jigsawwm.w32.window import topo_sort_windows
+from jigsawwm.w32.window_detector import Window, WindowDetector
 
-from .monitor_state import MonitorState
-from .workspace_state import WorkspaceState
+from .config import WmConfig
 from .const import (
-    PREFERRED_MONITOR_INDEX,
-    PREFERRED_WORKSPACE_INDEX,
-    PREFERRED_WINDOW_INDEX,
-    STATIC_WINDOW_INDEX,
     MONITOR_STATE,
+    PREFERRED_MONITOR_INDEX,
+    PREFERRED_WINDOW_INDEX,
+    PREFERRED_WORKSPACE_INDEX,
+    STATIC_WINDOW_INDEX,
     WORKSPACE_STATE,
 )
-from .config import WmConfig
+from .monitor_state import MonitorState
+from .workspace_state import WorkspaceState
 
 logger = logging.getLogger(__name__)
 
@@ -364,7 +364,12 @@ class VirtDeskState:
     # Workspace related methods
     ########################################
 
-    def move_to_workspace(self, workspace_index: int, window: Optional[Window] = None):
+    def move_to_workspace(
+        self,
+        workspace_index: int,
+        window: Optional[Window] = None,
+        is_delta: bool = False,
+    ):
         """Switch to a specific workspace"""
         window = window or self.window_detector.foreground_window()
         if not window.manageable:
@@ -373,4 +378,4 @@ class VirtDeskState:
             logger.warning("window %s has no monitor state", window)
             return
         ms: MonitorState = window.attrs[MONITOR_STATE]
-        ms.move_to_workspace(window, workspace_index)
+        ms.move_to_workspace(window, workspace_index, is_delta)

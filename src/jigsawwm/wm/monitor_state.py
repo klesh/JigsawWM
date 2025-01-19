@@ -3,17 +3,17 @@
 import logging
 from typing import List, Optional
 
-from jigsawwm.w32.window import Window, Rect
+from jigsawwm.w32.window import Rect, Window
 
-from .theme import Theme
-from .workspace_state import WorkspaceState
 from .const import (
     MONITOR_STATE,
-    WORKSPACE_STATE,
     PREFERRED_MONITOR_INDEX,
-    PREFERRED_WORKSPACE_INDEX,
     PREFERRED_WINDOW_INDEX,
+    PREFERRED_WORKSPACE_INDEX,
+    WORKSPACE_STATE,
 )
+from .theme import Theme
+from .workspace_state import WorkspaceState
 
 logger = logging.getLogger(__name__)
 
@@ -151,10 +151,16 @@ class MonitorState:
         self.active_workspace_index = workspace_index
         self.workspace.sync_windows()
 
-    def move_to_workspace(self, window: Window, workspace_index: int):
+    def move_to_workspace(
+        self, window: Window, workspace_index: int, is_delta: bool = False
+    ):
         """Move the window to the workspace by index"""
         logger.debug("%s move window %s to #%d", self, window, workspace_index)
-        if workspace_index >= len(self.workspaces):
+        if is_delta:
+            workspace_index = (self.active_workspace_index + workspace_index) % len(
+                self.workspaces
+            )
+        elif workspace_index >= len(self.workspaces):
             logger.warning("workspace index %s does not exist", workspace_index)
             return
         if workspace_index == self.active_workspace_index:

@@ -70,7 +70,6 @@ daemon.jmk.core.register_layers(
 )
 daemon.jmk.hotkeys.register_triggers(
     [
-        ("Ctrl+Space", "LWin+Space"),
         ("Win+q", "LAlt+F4"),
         ("Win+OEM_PERIOD", "LAlt+OEM_PERIOD"),
         ("Win+Ctrl+l", "LWin+LCtrl+Right"),
@@ -97,14 +96,18 @@ daemon.wm.hotkeys = [
     ([Vk.WIN, Vk.SHIFT, Vk.U], daemon.wm.manager.move_to_prev_monitor),
     ([Vk.WIN, Vk.SHIFT, Vk.I], daemon.wm.manager.move_to_next_monitor),
     ([Vk.WIN, Vk.CONTROL, Vk.I], daemon.wm.manager.inspect_active_window),
-    ("Win+Ctrl+a", partial(daemon.wm.manager.switch_workspace, 0)),
-    ("Win+Ctrl+s", partial(daemon.wm.manager.switch_workspace, 1)),
-    ("Win+Ctrl+d", partial(daemon.wm.manager.switch_workspace, 2)),
-    ("Win+Ctrl+f", partial(daemon.wm.manager.switch_workspace, 3)),
+    ("Win+Ctrl+a", partial(daemon.wm.manager.switch_to_workspace, 0)),
+    ("Win+Ctrl+s", partial(daemon.wm.manager.switch_to_workspace, 1)),
+    ("Win+Ctrl+d", partial(daemon.wm.manager.switch_to_workspace, 2)),
+    ("Win+Ctrl+f", partial(daemon.wm.manager.switch_to_workspace, 3)),
+    ("Win+Ctrl+j", partial(daemon.wm.manager.next_workspace)),
+    ("Win+Ctrl+k", partial(daemon.wm.manager.prev_workspace)),
     ("Win+Shift+a", partial(daemon.wm.manager.move_to_workspace, 0)),
     ("Win+Shift+s", partial(daemon.wm.manager.move_to_workspace, 1)),
     ("Win+Shift+d", partial(daemon.wm.manager.move_to_workspace, 2)),
     ("Win+Shift+f", partial(daemon.wm.manager.move_to_workspace, 3)),
+    ("Win+Ctrl+Shift+j", partial(daemon.wm.manager.move_to_next_workspace)),
+    ("Win+Ctrl+Shift+k", partial(daemon.wm.manager.move_to_prev_workspace)),
     ("Win+Shift+Space", daemon.wm.manager.toggle_tilable),
     ("Win+Ctrl+u", daemon.wm.manager.inspect_state),
 ]
