@@ -71,11 +71,10 @@ daemon.jmk.core.register_layers(
 daemon.jmk.hotkeys.register_triggers(
     [
         ("Win+q", "LAlt+F4"),
-        ("Win+OEM_PERIOD", "LAlt+OEM_PERIOD"),
         ("Win+Ctrl+l", "LWin+LCtrl+Right"),
         ("Win+Ctrl+h", "LWin+LCtrl+Left"),
         ("Win+Ctrl+q", daemon.quit_act.triggered.emit),
-        ([Vk.WIN, Vk.N], minimize_active_window),
+        ([Vk.WIN, Vk.H], minimize_active_window),
         # Win+m to maximize active window
         ([Vk.WIN, Vk.M], toggle_maximize_active_window),
         ([Vk.RCONTROL, Vk.SLASH], "RCtrl+x"),
@@ -90,6 +89,8 @@ daemon.wm.hotkeys = [
     ([Vk.WIN, Vk.SHIFT, Vk.J], daemon.wm.manager.swap_next),
     ([Vk.WIN, Vk.SHIFT, Vk.K], daemon.wm.manager.swap_prev),
     ("Win+/", daemon.wm.manager.set_master),
+    ("Win+.", daemon.wm.manager.roll_next),
+    ("Win+,", daemon.wm.manager.roll_prev),
     ([Vk.WIN, Vk.CONTROL, Vk.SPACE], daemon.wm.manager.next_theme),
     ([Vk.WIN, Vk.U], daemon.wm.manager.prev_monitor),
     ([Vk.WIN, Vk.I], daemon.wm.manager.next_monitor),
@@ -114,7 +115,7 @@ daemon.wm.hotkeys = [
 
 daemon.wm.manager.config = WmConfig(
     rules=[
-        WmRule(exe="WindowsTerminal.exe", manageable=False),
+        # WmRule(exe="WindowsTerminal.exe", manageable=False),
         WmRule(exe="SnippingTool.exe", manageable=False),
         WmRule(exe="Flow.Launcher.exe", manageable=False),
         WmRule(exe="msedgewebview2.exe", manageable=False),

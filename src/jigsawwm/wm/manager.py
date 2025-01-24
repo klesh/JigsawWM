@@ -308,10 +308,18 @@ class WindowManager(ThreadWorker):
         self.enqueue(self.virtdesk_state.swap_window, -1)
 
     def set_master(self):
-        """Set the active active managed window as the Master or the second window
+        """Set the active managed window as the Master or the second window
         in the list if it is Master already
         """
         self.enqueue(self.virtdesk_state.set_master)
+
+    def roll_next(self):
+        """Roll the next window to the top of the list as master"""
+        self.enqueue(self.virtdesk_state.roll_window, 1)
+
+    def roll_prev(self):
+        """Roll the next window to the top of the list as master"""
+        self.enqueue(self.virtdesk_state.roll_window, -1)
 
     def switch_monitor(self, delta: int):
         """Switch to another monitor by given offset"""

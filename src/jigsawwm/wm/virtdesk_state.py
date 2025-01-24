@@ -284,6 +284,35 @@ class VirtDeskState:
 
         self.reorder_windows(swap, idx=idx, workspace=workspace, activate=activate)
 
+    def roll_window(
+        self,
+        delta: int,
+        activate: bool = True,
+    ):
+        """Roll the window as master"""
+
+        delta = -1 if delta < 0 else 1
+
+        def swap(windows: List[Window], _src_idx: int):
+            idx = 0
+            start_idx = 1
+            end_idx = len(windows)
+            step = 1
+
+            if delta < 0:
+                idx = len(windows) - 1
+                start_idx = len(windows) - 2
+                end_idx = -1
+                step = -1
+
+            tmp = windows[idx]
+            for i in range(start_idx, end_idx, step):
+                windows[i - step] = windows[i]
+            windows[end_idx - step] = tmp
+            return windows[0]
+
+        self.reorder_windows(swap, activate=activate)
+
     def set_master(self):
         """Set the active active managed window as the Master or the second window
         in the list if it is Master already

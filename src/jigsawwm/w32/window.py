@@ -6,21 +6,20 @@ import time
 from ctypes import *  # pylint: disable=wildcard-import,unused-wildcard-import
 from ctypes.wintypes import *  # pylint: disable=wildcard-import,unused-wildcard-import
 from dataclasses import dataclass, field
-from typing import Callable, Optional, Any, Set, Iterable
-from os import path
 from functools import cached_property, cmp_to_key
+from os import path
+from typing import Any, Callable, Iterable, Optional, Set
 
 from . import process
-from .sendinput import send_input, INPUT, INPUTTYPE, KEYBDINPUT, KEYEVENTF
+from .monitor import Monitor, monitor_from_window
+from .sendinput import INPUT, INPUTTYPE, KEYBDINPUT, KEYEVENTF, send_input
 from .vk import Vk
-from .window_structs import Rect
-from .monitor import monitor_from_window, Monitor
-
 from .window_structs import (
-    WindowStyle,
-    WindowExStyle,
-    ShowWindowCmd,
     DwmWindowAttribute,
+    Rect,
+    ShowWindowCmd,
+    WindowExStyle,
+    WindowStyle,
 )
 
 user32 = WinDLL("user32", use_last_error=True)
@@ -220,7 +219,10 @@ class Window:
         :return: full path of the executable
         :rtype: str
         """
-        return process.get_exepath(self.pid)
+        try:
+            return process.get_exepath(self.pid)
+        except:
+            return None
 
     @cached_property
     def exe_name(self):
