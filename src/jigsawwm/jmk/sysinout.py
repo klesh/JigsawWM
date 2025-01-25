@@ -98,11 +98,14 @@ class SystemInput(ThreadWorker, JmkHandler):
             self.disabled = True
             self.disabled_reason = "elevated window focused"
             return
+        if window.exe == "TextInputHost.exe":
+            logger.info("focused window %s is TextInputHost, ignore !!!", window)
+            return
         if self.bypass_exe and window.exe_name.lower() in self.bypass_exe:
             logger.info("focused window %s is blacklisted", window)
             self.disabled = True
             return
-        logger.info("focused window %s is a normal, jmk ENABLED !!!", window)
+        logger.info("focused window %s is a normal window, jmk ENABLED !!!", window)
         if self.disabled:
             self.on_system_resumed()
             self.disabled = False
