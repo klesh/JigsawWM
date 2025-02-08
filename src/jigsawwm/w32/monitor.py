@@ -4,31 +4,32 @@ import enum
 import math
 import sys
 from ctypes import (
+    WINFUNCTYPE,
+    Structure,
     WinDLL,
     WinError,
-    pointer,
-    get_last_error,
-    WINFUNCTYPE,
     byref,
-    Structure,
+    get_last_error,
+    pointer,
     sizeof,
 )
 from ctypes.wintypes import (
-    POINT,
-    HMONITOR,
     BOOL,
-    HDC,
-    LPRECT,
-    LPARAM,
-    HWND,
-    ULONG,
-    RECT,
-    DWORD,
     CHAR,
+    DWORD,
+    HDC,
+    HMONITOR,
+    HWND,
+    LPARAM,
+    LPRECT,
+    POINT,
+    RECT,
+    ULONG,
 )
-from functools import cached_property
-from typing import Tuple, Set
 from dataclasses import dataclass
+from functools import cached_property
+from typing import Set, Tuple
+
 import screeninfo
 
 from .window_structs import Rect
@@ -244,19 +245,20 @@ class Monitor:
 
     def get_screen_info(self) -> ScreenInfo:
         """Retrieves screen information"""
-        for monitor in screeninfo.get_monitors():
-            if monitor.name == self.name:
-                return ScreenInfo(
-                    monitor.width,
-                    monitor.height,
-                    monitor.width_mm,
-                    monitor.height_mm,
-                    ratio=monitor.width / monitor.height,
-                    is_primary=monitor.is_primary,
-                    inch=round(
-                        math.sqrt(monitor.width_mm**2 + monitor.height_mm**2) / 25.4
-                    ),
-                )
+        for _ in range(100):
+            for monitor in screeninfo.get_monitors():
+                if monitor.name == self.name:
+                    return ScreenInfo(
+                        monitor.width,
+                        monitor.height,
+                        monitor.width_mm,
+                        monitor.height_mm,
+                        ratio=monitor.width / monitor.height,
+                        is_primary=monitor.is_primary,
+                        inch=round(
+                            math.sqrt(monitor.width_mm**2 + monitor.height_mm**2) / 25.4
+                        ),
+                    )
 
     def get_monitor_central(self) -> Tuple[int, int]:
         """Retrieves coordinates of the center of specified monitor"""

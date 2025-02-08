@@ -11,11 +11,11 @@ from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import QMenu, QSystemTrayIcon
 
 from jigsawwm import ui
-from jigsawwm.w32.vk import Vk
 from jigsawwm.jmk.jmk_service import JmkService
+from jigsawwm.w32.vk import Vk
 from jigsawwm.wm.wm_service import WmService
 
-from .job import Job, Task, Service, TrayIconTriggerred
+from .job import Job, Service, Task, TrayIconTriggerred
 
 # support for Ctrl+C in console
 signal.signal(signal.SIGINT, signal.SIG_DFL)
