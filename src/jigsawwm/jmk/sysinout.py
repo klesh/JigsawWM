@@ -9,7 +9,7 @@ from jigsawwm.ui import system_event_listener
 from jigsawwm.w32 import hook
 from jigsawwm.w32.sendinput import is_synthesized, send_input, vk_to_input
 from jigsawwm.w32.vk import Vk, is_key_down
-from jigsawwm.w32.window_detector import Window, WindowDetector
+from jigsawwm.w32.window_detector import Window
 from jigsawwm.worker import ThreadWorker
 
 from .core import JmkEvent, JmkHandler
@@ -36,12 +36,10 @@ class SystemInput(ThreadWorker, JmkHandler):
     next_handler_when_disabled: Optional[JmkHandler]
     bypass_exe: Set[str] = None
     pressed_evts: Dict[Vk, JmkEvent] = {}
-    window_detector: WindowDetector = None
 
     def __init__(
         self,
         bypass_exe: Set[re.Pattern] = None,
-        window_cache: WindowDetector = None,
     ):
         self.bypass_exe = {
             "Snipaste.exe",
@@ -51,7 +49,6 @@ class SystemInput(ThreadWorker, JmkHandler):
         if bypass_exe:
             self.bypass_exe |= bypass_exe
         self.pressed_evts = {}
-        self.window_detector = window_cache or WindowDetector()
         system_event_listener.on_system_resumed.connect(self.on_system_resumed)
 
     def start(self):
@@ -92,14 +89,16 @@ class SystemInput(ThreadWorker, JmkHandler):
 
     def on_focus_changed(self, hwnd: HWND):
         """Handles the window focus change event"""
-        window = self.window_detector.get_window(hwnd)
+        if hwnd is None:
+            return
+        window = Window(hwnd)
+        if window.exe == "TextInputHost.exe":
+            logger.info("focused window %s is TextInputHost, ignore !!!", window)
+            return
         if window.is_elevated:
             logger.info("focused window %s is elevated", window)
             self.disabled = True
             self.disabled_reason = "elevated window focused"
-            return
-        if window.exe == "TextInputHost.exe":
-            logger.info("focused window %s is TextInputHost, ignore !!!", window)
             return
         if self.bypass_exe and window.exe_name.lower() in self.bypass_exe:
             logger.info("focused window %s is blacklisted", window)

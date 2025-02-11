@@ -1,33 +1,22 @@
 """Test jigsawwm.jmk.sysinout module."""
 
 import time
-from jigsawwm.jmk.sysinout import (
-    SystemInput,
-    SystemOutput,
-    Window,
-    WindowDetector,
-    hook,
-    state,
-    Vk,
-    JmkEvent,
-)
+
 from jigsawwm.jmk.core import JmkCore, JmkTapHold
+from jigsawwm.jmk.sysinout import JmkEvent, SystemInput, SystemOutput, Vk, Window, hook
 
 
 def test_jmk_sysin_disable_for_admin_windows(mocker):
     """Test system input handler disabled when ."""
     next_handler = mocker.Mock()
-    window_detector = WindowDetector()
-    sysin = SystemInput(window_cache=window_detector)
+    sysin = SystemInput()
     sysin.pipe(next_handler)
     # admin
     elevated_window = Window(123)
     elevated_window.is_elevated = True
-    window_detector.get_window = mocker.Mock(return_value=elevated_window)
     assert sysin.disabled is False
     # admin window is focused
     sysin.on_focus_changed(123)
-    assert window_detector.get_window.call_args[0][0] == 123
     assert sysin.disabled is True
     # key event should be igored for administrative windows
     swallow = sysin.input_event(
@@ -38,7 +27,6 @@ def test_jmk_sysin_disable_for_admin_windows(mocker):
     user_window = Window(456)
     user_window.is_elevated = False
     user_window.exe_name = "whatever.exe"
-    window_detector.get_window = mocker.Mock(return_value=user_window)
     sysin.on_focus_changed(456)
     assert sysin.disabled is False
     # key event should be swallowed for user mode window

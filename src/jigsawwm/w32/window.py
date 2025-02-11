@@ -637,6 +637,11 @@ def get_foreground_window() -> Optional[HWND]:
     return user32.GetForegroundWindow()
 
 
+def get_focused_window() -> Optional[HWND]:
+    """Get the foreground window handle"""
+    return user32.GetFocus()
+
+
 def minimize_active_window():
     """Minize active window"""
     hwnd = get_foreground_window()
