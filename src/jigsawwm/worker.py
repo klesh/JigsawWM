@@ -2,9 +2,8 @@
 
 import logging
 import time
-from queue import SimpleQueue
 from concurrent.futures import ThreadPoolExecutor
-
+from queue import SimpleQueue
 
 logger = logging.getLogger(__name__)
 QUEUE_MSG_CLOSE = 0
@@ -33,7 +32,7 @@ class ThreadWorker:
 
     def enqueue(self, fn: callable, *args, **kwargs):
         """Enqueue a function call"""
-        self.queue.put((QUEUE_MSG_CALL, (fn, args, kwargs)))
+        self.queue.put_nowait((QUEUE_MSG_CALL, (fn, args, kwargs)))
 
     def consume_queue(self):
         """Consume the queue and call the corresponding function"""

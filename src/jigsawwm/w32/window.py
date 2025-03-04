@@ -428,6 +428,7 @@ class Window:
             SET_WINDOW_RECT_FLAG,
         ):
             raise WinError(get_last_error())
+        logger.debug("done %s set rect to %s", self, rect)
 
     def set_restrict_rect(self, rect: Rect):
         """Set the restricted rect"""

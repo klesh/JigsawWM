@@ -1,25 +1,20 @@
 """Splash window for the list of windows and current workspace information."""
 
 import logging
-
-from typing import List, Optional
+import time
 from ctypes import *  # pylint: disable=wildcard-import,unused-wildcard-import
 from ctypes.wintypes import *  # pylint: disable=wildcard-import,unused-wildcard-import
+from typing import List
 
-from PySide6.QtCore import (
-    QPoint,
-    Qt,
-    Signal,
-    Slot,
-)
-from PySide6.QtGui import QImage, QCursor
-from PySide6.QtWidgets import QLabel, QSizePolicy, QWidget, QHBoxLayout, QVBoxLayout
+from PySide6.QtCore import QPoint, Qt, Signal, Slot
+from PySide6.QtGui import QCursor, QImage
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget
 
-from jigsawwm.w32.window import Window, get_foreground_window
-from jigsawwm.w32 import hook
-from jigsawwm.wm.monitor_state import MonitorState
-from jigsawwm.jmk.jmk_service import JmkService
 from jigsawwm.jmk.core import JmkEvent, Vk
+from jigsawwm.jmk.jmk_service import JmkService
+from jigsawwm.w32 import hook
+from jigsawwm.w32.window import Window, get_foreground_window
+from jigsawwm.wm.monitor_state import MonitorState
 
 from .app import app
 from .dialog import Dialog
@@ -42,7 +37,7 @@ class Splash(Dialog):
     mouse_hookid = 0
     created_windows = set()
     workspaces: List[QWidget] = []
-    fg_hwnd: Optional[int] = None
+    hidden_at: float = 0
 
     def __init__(self, jmk_service: JmkService):
         super().__init__()
@@ -175,6 +170,7 @@ class Splash(Dialog):
         """Hide the splash screen"""
         logger.info("WindowsSplash hide")
         self.hide()
+        self.hidden_at = time.time()
 
     def refresh_foreground_window(self):
         """Refresh the foreground window"""

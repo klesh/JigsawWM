@@ -4,6 +4,7 @@ import logging
 import time
 from typing import Callable, Dict, List, Optional, Tuple
 
+from jigsawwm.ui.splash import Splash
 from jigsawwm.w32.monitor import set_cursor_pos
 from jigsawwm.w32.monitor_detector import Monitor, MonitorDetector
 from jigsawwm.w32.window import topo_sort_windows
@@ -38,11 +39,12 @@ class VirtDeskState:
     monitor_detector: MonitorDetector
     no_ws_switching_untill = 0
 
-    def __init__(self, desktop_id: bytearray, config: WmConfig):
+    def __init__(self, desktop_id: bytearray, config: WmConfig, splash: Splash):
         self.desktop_id = desktop_id
         self.window_detector = WindowDetector(created=self.apply_rule_to_window)
         self.monitor_detector = MonitorDetector()
         self.config = config
+        self.splash = splash
 
     def on_monitors_changed(self):
         """Syncs the monitor states with the virtual desktop"""
@@ -205,6 +207,11 @@ class VirtDeskState:
         # a window belongs to hidden workspace just got activated
         # put your default browser into workspace and then ctrl-click a link, e.g. http://google.com
         now = time.time()
+        if now < self.splash.hidden_at + 1:
+            logger.warning(
+                "splash hidden too fast might activate a hidden window, ignore it"
+            )
+            return
         if now < self.no_ws_switching_untill:
             # child windows got spread across multiple workspaces
             logger.warning("workspace switching happened too frequently, possible loop")

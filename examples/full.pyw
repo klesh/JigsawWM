@@ -131,7 +131,7 @@ daemon.wm.manager.config = WmConfig(
         WmRule(exe="Obsidian.exe", preferred_monitor_index=1),
         WmRule(exe="Feishu.exe", preferred_monitor_index=1),
         WmRule(exe="peazip.exe", tilable=False),
-        WmRule(exe="gemini-next-chat.exe", manageable=False),
+        WmRule(exe="WXWork.exe", manageable=False),
         # WmRule(
         #     exe="ApplicationFrameHost.exe", title="PDF Reader by Xodo", tilable=True
         # ),

@@ -114,7 +114,7 @@ class WindowManager(ThreadWorker):
         virtdesk_state = self.virtdesk_states.get(desktop_id)
         if virtdesk_state is None:
             # make sure monitor_state for current virtual desktop exists
-            virtdesk_state = VirtDeskState(desktop_id, self.config)
+            virtdesk_state = VirtDeskState(desktop_id, self.config, self.splash)
             self.virtdesk_states[desktop_id] = virtdesk_state
         return virtdesk_state
 
@@ -164,6 +164,7 @@ class WindowManager(ThreadWorker):
             or event == WinEvent.EVENT_OBJECT_SHOW
             or event == WinEvent.EVENT_OBJECT_UNCLOAKED
         ):
+            logger.info("event: %s, window: %s", event.name, window)
             self.virtdesk_state.on_windows_changed()
         elif event == WinEvent.EVENT_SYSTEM_MOVESIZESTART:
             self.on_move_size_start(window)

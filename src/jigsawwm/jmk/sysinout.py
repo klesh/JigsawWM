@@ -36,6 +36,7 @@ class SystemInput(ThreadWorker, JmkHandler):
     next_handler_when_disabled: Optional[JmkHandler]
     bypass_exe: Set[str] = None
     pressed_evts: Dict[Vk, JmkEvent] = {}
+    previous_focused_hwnd: HWND = None
 
     def __init__(
         self,
@@ -54,8 +55,17 @@ class SystemInput(ThreadWorker, JmkHandler):
     def start(self):
         """Start the system input handler"""
         self.start_worker()
+
+        def log_time(func: callable):
+            def wrapped(*arg, **kwargs):
+                logger.debug("start processing %s", func.__name__)
+                return func(*arg, **kwargs)
+                logger.debug("finished processing %s", func.__name__)
+
+            return wrapped
+
         self.hook_handles = [
-            hook.hook_keyboard(self.input_event),
+            hook.hook_keyboard(log_time(self.input_event)),
             hook.hook_mouse(self.input_event),
             hook.hook_winevent(
                 hook.WinEvent.EVENT_OBJECT_FOCUS,
@@ -91,6 +101,9 @@ class SystemInput(ThreadWorker, JmkHandler):
         """Handles the window focus change event"""
         if hwnd is None:
             return
+        if hwnd == self.previous_focused_hwnd:
+            return
+        self.previous_focused_hwnd = hwnd
         window = Window(hwnd)
         if window.exe == "TextInputHost.exe":
             logger.info("focused window %s is TextInputHost, ignore !!!", window)
