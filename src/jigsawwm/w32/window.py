@@ -1,5 +1,6 @@
 """Windows API for window management"""
 
+import enum
 import logging
 import sys
 import time
@@ -51,6 +52,15 @@ ICON_BIG = 1
 ICON_SMALL2 = 2
 WM_GETICON = 0x7F
 NOT_TILABLE_EXE_NAMES = {"QuickLook.exe"}
+
+
+class InsertAfter(enum.IntEnum):
+    """https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowpos?redirectedfrom=MSDN"""
+
+    HWND_BOTTOM = 1
+    HWND_NOTOPMOST = -2
+    HWND_TOP = 0
+    HWND_TOPMOST = -1
 
 
 @dataclass
@@ -410,17 +420,17 @@ class Window:
             return Rect(0, 0, 0, 0)
         return Rect.from_win_rect(rect)
 
-    def set_rect(self, rect: Rect):
+    def set_rect(self, rect: Rect, insert_after: InsertAfter | None = None):
         """Sets the dimensions of the bounding rectangle (Call SetWindowPos with RECT)
 
         Ref: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowpos
 
         :param rect: RECT with top/left/bottom/right properties
         """
-        logger.debug("%s set rect to %s", self, rect)
+        logger.debug("%s set rect to %s insert_after: %s", self, rect, insert_after)
         if not user32.SetWindowPos(
             self.handle,
-            None,
+            insert_after,
             rect.x,
             rect.y,
             rect.width,
@@ -679,6 +689,10 @@ if __name__ == "__main__":
         action, args = sys.argv[1], sys.argv[2:]
         if action == "inspect":
             Window(int(args[0])).inspect()
+        elif action == "move":
+            w = Window(int(args[0]))
+            w.set_rect(Rect(int(args[1]), int(args[2]), int(args[3]), int(args[4])))
+            w.show()
         elif action == "rescue":
             w = Window(int(args[0]))
             w.set_rect(Rect(0, 0, 800, 600))

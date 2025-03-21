@@ -158,7 +158,7 @@ class Splash(Dialog):
             self.container_layout.addWidget(self.spacer)
         self.refresh_foreground_window()
         # centering the window
-        r = monitor_state.rect
+        r = monitor_state.monitor.get_work_rect()
         rect = app.screenAt(QPoint(r.left, r.top)).geometry()
         x = rect.x() + (rect.width() - w) // 2
         y = rect.y() + (rect.height()) // 3

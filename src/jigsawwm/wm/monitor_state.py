@@ -3,6 +3,7 @@
 import logging
 from typing import List, Optional
 
+from jigsawwm.w32.monitor import Monitor
 from jigsawwm.w32.window import Rect, Window
 
 from .const import (
@@ -29,7 +30,7 @@ class MonitorState:
 
     index: int
     name: str
-    rect: Rect
+    monitor: Monitor
     full_rect: Rect
     theme: Theme
     workspaces: List[WorkspaceState]
@@ -40,13 +41,13 @@ class MonitorState:
         index: int,
         name: str,
         workspace_names: List[str],
-        rect: Rect,
+        monitor: Monitor,
         full_rect: Rect,
         theme: Theme,
     ):
         self.index = index
         self.name = name
-        self.rect = rect
+        self.monitor = monitor
         self.full_rect = full_rect
         self.theme = theme
         self.active_workspace_index = 0
@@ -54,7 +55,7 @@ class MonitorState:
         self.set_workspaces(workspace_names)
 
     def __repr__(self) -> str:
-        return f"<MonitorState #{self.index} {self.rect}>"
+        return f"<MonitorState #{self.index} {self.monitor.get_work_rect()}>"
 
     def set_workspaces(self, workspace_names: List[str]):
         """Update the workspaces"""
@@ -74,7 +75,7 @@ class MonitorState:
                         monitor_index=self.index,
                         index=len(self.workspaces),
                         name=workspace_names[i],
-                        rect=self.rect,
+                        monitor=self.monitor,
                         alter_rect=self.compute_alter_rect(i),
                         theme=self.theme,
                     )
@@ -82,12 +83,6 @@ class MonitorState:
         for i, workspace_name in enumerate(workspace_names):
             self.workspaces[i].name = workspace_name
         self.workspace.toggle(True)
-
-    def set_rect(self, rect: Rect):
-        """Update the monitor rect"""
-        self.rect = rect
-        for workspace in self.workspaces:
-            workspace.set_rect(rect)
 
     @property
     def workspace(self) -> WorkspaceState:
@@ -181,9 +176,9 @@ class MonitorState:
         """Move the floating window into the monitor"""
         logger.debug("%s move floating window %s in", self, window)
         wr = window.get_rect()
-        if self.rect.contains_rect_center(wr):
+        if self.monitor.get_work_rect().contains_rect_center(wr):
             return
-        mr = self.rect
+        mr = self.monitor.get_work_rect()
         window.set_rect(
             Rect(
                 left=mr.left + wr.width // 2,
@@ -196,8 +191,9 @@ class MonitorState:
     def compute_alter_rect(self, workspace_index: int):
         """Compute the alter rect(window would be moved into when workspace is toggled off) for the workspace,
         all alter_rect would be spread over the y axis of the current full_rect()"""
-        left = self.rect.left
-        top = self.full_rect.bottom + self.rect.height * workspace_index
-        right = self.rect.right
-        bottom = top + self.rect.height
+        rect = self.monitor.get_work_rect()
+        left = rect.left
+        top = self.full_rect.bottom + rect.height * workspace_index
+        right = rect.right
+        bottom = top + rect.height
         return Rect(left, top, right, bottom)

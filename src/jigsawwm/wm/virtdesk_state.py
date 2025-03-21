@@ -63,7 +63,7 @@ class VirtDeskState:
                     index=monitor_index,
                     name=m.name,
                     workspace_names=self.config.workspace_names,
-                    rect=m.get_work_rect(),
+                    monitor=m,
                     full_rect=self.monitor_detector.full_rect,
                     theme=self.config.get_theme_for_monitor(m),
                 )
@@ -236,8 +236,9 @@ class VirtDeskState:
 
     def on_minimize_changed(self, window: Window):
         """Handle window minimized event"""
-        ws: WorkspaceState = window.attrs[WORKSPACE_STATE]
-        ws.sync_windows()
+        ws: WorkspaceState = window.attrs.get(WORKSPACE_STATE)
+        if ws:
+            ws.sync_windows()
 
     def monitor_state_from_cursor(self) -> MonitorState:
         """Retrieve monitor_state from current cursor"""

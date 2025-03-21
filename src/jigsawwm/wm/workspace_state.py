@@ -1,13 +1,13 @@
 """WorkspaceState maintins the state of a workspace"""
 
 import logging
-from typing import List, Optional, Set, Tuple, Iterator
+from typing import Iterator, List, Optional, Set, Tuple
 
-from jigsawwm.w32.window import Window, Rect
-from jigsawwm.w32.monitor import get_cursor_pos
+from jigsawwm.w32.monitor import Monitor, get_cursor_pos
+from jigsawwm.w32.window import Rect, Window
 
-from .theme import Theme
 from .const import PREFERRED_WINDOW_INDEX, STATIC_WINDOW_INDEX
+from .theme import Theme
 
 logger = logging.getLogger(__name__)
 
@@ -33,14 +33,14 @@ class WorkspaceState:
         monitor_index: int,
         index: int,
         name: str,
-        rect: Rect,
+        monitor: Monitor,
         alter_rect: Rect,
         theme: Theme,
     ):
         self.monitor_index = monitor_index
         self.index = index
         self.name = name
-        self.rect = rect
+        self.monitor = monitor
         self.alter_rect = alter_rect
         self.theme = theme
         self.windows = set()
@@ -55,7 +55,7 @@ class WorkspaceState:
         """Toggle all windows in the workspace"""
         logger.debug("%s toggle %s", self, show)
         self.showing = show
-        for window in self.windows:
+        for window in self.tiling_windows:
             self.toggle_window(window, show)
         if show:
             w = self.last_active_window
@@ -63,6 +63,8 @@ class WorkspaceState:
                 w = self.tiling_windows[0]
             if w and w.exists():
                 w.activate()
+        for window in self.floating_windows:
+            self.toggle_window(window, show)
 
     def set_theme(self, theme: Theme):
         """Set theme for the workspace"""
@@ -70,10 +72,10 @@ class WorkspaceState:
         self.theme = theme
         self.sync_windows(force_arrange=True)
 
-    def set_rect(self, rect: Rect):
-        """Set the rect of the workspace"""
-        self.rect = rect
-        self.arrange()
+    # def set_rect(self, rect: Rect):
+    #     """Set the rect of the workspace"""
+    #     self.rect = rect
+    #     self.arrange()
 
     def sync_windows(self, force_arrange=False) -> bool:
         """Sync the internal windows list to the incoming windows list"""
@@ -169,7 +171,7 @@ class WorkspaceState:
 
     def generate_tiling_areas(self, num: int) -> Iterator[Rect]:
         """Generate tiling areas for current monitor with respect to given number"""
-        wr = self.rect
+        wr = self.monitor.get_work_rect()
         work_area = (wr.left, wr.top, wr.right, wr.bottom)
         gap = self.theme.gap or 0
         for left, top, right, bottom in self.theme.layout_tiler(work_area, num):
@@ -242,28 +244,36 @@ class WorkspaceState:
             return
         logger.debug("%s toggle %s showing to %s", self, window, show)
         r = window.get_rect()
+        work_rect = self.monitor.get_work_rect()
+        target_rect = work_rect if show else self.alter_rect
+        source_rect = self.alter_rect if show else work_rect
         logger.debug(
             "%s window rect %s,  mr: %s, alter_rect: %s",
             window,
             r,
-            self.rect,
+            target_rect,
             self.alter_rect,
         )
+        r = Rect(
+            target_rect.left + (r.left - source_rect.left),
+            target_rect.top + (r.top - source_rect.top),
+            target_rect.right + (r.right - source_rect.right),
+            target_rect.bottom + (r.bottom - source_rect.bottom),
+        )
+        # sometimes floating window gets placed out of monitor, move it back to top left
+        if not window.tilable:
+            if r.left < target_rect.left or r.left > target_rect.right:
+                r.left = target_rect.left + 300
+            if r.right < target_rect.left or r.right > target_rect.right:
+                r.right = target_rect.right - 300
+            if r.top < target_rect.top or r.top > target_rect.bottom:
+                r.top = target_rect.top + 200
+            if r.bottom < target_rect.top or r.bottom > target_rect.bottom:
+                logger.debug("fixing bottom: %d ")
+                r.bottom = target_rect.bottom - 200
         if show:
-            r = Rect(
-                self.rect.left + (r.left - self.alter_rect.left),
-                self.rect.top + (r.top - self.alter_rect.top),
-                self.rect.right + (r.right - self.alter_rect.right),
-                self.rect.bottom + (r.bottom - self.alter_rect.bottom),
-            )
             window.show()
         else:
-            r = Rect(
-                self.alter_rect.left + (r.left - self.rect.left),
-                self.alter_rect.top + (r.top - self.rect.top),
-                self.alter_rect.right + (r.right - self.rect.right),
-                self.alter_rect.bottom + (r.bottom - self.rect.bottom),
-            )
             window.hide()
         window.set_rect(r)
         logger.debug("%s toggle by setting rect to %s", self, r)
