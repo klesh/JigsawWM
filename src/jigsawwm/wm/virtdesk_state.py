@@ -322,21 +322,13 @@ class VirtDeskState:
         self.reorder_windows(swap, activate=activate)
 
     def set_master(self):
-        """Set the active active managed window as the Master or the second window
-        in the list if it is Master already
-        """
+        """Set the active active managed window as the Master back and forth"""
 
         def set_master(windows: List[Window], src_idx: int):
-            src_window = windows[src_idx]
             if src_idx == 0:
-                src_idx = 1
-                src_window = windows[1]
-            # shift elements from the beginning to the src_window
-            for i in reversed(range(1, src_idx + 1)):
-                windows[i] = windows[i - 1]
-            # assign new master
-            windows[0] = src_window
-            return src_window
+                src_idx = windows[0].attrs.get("prev_index", 1)
+            windows[0], windows[src_idx] = windows[src_idx], windows[0]
+            windows[0].attrs["prev_index"] = src_idx
 
         self.reorder_windows(set_master)
 
