@@ -276,16 +276,13 @@ class WindowManager(ThreadWorker):
             workspace_index,
         )
 
+    def show_splash(self):
+        self.splash.show_splash.emit(self.virtdesk_state.monitor_state_from_cursor())
+
     def enqueue_splash(self, fn: callable, *args):
         """Enqueue a callable with splash window"""
-
-        def show_splash():
-            self.splash.show_splash.emit(
-                self.virtdesk_state.monitor_state_from_cursor()
-            )
-
         self.enqueue(fn, *args)
-        self.enqueue(show_splash)
+        self.enqueue(self.show_splash)
         return lambda: self.enqueue(self.splash.hide_splash.emit)
 
     ########################################

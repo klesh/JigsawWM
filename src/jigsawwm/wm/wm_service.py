@@ -1,13 +1,13 @@
 """The Window Manager Service"""
 
-from jigsawwm.app.job import Service
-from jigsawwm.jmk.jmk_service import JmkService
+from jigsawwm.app.job import Service, TrayIconTriggerred
 from jigsawwm.jmk.core import JmkTriggerDefs
+from jigsawwm.jmk.jmk_service import JmkService
 
 from .manager import WindowManager
 
 
-class WmService(Service):
+class WmService(Service, TrayIconTriggerred):
     """JMK service"""
 
     name = "Window Manager"
@@ -30,3 +30,6 @@ class WmService(Service):
         for args in self.hotkeys:
             self.jmk.hotkeys.unregister(args[0])
         self.is_running = False
+
+    def trayicon_triggerred(self):
+        self.manager.show_splash()
