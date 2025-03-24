@@ -64,7 +64,6 @@ class VirtDeskState:
                     name=m.name,
                     workspace_names=self.config.workspace_names,
                     monitor=m,
-                    full_rect=self.monitor_detector.full_rect,
                     theme=self.config.get_theme_for_monitor(m),
                 )
         # remove monitor states
@@ -144,6 +143,8 @@ class VirtDeskState:
                 ms = self.monitor_states[m]
                 ms.assign_window(w, window_index=i)
         self.reclaim_hidden_workspaces()
+        for m in self.monitor_states.values():
+            m.workspace.sync_windows()
 
     def reclaim_hidden_workspaces(self):
         """Reclaim previously hidden workspaces"""
@@ -329,6 +330,7 @@ class VirtDeskState:
                 src_idx = windows[0].attrs.get("prev_index", 1)
             windows[0], windows[src_idx] = windows[src_idx], windows[0]
             windows[0].attrs["prev_index"] = src_idx
+            return windows[0]
 
         self.reorder_windows(set_master)
 

@@ -8,7 +8,7 @@ from typing import Callable, Dict, List, Optional, Set, Union
 from jigsawwm.ui import system_event_listener
 from jigsawwm.w32 import hook
 from jigsawwm.w32.sendinput import is_synthesized, send_input, vk_to_input
-from jigsawwm.w32.vk import Vk, is_key_down
+from jigsawwm.w32.vk import Modifers, Vk, is_key_down
 from jigsawwm.w32.window_detector import Window
 from jigsawwm.worker import ThreadWorker
 
@@ -119,7 +119,7 @@ class SystemInput(ThreadWorker, JmkHandler):
             return
         logger.info("focused window %s is a normal window, jmk ENABLED !!!", window)
         if self.disabled:
-            self.on_system_resumed()
+            # self.on_system_resumed()
             self.disabled = False
 
     def input_event(
@@ -134,13 +134,14 @@ class SystemInput(ThreadWorker, JmkHandler):
         if self.is_running is False:
             return False
         if is_synthesized(msg):
-            logger.debug("synthesized event %s, skipping", msg)
+            logger.debug("skip synthesized event %s", msg)
             return False
         # convert keyboard/mouse event to a unified virtual key representation
         vkey, pressed = None, None
         if isinstance(msgid, hook.KBDLLHOOKMSGID):
             vkey = Vk(msg.vkCode)
             if vkey == Vk.PACKET:
+                logger.debug("skip packet event %s", msg)
                 return False
             # if msg.flags & 0b10000:  # skip injected events
             #     return True
@@ -149,6 +150,7 @@ class SystemInput(ThreadWorker, JmkHandler):
             elif msgid == hook.KBDLLHOOKMSGID.WM_KEYUP:
                 pressed = False
             else:
+                logger.debug("skip unknown msg id %s", msg)
                 return False
         elif isinstance(msgid, hook.MSLLHOOKMSGID):
             # return False # chrome 126.0.6478.63 select not accepting synthetic mouse events correctly
@@ -185,14 +187,16 @@ class SystemInput(ThreadWorker, JmkHandler):
                 pressed = False
         # skip events that out of our interest
         if vkey is None or pressed is None:
-            # logger.debug("unknown event %s, skipping", msg)
+            logger.debug("skip unknown event %s", msg)
             return False
         self.enqueue(self.on_input, vkey, pressed, msg.flags, msg.dwExtraInfo)
         # we still need to keep track of system input for the following modules:
         #   - UI: detect mouse up on workspace widget
         #   - WM: detect merging chrome tabs
         if self.disabled:
-            logger.debug("disabled due to %s, skipping %s", self.disabled_reason, msg)
+            logger.debug(
+                "skip due to disabled, reason: %s, msg: %s", self.disabled_reason, msg
+            )
             return False
 
         return True
@@ -204,7 +208,14 @@ class SystemInput(ThreadWorker, JmkHandler):
 
     def on_input(self, vkey: Vk, pressed: bool, flags=0, extra=0):
         """Handles the keyboard keys/mouse buttons events"""
-        # keyup events might be missed, so we need to keep track of pressed keys
+        # A weird behavior of the system (windows 11):
+        #   1. hold down left and right controls simultaneously
+        #   2. press and release a key, say S
+        #   3. release both control keys simultaneously
+        #   4. the system might NOT send the keyup events for the control keys
+        # To mitigate this, we need to check if keys were released when Escape is pressed
+        if vkey == Vk.ESCAPE and pressed:
+            self.fix_release()
         evt = JmkEvent(vkey, pressed, system=True, flags=flags, extra=extra)
         if pressed:
             self.pressed_evts[vkey] = evt
@@ -221,7 +232,7 @@ class SystemInput(ThreadWorker, JmkHandler):
     def fix_release(self):
         """Fix the release event of a key that was missed"""
         for pk in list(self.pressed_evts.keys()):
-            if not is_key_down(pk):
+            if pk in Modifers and not is_key_down(pk):
                 logger.info("fixing release of %s", pk.name)
                 # pevt = self.pressed_evts[pk]
                 # self.on_input(pk, False, flags=pevt.flags, extra=pevt.extra)

@@ -16,7 +16,7 @@ from jigsawwm.jmk.jmk_service import (
     send_today,
     send_today_compact,
 )
-from jigsawwm.w32.window import minimize_active_window, toggle_maximize_active_window
+from jigsawwm.w32.window import minimize_active_window
 from jigsawwm.wm.config import WmRule
 from jigsawwm.wm.manager import WmConfig
 
@@ -76,7 +76,6 @@ daemon.jmk.hotkeys.register_triggers(
         ("Win+Ctrl+q", daemon.quit_act.triggered.emit),
         ([Vk.WIN, Vk.H], minimize_active_window),
         # Win+m to maximize active window
-        ([Vk.WIN, Vk.M], toggle_maximize_active_window),
         ([Vk.RCONTROL, Vk.SLASH], "RCtrl+x"),
         ([Vk.RCONTROL, Vk.PERIOD], "RCtrl+c"),
         ([Vk.RCONTROL, Vk.COMMA], "RCtrl+v"),
@@ -111,6 +110,7 @@ daemon.wm.hotkeys = [
     ("Win+Ctrl+Shift+k", partial(daemon.wm.manager.move_to_prev_workspace)),
     ("Win+Shift+Space", daemon.wm.manager.toggle_tilable),
     ("Win+Ctrl+u", daemon.wm.manager.inspect_state),
+    ([Vk.WIN, Vk.M], daemon.wm.manager.toggle_mono),
 ]
 
 daemon.wm.manager.config = WmConfig(

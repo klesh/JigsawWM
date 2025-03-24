@@ -31,7 +31,6 @@ class MonitorState:
     index: int
     name: str
     monitor: Monitor
-    full_rect: Rect
     theme: Theme
     workspaces: List[WorkspaceState]
     active_workspace_index: int
@@ -42,13 +41,11 @@ class MonitorState:
         name: str,
         workspace_names: List[str],
         monitor: Monitor,
-        full_rect: Rect,
         theme: Theme,
     ):
         self.index = index
         self.name = name
         self.monitor = monitor
-        self.full_rect = full_rect
         self.theme = theme
         self.active_workspace_index = 0
         self.workspaces = []
@@ -99,7 +96,7 @@ class MonitorState:
         workspace = workspace or self.workspace
         w.attrs[PREFERRED_MONITOR_INDEX] = self.index
         w.attrs[PREFERRED_WORKSPACE_INDEX] = workspace.index
-        if window_index:
+        if window_index is not None:
             w.attrs[PREFERRED_WINDOW_INDEX] = window_index
         elif PREFERRED_WINDOW_INDEX in w.attrs:
             del w.attrs[PREFERRED_WINDOW_INDEX]
@@ -190,10 +187,10 @@ class MonitorState:
 
     def compute_alter_rect(self, workspace_index: int):
         """Compute the alter rect(window would be moved into when workspace is toggled off) for the workspace,
-        all alter_rect would be spread over the y axis of the current full_rect()"""
-        rect = self.monitor.get_work_rect()
+        all alter_rect would be spread over the y axis"""
+        rect = self.monitor.get_rect()
         left = rect.left
-        top = self.full_rect.bottom + rect.height * workspace_index
+        top = rect.bottom + rect.height * workspace_index
         right = rect.right
         bottom = top + rect.height
         return Rect(left, top, right, bottom)

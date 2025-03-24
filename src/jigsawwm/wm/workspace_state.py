@@ -7,7 +7,7 @@ from jigsawwm.w32.monitor import Monitor, get_cursor_pos
 from jigsawwm.w32.window import Rect, Window
 
 from .const import PREFERRED_WINDOW_INDEX, STATIC_WINDOW_INDEX
-from .theme import Theme
+from .theme import Theme, mono
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +20,7 @@ class WorkspaceState:
     name: str
     rect: Rect
     theme: Theme
+    prev_theme: Theme
     windows: Set[Window]
     tiling_windows: List[Optional[Window]]
     floating_windows: List[Window]
@@ -43,6 +44,7 @@ class WorkspaceState:
         self.monitor = monitor
         self.alter_rect = alter_rect
         self.theme = theme
+        self.prev_theme = None
         self.windows = set()
         self.tiling_windows = []
         self.floating_windows = []
@@ -55,7 +57,7 @@ class WorkspaceState:
         """Toggle all windows in the workspace"""
         logger.debug("%s toggle %s", self, show)
         self.showing = show
-        for window in self.tiling_windows:
+        for window in self.windows:
             self.toggle_window(window, show)
         if show:
             w = self.last_active_window
@@ -63,14 +65,21 @@ class WorkspaceState:
                 w = self.tiling_windows[0]
             if w and w.exists():
                 w.activate()
-        for window in self.floating_windows:
-            self.toggle_window(window, show)
 
     def set_theme(self, theme: Theme):
         """Set theme for the workspace"""
         logger.debug("%s set theme %s", self, theme.name)
         self.theme = theme
         self.sync_windows(force_arrange=True)
+
+    def toggle_mono_theme(self):
+        """Toggle mono theme"""
+        if self.theme == mono:
+            if self.prev_theme:
+                self.set_theme(self.prev_theme)
+        else:
+            self.prev_theme = self.theme
+            self.set_theme(mono)
 
     # def set_rect(self, rect: Rect):
     #     """Set the rect of the workspace"""
@@ -227,10 +236,12 @@ class WorkspaceState:
         """Switch the active window in the tiling area"""
         if not self.tiling_windows:
             return
-        if self.last_active_window is None:
-            self.last_active_window = self.tiling_windows[0]
-        elif self.last_active_window not in self.tiling_windows:
-            self.last_active_window.activate()
+        if self.tiling_windows:
+            if self.last_active_window is None:
+                self.last_active_window = self.tiling_windows[0]
+            if self.last_active_window not in self.tiling_windows:
+                self.last_active_window = self.tiling_windows[0]
+        if not self.last_active_window:
             return
         i = self.tiling_windows.index(self.last_active_window)
         i = (i + delta) % len(self.tiling_windows)
@@ -243,40 +254,41 @@ class WorkspaceState:
             logger.debug("%s already %s", self, "showing" if show else "hiding")
             return
         logger.debug("%s toggle %s showing to %s", self, window, show)
-        r = window.get_rect()
+        src_rect = window.get_rect()
         work_rect = self.monitor.get_work_rect()
-        target_rect = work_rect if show else self.alter_rect
-        source_rect = self.alter_rect if show else work_rect
-        logger.debug(
-            "%s window rect %s,  mr: %s, alter_rect: %s",
-            window,
-            r,
-            target_rect,
-            self.alter_rect,
-        )
-        r = Rect(
-            target_rect.left + (r.left - source_rect.left),
-            target_rect.top + (r.top - source_rect.top),
-            target_rect.right + (r.right - source_rect.right),
-            target_rect.bottom + (r.bottom - source_rect.bottom),
+        dest_container = work_rect if show else self.alter_rect
+        src_container = self.alter_rect if show else work_rect
+        dest_rect = Rect(
+            dest_container.left + (src_rect.left - src_container.left),
+            dest_container.top + (src_rect.top - src_container.top),
+            dest_container.right - (src_container.right - src_rect.right),
+            dest_container.bottom - (src_container.bottom - src_rect.bottom),
         )
         # sometimes floating window gets placed out of monitor, move it back to top left
-        if not window.tilable:
-            if r.left < target_rect.left or r.left > target_rect.right:
-                r.left = target_rect.left + 300
-            if r.right < target_rect.left or r.right > target_rect.right:
-                r.right = target_rect.right - 300
-            if r.top < target_rect.top or r.top > target_rect.bottom:
-                r.top = target_rect.top + 200
-            if r.bottom < target_rect.top or r.bottom > target_rect.bottom:
-                logger.debug("fixing bottom: %d ")
-                r.bottom = target_rect.bottom - 200
+        # if not window.tilable:
+        #     if r.left < target_rect.left or r.left > target_rect.right:
+        #         r.left = target_rect.left + 300
+        #     if r.right < target_rect.left or r.right > target_rect.right:
+        #         r.right = target_rect.right - 300
+        #     if r.top < target_rect.top or r.top > target_rect.bottom:
+        #         r.top = target_rect.top + 200
+        #     if r.bottom < target_rect.top or r.bottom > target_rect.bottom:
+        #         logger.debug("fixing bottom: %d ")
+        #         r.bottom = target_rect.bottom - 200
+        logger.debug(
+            "%s %s\n  orig: window %s container %s\n  dest: window %s container %s",
+            "show" if show else "hide",
+            window,
+            src_rect,
+            src_container,
+            dest_rect,
+            dest_container,
+        )
+        window.set_rect(dest_rect)
         if show:
             window.show()
         else:
             window.hide()
-        window.set_rect(r)
-        logger.debug("%s toggle by setting rect to %s", self, r)
 
     def reclaim_hidden_windows(self):
         """Reclaim windows got hidden by the previous process"""

@@ -330,6 +330,12 @@ class WindowManager(ThreadWorker):
         """Move active window to another monitor by offset"""
         self.enqueue(self.virtdesk_state.move_to_monitor, delta)
 
+    def toggle_mono(self):
+        """Toggle mono theme"""
+        self.enqueue(
+            self.virtdesk_state.monitor_state_from_cursor().workspace.toggle_mono_theme
+        )
+
     def prev_theme(self):
         """Switch to previous theme in the themes list"""
         return self.switch_theme_splash(-1)
