@@ -9,6 +9,7 @@ from jigsawwm.ui import system_event_listener
 from jigsawwm.w32 import hook
 from jigsawwm.w32.sendinput import is_synthesized, send_input, vk_to_input
 from jigsawwm.w32.vk import Modifers, Vk, is_key_down
+from jigsawwm.w32.window import get_foreground_window
 from jigsawwm.w32.window_detector import Window
 from jigsawwm.worker import ThreadWorker
 
@@ -59,8 +60,9 @@ class SystemInput(ThreadWorker, JmkHandler):
         def log_time(func: callable):
             def wrapped(*arg, **kwargs):
                 logger.debug("start processing %s", func.__name__)
-                return func(*arg, **kwargs)
+                ret = func(*arg, **kwargs)
                 logger.debug("finished processing %s", func.__name__)
+                return ret
 
             return wrapped
 
@@ -99,6 +101,7 @@ class SystemInput(ThreadWorker, JmkHandler):
 
     def on_focus_changed(self, hwnd: HWND):
         """Handles the window focus change event"""
+        logger.info("determining disabled for focus changed")
         if hwnd is None:
             return
         if hwnd == self.previous_focused_hwnd:
@@ -189,25 +192,6 @@ class SystemInput(ThreadWorker, JmkHandler):
         if vkey is None or pressed is None:
             logger.debug("skip unknown event %s", msg)
             return False
-        self.enqueue(self.on_input, vkey, pressed, msg.flags, msg.dwExtraInfo)
-        # we still need to keep track of system input for the following modules:
-        #   - UI: detect mouse up on workspace widget
-        #   - WM: detect merging chrome tabs
-        if self.disabled:
-            logger.debug(
-                "skip due to disabled, reason: %s, msg: %s", self.disabled_reason, msg
-            )
-            return False
-
-        return True
-
-    def on_system_resumed(self):
-        """Handles the system resumed event"""
-        logger.info("system resumed, fixing release events")
-        self.enqueue(self.fix_release)
-
-    def on_input(self, vkey: Vk, pressed: bool, flags=0, extra=0):
-        """Handles the keyboard keys/mouse buttons events"""
         # A weird behavior of the system (windows 11):
         #   1. hold down left and right controls simultaneously
         #   2. press and release a key, say S
@@ -215,7 +199,23 @@ class SystemInput(ThreadWorker, JmkHandler):
         #   4. the system might NOT send the keyup events for the control keys
         # To mitigate this, we need to check if keys were released when Escape is pressed
         if vkey == Vk.ESCAPE and pressed:
-            self.fix_release()
+            # if Escape is pressed, we need to fix the release event of all pressed keys
+            self.enqueue(self.fix)
+        if self.disabled:
+            logger.debug(
+                "skip due to disabled, reason: %s, msg: %s", self.disabled_reason, msg
+            )
+            return False
+        self.enqueue(self.on_input, vkey, pressed, msg.flags, msg.dwExtraInfo)
+        return True
+
+    def on_system_resumed(self):
+        """Handles the system resumed event"""
+        logger.info("system resumed, fixing release events")
+        self.enqueue(self.fix)
+
+    def on_input(self, vkey: Vk, pressed: bool, flags=0, extra=0):
+        """Handles the keyboard keys/mouse buttons events"""
         evt = JmkEvent(vkey, pressed, system=True, flags=flags, extra=extra)
         if pressed:
             self.pressed_evts[vkey] = evt
@@ -229,8 +229,9 @@ class SystemInput(ThreadWorker, JmkHandler):
         else:
             self.next_handler(evt)
 
-    def fix_release(self):
-        """Fix the release event of a key that was missed"""
+    def fix(self):
+        """Fix the state due to missed events (sometimes it happens, python too slow or OS bugs? no idea)"""
+        logger.info("fixing missing events")
         for pk in list(self.pressed_evts.keys()):
             if pk in Modifers and not is_key_down(pk):
                 logger.info("fixing release of %s", pk.name)
@@ -239,6 +240,7 @@ class SystemInput(ThreadWorker, JmkHandler):
                 pevt = self.pressed_evts.pop(pk)
                 pevt.pressed = False
                 self.next_handler(pevt)
+        self.on_focus_changed(get_foreground_window())
 
 
 class SystemOutput(JmkHandler):
