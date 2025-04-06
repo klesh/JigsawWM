@@ -74,7 +74,7 @@ daemon.jmk.hotkeys.register_triggers(
         ("Win+Ctrl+l", "LWin+LCtrl+Right"),
         ("Win+Ctrl+h", "LWin+LCtrl+Left"),
         ("Win+Ctrl+q", daemon.quit_act.triggered.emit),
-        ([Vk.WIN, Vk.H], minimize_active_window),
+        ([Vk.WIN, Vk.N], minimize_active_window),
         # Win+m to maximize active window
         ([Vk.RCONTROL, Vk.SLASH], "RCtrl+x"),
         ([Vk.RCONTROL, Vk.PERIOD], "RCtrl+c"),
