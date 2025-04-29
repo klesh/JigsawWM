@@ -3,6 +3,8 @@
 import enum
 import math
 import sys
+import time
+from contextlib import contextmanager
 from ctypes import (
     WINFUNCTYPE,
     Structure,
@@ -12,6 +14,7 @@ from ctypes import (
     get_last_error,
     pointer,
     sizeof,
+    windll,
 )
 from ctypes.wintypes import (
     BOOL,
@@ -28,9 +31,9 @@ from ctypes.wintypes import (
 )
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Set, Tuple
+from typing import Generator, Set, Tuple
 
-import screeninfo
+from lark import logger
 
 from .window_structs import Rect
 
@@ -39,6 +42,15 @@ shcore = WinDLL("shcore", use_last_error=True)
 _current_pos_ptr = POINT()
 
 # Ref: https://learn.microsoft.com/en-us/windows/win32/gdi/multiple-display-monitors-functions
+
+# from screeninfo
+# Make the process DPI aware so it will detect the actual
+# resolution and not a virtualized resolution reported by
+# Windows when DPI virtualization is in use.
+#
+# benshep 2020-03-31: this gives the correct behaviour on Windows 10 when
+# multiple monitors have different DPIs.
+windll.shcore.SetProcessDpiAwareness(2)
 
 
 def get_cursor_pos() -> POINT:
@@ -112,11 +124,45 @@ def monitor_from_cursor() -> HMONITOR:
     :returns: monitor handle
     :rtype: HMONITOR
     """
-    pt = get_cursor_pos()
-    return monitor_from_point(pt.x, pt.y)
+    while True:
+        try:
+            pt = get_cursor_pos()
+            return monitor_from_point(pt.x, pt.y)
+        except PermissionError:
+            # This can happen if the user is not logged in yet
+            logger.warning(
+                "GetCursorPos failed, maybe user is not logon yet? retrying..."
+            )
+            time.sleep(1)
+
+
+@contextmanager
+def full_dc() -> Generator[HDC, None, None]:
+    """Retrieves the full screen device context
+
+    :returns: full screen device context
+    :rtype: HDC
+    """
+    # from screeninfo
+    # On Python 3.8.X GetDC randomly fails returning an invalid DC.
+    # To workaround this request a number of DCs until a valid DC is returned.
+
+    # Windows 11 preload the startup apps before user logon, which seems to cause
+    # GetDC to fail. Let's retry it every 1000ms forever and see if it works.
+    dc_full = 0
+    while True:
+        dc_full = user32.GetDC(None)
+        if dc_full > 0:
+            break
+        logger.warning("GetDC failed, maybe user is not logon yet? retrying...")
+        time.sleep(1)
+    yield dc_full
+    user32.ReleaseDC(dc_full)
 
 
 CCHDEVICENAME = 32
+HORZSIZE = 4
+VERTSIZE = 6
 
 
 class MONITORINFOEX(Structure):
@@ -245,20 +291,22 @@ class Monitor:
 
     def get_screen_info(self) -> ScreenInfo:
         """Retrieves screen information"""
-        for _ in range(100):
-            for monitor in screeninfo.get_monitors():
-                if monitor.name == self.name:
-                    return ScreenInfo(
-                        monitor.width,
-                        monitor.height,
-                        monitor.width_mm,
-                        monitor.height_mm,
-                        ratio=monitor.width / monitor.height,
-                        is_primary=monitor.is_primary,
-                        inch=round(
-                            math.sqrt(monitor.width_mm**2 + monitor.height_mm**2) / 25.4
-                        ),
-                    )
+        info = self.get_info()
+        with full_dc() as dc:
+            width_px = info.rcMonitor.right - info.rcMonitor.left
+            height_px = info.rcMonitor.bottom - info.rcMonitor.top
+            width_mm = windll.gdi32.GetDeviceCaps(dc, HORZSIZE)
+            height_mm = windll.gdi32.GetDeviceCaps(dc, VERTSIZE)
+
+            return ScreenInfo(
+                width_px,
+                height_px,
+                width_mm,
+                height_mm,
+                ratio=width_px / height_px,
+                is_primary=info.rcMonitor.left == 0 and info.rcMonitor.top == 0,
+                inch=round(math.sqrt(width_mm**2 + height_mm**2) / 25.4),
+            )
 
     def get_monitor_central(self) -> Tuple[int, int]:
         """Retrieves coordinates of the center of specified monitor"""
@@ -297,4 +345,5 @@ def inspect_monitors():
 
 
 if __name__ == "__main__":
+    inspect_monitors()
     inspect_monitors()
