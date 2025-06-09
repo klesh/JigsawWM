@@ -75,7 +75,6 @@ daemon.jmk.hotkeys.register_triggers(
         ("Win+Ctrl+h", "LWin+LCtrl+Left"),
         ("Win+Ctrl+q", daemon.quit_act.triggered.emit),
         ([Vk.WIN, Vk.N], minimize_active_window),
-        # Win+m to maximize active window
         ([Vk.RCONTROL, Vk.SLASH], "RCtrl+x"),
         ([Vk.RCONTROL, Vk.PERIOD], "RCtrl+c"),
         ([Vk.RCONTROL, Vk.COMMA], "RCtrl+v"),
@@ -83,13 +82,13 @@ daemon.jmk.hotkeys.register_triggers(
 )
 
 daemon.wm.hotkeys = [
-    ([Vk.WIN, Vk.J], daemon.wm.manager.next_window),
-    ([Vk.WIN, Vk.K], daemon.wm.manager.prev_window),
+    ([Vk.WIN, Vk.CTRL, Vk.J], daemon.wm.manager.next_window),
+    ([Vk.WIN, Vk.CTRL, Vk.K], daemon.wm.manager.prev_window),
     ([Vk.WIN, Vk.SHIFT, Vk.J], daemon.wm.manager.swap_next),
     ([Vk.WIN, Vk.SHIFT, Vk.K], daemon.wm.manager.swap_prev),
-    ("Win+/", daemon.wm.manager.set_master),
-    ("Win+.", daemon.wm.manager.roll_next),
-    ("Win+,", daemon.wm.manager.roll_prev),
+    ("Win+Ctrl+/", daemon.wm.manager.set_master),
+    ("Win+Ctrl+.", daemon.wm.manager.roll_next),
+    ("Win+Ctrl+,", daemon.wm.manager.roll_prev),
     ([Vk.WIN, Vk.CONTROL, Vk.SPACE], daemon.wm.manager.next_theme),
     ([Vk.WIN, Vk.U], daemon.wm.manager.prev_monitor),
     ([Vk.WIN, Vk.I], daemon.wm.manager.next_monitor),
@@ -100,8 +99,8 @@ daemon.wm.hotkeys = [
     ("Win+Ctrl+s", partial(daemon.wm.manager.switch_to_workspace, 1)),
     ("Win+Ctrl+d", partial(daemon.wm.manager.switch_to_workspace, 2)),
     ("Win+Ctrl+f", partial(daemon.wm.manager.switch_to_workspace, 3)),
-    ("Win+Ctrl+j", partial(daemon.wm.manager.next_workspace)),
-    ("Win+Ctrl+k", partial(daemon.wm.manager.prev_workspace)),
+    # ("Win+Ctrl+j", partial(daemon.wm.manager.next_workspace)),
+    # ("Win+Ctrl+k", partial(daemon.wm.manager.prev_workspace)),
     ("Win+Shift+a", partial(daemon.wm.manager.move_to_workspace, 0)),
     ("Win+Shift+s", partial(daemon.wm.manager.move_to_workspace, 1)),
     ("Win+Shift+d", partial(daemon.wm.manager.move_to_workspace, 2)),
@@ -110,7 +109,7 @@ daemon.wm.hotkeys = [
     ("Win+Ctrl+Shift+k", partial(daemon.wm.manager.move_to_prev_workspace)),
     ("Win+Shift+Space", daemon.wm.manager.toggle_tilable),
     ("Win+Ctrl+u", daemon.wm.manager.inspect_state),
-    ([Vk.WIN, Vk.M], daemon.wm.manager.toggle_mono),
+    ([Vk.WIN, Vk.CONTROL, Vk.M], daemon.wm.manager.toggle_mono),
 ]
 
 daemon.wm.manager.config = WmConfig(
