@@ -49,9 +49,16 @@ class JmkHotkeys(JmkTriggers):
             else:
                 # swallow non-modifier keypress event if hotkey is registered
                 hotkey = self.find_hotkey(evt)
-                if hotkey and hotkey.keys[-1] == evt.vk:
-                    evt.system = False
-                    self.resend = evt
+                if hotkey:
+                    self.next_handler(JmkEvent(Vk.NONAME, False))
+                    # release current pressed modifiers in case trigger sends combination
+                    for modifier in self.pressed_modifiers:
+                        self.next_handler(JmkEvent(modifier, False))
+                    hotkey.trigger()
+                    # restore pressed modifiers
+                    for modifier in self.pressed_modifiers:
+                        self.next_handler(JmkEvent(modifier, True))
+                    self.next_handler(JmkEvent(Vk.NONAME, False))
                     return
         else:
             if evt.vk in self.pressed_modifiers:
@@ -59,23 +66,5 @@ class JmkHotkeys(JmkTriggers):
                 if not self.pressed_modifiers:
                     for hotkey in self.triggers.values():
                         hotkey.release()
-            else:
-                hotkey = self.find_hotkey(evt)
-                if hotkey:
-                    if len(hotkey.keys) == 2 and hotkey.keys[0] in (
-                        Vk.LWIN,
-                        Vk.RWIN,
-                    ):
-                        # prevent start menu from popping up
-                        self.next_handler(JmkEvent(Vk.NONAME, False))
-                    self.resend = None
-                    hotkey.trigger()
-                    return
-                elif (
-                    self.resend
-                ):  # modifier key got released first, so we have to resend the previous key event
-                    logger.debug("resend >>> %s", self.resend)
-                    self.next_handler(self.resend)
-                    self.resend = None
 
         super().__call__(evt)

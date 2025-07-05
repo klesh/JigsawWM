@@ -1,9 +1,9 @@
 import enum
+import logging
 import os
 import random
 import time
 import typing
-import logging
 from ctypes import *
 from ctypes.wintypes import *
 
@@ -147,7 +147,7 @@ def send_input(*inputs: typing.List[INPUT], extra: int = 0):
     length = len(inputs)
     array = INPUT * length
     if not user32.SendInput(length, array(*inputs), sizeof(INPUT)):
-        logger.exception("send input error: %s", WinError(get_last_error())) 
+        logger.exception("send input error: %s", WinError(get_last_error()))
 
 
 def is_synthesized(msg: typing.Union[KEYBDINPUT, MOUSEINPUT]) -> bool:
@@ -228,6 +228,7 @@ def reset_modifiers():
 def send_combination(*comb: typing.Sequence[Vk]):
     # reset_modifiers()
     # press keys in combination in order
+    logger.info("sending combination %s", comb)
     for key in comb:
         send_input(vk_to_input(key, pressed=True))
     # release keys in combination in reverse order
