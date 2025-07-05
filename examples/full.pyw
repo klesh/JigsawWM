@@ -20,7 +20,10 @@ from jigsawwm.w32.window import minimize_active_window
 from jigsawwm.wm.config import WmRule
 from jigsawwm.wm.manager import WmConfig
 
+# Window.enable_bound_compensation = False
+
 daemon = Daemon()
+
 
 daemon.jmk.core.register_layers(
     [
@@ -71,6 +74,11 @@ daemon.jmk.core.register_layers(
 daemon.jmk.hotkeys.register_triggers(
     [
         ("Win+q", "LAlt+F4"),
+        ("Win+s", "RCtrl+s"),
+        ("Win+z", "RCtrl+z"),
+        ("Win+x", "RCtrl+x"),
+        ("Win+c", "RCtrl+c"),
+        ("Win+v", "RCtrl+v"),
         ("Win+Ctrl+l", "LWin+LCtrl+Right"),
         ("Win+Ctrl+h", "LWin+LCtrl+Left"),
         ("Win+Ctrl+q", daemon.quit_act.triggered.emit),

@@ -72,7 +72,7 @@ class Window:
 
     handle: HWND
     restricted_rect: Rect = None
-    compensated_rect: Rect = None
+    compensation: Rect = None
     restricted_actual_rect: Rect = None
     attrs: dict = field(default_factory=dict)
     unapplicable_reason: Optional[str] = None
@@ -82,6 +82,7 @@ class Window:
     manageable_children: Set["Window"] = None
     off: bool = False
     original_rect: Optional[Rect] = None
+    enable_bound_compensation = True
 
     def __init__(self, hwnd: HWND):
         self.handle = hwnd
@@ -447,9 +448,10 @@ class Window:
                 self.restore()
             self.set_rect(rect)
             self.restricted_rect = rect
-            self.compensated_rect = None
             if (
-                self.dpi_awareness
+                self.compensation is None
+                and self.enable_bound_compensation
+                and self.dpi_awareness
                 == process.ProcessDpiAwareness.PROCESS_PER_MONITOR_DPI_AWARE
             ):
                 # seems like the `get_extended_frame_bounds` would return physical size
@@ -458,13 +460,25 @@ class Window:
                 # compensation
                 r = self.get_rect()
                 b = self.get_extended_frame_bounds()
-                self.compensated_rect = Rect(
-                    round(rect.left + r.left - b.left),
-                    round(rect.top + r.top - b.top),
-                    round(rect.right + r.right - b.right),
-                    round(rect.bottom + r.bottom - b.bottom),
+                self.compensation = (
+                    # round(rect.left + r.left - b.left),
+                    # round(rect.top + r.top - b.top),
+                    # round(rect.right + r.right - b.right),
+                    # round(rect.bottom + r.bottom - b.bottom),
+                    r.left - b.left,
+                    r.top - b.top,
+                    r.right - b.right,
+                    r.bottom - b.bottom,
                 )
-                self.set_rect(self.compensated_rect)
+            if self.compensation:
+                self.set_rect(
+                    Rect(
+                        rect.left + self.compensation[0],
+                        rect.top + self.compensation[1],
+                        rect.right + self.compensation[2],
+                        rect.bottom + self.compensation[3],
+                    )
+                )
             self.restricted_actual_rect = self.get_rect()
         except Exception as e:  # pylint: disable=broad-except
             logger.warning("set compensated rect failed: %s", e)
@@ -482,7 +496,7 @@ class Window:
                 and r1.bottom == r2.bottom
             ):
                 return
-            self.set_rect(self.compensated_rect or self.restricted_rect)
+            self.set_rect(self.compensation or self.restricted_rect)
 
     def unrestrict(self):
         """Unrestrict the window"""
