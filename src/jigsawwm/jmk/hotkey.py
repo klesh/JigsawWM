@@ -1,6 +1,7 @@
 """Hotkey handler for JigsawWM."""
 
 import logging
+import time
 from typing import List, Optional, Set
 
 from jigsawwm.w32.vk import Modifers
@@ -14,7 +15,7 @@ class JmkHotkeys(JmkTriggers):
     """A handler that handles hotkeys."""
 
     pressed_modifiers: Set[Vk]
-    resend: Optional[JmkEvent] = None
+    to_be_swallowed: Optional[Vk] = None
 
     def __init__(
         self,
@@ -22,6 +23,7 @@ class JmkHotkeys(JmkTriggers):
     ):
         super().__init__(hotkeys)
         self.pressed_modifiers = set()
+        self.to_be_swallowed = None
 
     def check_comb(self, comb: List[Vk]):
         for key in comb[:-1]:
@@ -50,15 +52,22 @@ class JmkHotkeys(JmkTriggers):
                 # swallow non-modifier keypress event if hotkey is registered
                 hotkey = self.find_hotkey(evt)
                 if hotkey:
-                    self.next_handler(JmkEvent(Vk.NONAME, False))
+                    if len(hotkey.keys) == 2 and hotkey.keys[0] in (
+                        Vk.LWIN,
+                        Vk.RWIN,
+                    ):
+                        # prevent start menu from popping up
+                        self.next_handler(JmkEvent(Vk.NONAME, False))
                     # release current pressed modifiers in case trigger sends combination
                     for modifier in self.pressed_modifiers:
                         self.next_handler(JmkEvent(modifier, False))
+                    time.sleep(0.01)  # allow active window to receive the key up events
                     hotkey.trigger()
                     # restore pressed modifiers
-                    for modifier in self.pressed_modifiers:
-                        self.next_handler(JmkEvent(modifier, True))
-                    self.next_handler(JmkEvent(Vk.NONAME, False))
+                    # for modifier in self.pressed_modifiers:
+                    #     self.next_handler(JmkEvent(modifier, True))
+                    # self.next_handler(JmkEvent(Vk.NONAME, False))
+                    self.to_be_swallowed = evt.vk
                     return
         else:
             if evt.vk in self.pressed_modifiers:
@@ -66,5 +75,8 @@ class JmkHotkeys(JmkTriggers):
                 if not self.pressed_modifiers:
                     for hotkey in self.triggers.values():
                         hotkey.release()
+            elif self.to_be_swallowed == evt.vk:
+                self.to_be_swallowed = None
+                return
 
         super().__call__(evt)
