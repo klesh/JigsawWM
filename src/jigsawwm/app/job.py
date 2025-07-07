@@ -2,14 +2,13 @@
 
 import abc
 import logging
-from subprocess import PIPE, Popen
-from threading import Lock, Thread, Event
 from concurrent.futures import ThreadPoolExecutor
-from typing import List, TextIO, Union, Iterator
+from subprocess import PIPE, Popen
+from threading import Event, Lock, Thread
+from typing import Iterator, List, TextIO, Union
 
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QMenu
-
 
 logger = logging.getLogger(__name__)
 
@@ -151,16 +150,19 @@ class ProcessService(Service):
     @property
     def is_running(self) -> bool:
         with self._lock:
-            if self._process is None:
-                return False
-            if self._process.poll() is None:
-                return True
+            return self._is_running()
         return False
+
+    def _is_running(self) -> bool:
+        if self._process is None:
+            return False
+        if self._process.poll() is None:
+            return True
 
     def start(self):
         """Start the program in the background"""
         with self._lock:
-            if self._process is not None:
+            if self._is_running():
                 raise ValueError(f"Service {self._name} is already running")
             log_file = PIPE
             if self.log_path:
