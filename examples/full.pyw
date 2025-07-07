@@ -16,6 +16,7 @@ from jigsawwm.jmk.jmk_service import (
     send_today,
     send_today_compact,
 )
+from jigsawwm.w32.powerprofile import suspend_system
 from jigsawwm.w32.window import minimize_active_window
 from jigsawwm.wm.config import WmRule
 from jigsawwm.wm.manager import WmConfig
@@ -39,6 +40,7 @@ daemon.jmk.core.register_layers(
             Vk.SPACE: JmkTapHold(tap=Vk.SPACE, hold=Vk.LSHIFT),
             # hold backward mouse button to switch to layer 2
             Vk.XBUTTON1: JmkTapHold(tap=Vk.XBUTTON1, hold=2, term=0.4),
+            Vk.F15: JmkKey(suspend_system),
         },
         {  # layer 1
             # left hand
