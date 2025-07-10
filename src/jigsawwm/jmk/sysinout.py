@@ -101,7 +101,7 @@ class SystemInput(ThreadWorker, JmkHandler):
 
     def on_focus_changed(self, hwnd: HWND):
         """Handles the window focus change event"""
-        logger.info("determining disabled for focus changed")
+        logger.debug("determining disabled for focus changed")
         if hwnd is None:
             return
         if hwnd == self.previous_focused_hwnd:
@@ -109,18 +109,18 @@ class SystemInput(ThreadWorker, JmkHandler):
         self.previous_focused_hwnd = hwnd
         window = Window(hwnd)
         if window.exe == "TextInputHost.exe":
-            logger.info("focused window %s is TextInputHost, ignore !!!", window)
+            logger.debug("focused window %s is TextInputHost, ignore !!!", window)
             return
         if window.is_elevated:
-            logger.info("focused window %s is elevated", window)
+            logger.debug("focused window %s is elevated", window)
             self.disabled = True
             self.disabled_reason = "elevated window focused"
             return
         if self.bypass_exe and window.exe_name.lower() in self.bypass_exe:
-            logger.info("focused window %s is blacklisted", window)
+            logger.debug("focused window %s is blacklisted", window)
             self.disabled = True
             return
-        logger.info("focused window %s is a normal window, jmk ENABLED !!!", window)
+        logger.debug("focused window %s is a normal window, jmk ENABLED !!!", window)
         if self.disabled:
             # self.on_system_resumed()
             self.disabled = False
