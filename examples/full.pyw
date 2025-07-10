@@ -100,11 +100,10 @@ daemon.wm.hotkeys = [
     ("Win+Ctrl+.", daemon.wm.manager.roll_next),
     ("Win+Ctrl+,", daemon.wm.manager.roll_prev),
     ([Vk.WIN, Vk.CONTROL, Vk.SPACE], daemon.wm.manager.next_theme),
-    ([Vk.WIN, Vk.U], daemon.wm.manager.prev_monitor),
-    ([Vk.WIN, Vk.I], daemon.wm.manager.next_monitor),
+    ([Vk.WIN, Vk.CTRL, Vk.U], daemon.wm.manager.prev_monitor),
+    ([Vk.WIN, Vk.CTRL, Vk.I], daemon.wm.manager.next_monitor),
     ([Vk.WIN, Vk.SHIFT, Vk.U], daemon.wm.manager.move_to_prev_monitor),
     ([Vk.WIN, Vk.SHIFT, Vk.I], daemon.wm.manager.move_to_next_monitor),
-    ([Vk.WIN, Vk.CONTROL, Vk.I], daemon.wm.manager.inspect_active_window),
     ("Win+Ctrl+a", partial(daemon.wm.manager.switch_to_workspace, 0)),
     ("Win+Ctrl+s", partial(daemon.wm.manager.switch_to_workspace, 1)),
     ("Win+Ctrl+d", partial(daemon.wm.manager.switch_to_workspace, 2)),
@@ -118,7 +117,8 @@ daemon.wm.hotkeys = [
     ("Win+Ctrl+Shift+j", partial(daemon.wm.manager.move_to_next_workspace)),
     ("Win+Ctrl+Shift+k", partial(daemon.wm.manager.move_to_prev_workspace)),
     ("Win+Shift+Space", daemon.wm.manager.toggle_tilable),
-    ("Win+Ctrl+u", daemon.wm.manager.inspect_state),
+    ("Win+Ctrl+p", daemon.wm.manager.inspect_state),
+    ([Vk.WIN, Vk.CONTROL, Vk.O], daemon.wm.manager.inspect_active_window),
     ([Vk.WIN, Vk.CONTROL, Vk.M], daemon.wm.manager.toggle_mono),
 ]
 
