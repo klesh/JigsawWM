@@ -81,6 +81,7 @@ daemon.jmk.hotkeys.register_triggers(
         ("Win+x", "RCtrl+x"),
         ("Win+c", "RCtrl+c"),
         ("Win+v", "RCtrl+v"),
+        ("Win+Shift+v", "RWin+v"),
         ("Win+Ctrl+l", "LWin+LCtrl+Right"),
         ("Win+Ctrl+h", "LWin+LCtrl+Left"),
         ("Win+Ctrl+q", daemon.quit_act.triggered.emit),
@@ -120,6 +121,7 @@ daemon.wm.hotkeys = [
     ("Win+Ctrl+p", daemon.wm.manager.inspect_state),
     ([Vk.WIN, Vk.CONTROL, Vk.O], daemon.wm.manager.inspect_active_window),
     ([Vk.WIN, Vk.CONTROL, Vk.M], daemon.wm.manager.toggle_mono),
+    ([Vk.CTRL, Vk.ESCAPE], daemon.wm.manager.show_floating_windows),
 ]
 
 daemon.wm.manager.config = WmConfig(
@@ -140,6 +142,7 @@ daemon.wm.manager.config = WmConfig(
         WmRule(exe="Obsidian.exe", preferred_monitor_index=1),
         WmRule(exe="Feishu.exe", preferred_monitor_index=1),
         WmRule(exe="peazip.exe", tilable=False),
+        WmRule(exe="clash-verge.exe", manageable=False),
         WmRule(exe="WXWork.exe", manageable=False),
         # WmRule(
         #     exe="ApplicationFrameHost.exe", title="PDF Reader by Xodo", tilable=True

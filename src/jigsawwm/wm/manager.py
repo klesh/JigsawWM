@@ -418,6 +418,12 @@ class WindowManager(ThreadWorker):
         """Move active window to previous workspace"""
         return self.move_to_workspace_delta(-1)
 
+    def show_floating_windows(self):
+        """Toggle mono theme"""
+        self.enqueue(
+            self.virtdesk_state.monitor_state_from_cursor().workspace.show_floating_windows
+        )
+
     ########################################
     # Other helper functions
     ########################################

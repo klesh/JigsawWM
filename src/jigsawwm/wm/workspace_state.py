@@ -1,6 +1,7 @@
 """WorkspaceState maintins the state of a workspace"""
 
 import logging
+import time
 from typing import Iterator, List, Optional, Set, Tuple
 
 from jigsawwm.w32.monitor import Monitor, get_cursor_pos
@@ -81,6 +82,17 @@ class WorkspaceState:
                 for w in self.floating_windows:
                     w.activate()
 
+    def show_floating_windows(self):
+        """Show floating windows in stacking manner"""
+        work_rect = self.monitor.get_work_rect()
+        w, h = work_rect.width * 0.618, work_rect.height * 0.618
+        left, top = (work_rect.width - w) // 2, (work_rect.height - h) // 2
+        bound_rect = Rect(left, top, left + w, top + h)
+        self._stack_windows(work_rect, bound_rect, self.floating_windows)
+        for w in self.floating_windows:
+            time.sleep(0.01)
+            w.activate()
+
     def set_theme(self, theme: Theme):
         """Set theme for the workspace"""
         logger.debug("%s set theme %s", self, theme.name)
@@ -114,7 +126,7 @@ class WorkspaceState:
             self.arrange()
         if floating_windows != self.floating_windows:
             self.floating_windows = floating_windows
-            self.arrange_floating_windows()
+            self.update_floating_windows_rects()
 
     def sort_by_static_index(
         self, tiling_windows: List[Optional[Window]]
@@ -199,11 +211,15 @@ class WorkspaceState:
         # arrange the last area
         overflow = n > m
         if overflow:
-            self._stack_the_rest(self.tiling_areas[-1], work_rect)
+            bound = self.tiling_areas[-1]
+            w = int(bound.width * self.theme.stacking_window_width)
+            h = int(bound.height * self.theme.stacking_window_height)
+            windows = self.tiling_windows[m - 1 :]
+            self._stack_windows(work_rect, bound, windows, w=w, h=h)
         elif n == m and n > 0:
             windows[-1].set_restricted_rect(self.tiling_areas[-1], work_rect)
 
-    def arrange_floating_windows(self):
+    def update_floating_windows_rects(self):
         """Arrange floating windows in the workspace"""
         work_rect = self.monitor.get_work_rect()
         for window in self.floating_windows:
@@ -250,26 +266,33 @@ class WorkspaceState:
                     bottom -= gap
             yield Rect(left + gap, top + gap, right - gap, bottom - gap)
 
-    def _stack_the_rest(self, bound: Rect, container_rect: Rect):
+    def _stack_windows(
+        self,
+        work_rect,
+        bound_rect: Rect,
+        windows: list[Window],
+        w: int = None,
+        h: int = None,
+    ):
         """Stack all the rest tiling windows starting from index into the specified bound"""
+        if not windows:
+            return
         # window size
-        windows = self.tiling_windows
-        index = len(self.tiling_areas) - 1
-        n = len(windows)
-        w = int(bound.width * self.theme.stacking_window_width)
-        h = int(bound.height * self.theme.stacking_window_height)
-        # offset between windows
-        n = len(windows)
-        num_rest = n - index - 1
-        x_step = (bound.width - w) // num_rest
-        y_step = (bound.height - h) // num_rest
-        left, top = bound.left, bound.top
-        for i in range(index, n):
-            if not self.tiling_windows[i]:
-                continue
-            windows[i].set_restricted_rect(
-                Rect(left, top, left + w, top + h), container_rect
-            )
+        n = len(windows) - 1
+        r = windows[-1].get_rect()
+        x_step = int((bound_rect.width - (w or r.width)) // n)
+        y_step = int((bound_rect.height - (h or r.height)) // n)
+        left, top = int(bound_rect.left), int(bound_rect.top)
+        for window in windows:
+            wr = window.get_rect()
+            rect = Rect(left, top, left + int(w or wr.width), top + int(h or wr.height))
+            if w and h:
+                window.set_restricted_rect(rect, work_rect)
+            else:
+                logger.info(
+                    "set window %s rect to %s relative to %s", window, rect, work_rect
+                )
+                window.set_relative_rect(rect, work_rect)
             left += x_step
             top += y_step
 
@@ -347,7 +370,6 @@ class WorkspaceState:
         for window in self.windows:
             if window.off:
                 self.toggle_window(window, True)
-        """Reclaim windows got hidden by the previous process"""
         logger.debug("%s reclaim hidden windows", self)
         for window in self.windows:
             if window.off:
