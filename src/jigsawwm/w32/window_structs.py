@@ -171,6 +171,18 @@ class Rect:
     def __repr__(self) -> str:
         return f"Rect(left={self.left}, top={self.top}, right={self.right}, bottom={self.bottom})"
 
+    def __hash__(self):
+        return hash((self.left, self.top, self.right, self.bottom))
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, Rect)
+            and self.left == other.left
+            and self.top == other.top
+            and self.right == other.right
+            and self.bottom == other.bottom
+        )
+
     @property
     def width(self) -> int:
         """Return the width of the rectangle."""
@@ -234,3 +246,30 @@ class Rect:
     def contains_rect_center(self, other: "Rect"):
         """Return True if the other rectangle's center is inside the rectangle."""
         return self.contains(other.center_x, other.center_y)
+
+    def intersected(self, other: "Rect"):
+        """Check if the rectangle intersects with another rectangle."""
+        return (
+            self.contains(other.left, other.top)
+            or self.contains(other.right, other.bottom)
+            or self.contains(other.left, other.bottom)
+            or self.contains(other.right, other.top)
+        )
+
+    def relative_to(self, container: "Rect") -> "Rect":
+        """Return a new rectangle relative to the other rectangle."""
+        return Rect(
+            container.left + self.left,
+            container.top + self.top,
+            container.left + self.right,
+            container.top + self.bottom,
+        )
+
+    def center_of(self, other: "Rect") -> "Rect":
+        """Return a new rectangle with the center of the rectangle at the center of the other rectangle."""
+        return Rect(
+            other.left + (other.width - self.width) // 2,
+            other.top + (other.height - self.height) // 2,
+            other.left + (other.width + self.width) // 2,
+            other.top + (other.height + self.height) // 2,
+        )

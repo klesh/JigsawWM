@@ -71,9 +71,9 @@ class Window:
     """
 
     handle: HWND
+    relative_rect: Rect = None
+    compensations: dict[Rect, Rect] = None
     restricted_rect: Rect = None
-    compensation: Rect = None
-    restricted_actual_rect: Rect = None
     attrs: dict = field(default_factory=dict)
     unapplicable_reason: Optional[str] = None
     unmanageable_reason: Optional[str] = None
@@ -87,6 +87,7 @@ class Window:
     def __init__(self, hwnd: HWND):
         self.handle = hwnd
         self.attrs = {}
+        self.compensations = {}
         self.manageable_children = set()
 
     def __eq__(self, other):
@@ -101,8 +102,6 @@ class Window:
             marks += "T"
         if self.manageable:
             marks += "M"
-        if self.restricted_rect:
-            marks += "R"
         if marks:
             marks = f"({marks})"
         return f"<Window hwnd={self.handle} pid={self.pid} exe={self.exe_name} title={self.title[:10]} child={len(self.manageable_children)}{marks}>"
@@ -441,67 +440,64 @@ class Window:
             raise WinError(get_last_error())
         logger.debug("done %s set rect to %s", self, rect)
 
-    def set_restrict_rect(self, rect: Rect):
+    def set_relative_rect(self, rect: Rect, container_rect: Rect):
+        """Set the relative rect to the container rect"""
+        self.relative_rect = rect
+        actual_rect = self.relative_rect.relative_to(container_rect)
+        self.set_rect(actual_rect)
+
+    def set_restricted_rect(self, rect: Rect, container_rect: Rect):
         """Set the restricted rect"""
-        try:
-            if not self.is_restored:
-                self.restore()
-            self.set_rect(rect)
-            self.restricted_rect = rect
-            if (
-                self.compensation is None
-                and self.enable_bound_compensation
-                and self.dpi_awareness
-                == process.ProcessDpiAwareness.PROCESS_PER_MONITOR_DPI_AWARE
-            ):
+        if not self.is_restored:
+            self.restore()
+        self.relative_rect = rect
+        actual_rect = self.relative_rect.relative_to(container_rect)
+        if (
+            self.enable_bound_compensation
+            and self.dpi_awareness
+            == process.ProcessDpiAwareness.PROCESS_PER_MONITOR_DPI_AWARE
+        ):
+            if container_rect not in self.compensations:
+                self.set_rect(self.relative_rect.relative_to(container_rect))
                 # seems like the `get_extended_frame_bounds` would return physical size
                 # for DPI unware window, skip them for now
                 # TODO: convert physical size to logical size for DPI unware window
                 # compensation
                 r = self.get_rect()
                 b = self.get_extended_frame_bounds()
-                self.compensation = (
-                    # round(rect.left + r.left - b.left),
-                    # round(rect.top + r.top - b.top),
-                    # round(rect.right + r.right - b.right),
-                    # round(rect.bottom + r.bottom - b.bottom),
+                self.compensations[container_rect] = (
                     r.left - b.left,
                     r.top - b.top,
                     r.right - b.right,
                     r.bottom - b.bottom,
                 )
-            if self.compensation:
-                self.set_rect(
-                    Rect(
-                        rect.left + self.compensation[0],
-                        rect.top + self.compensation[1],
-                        rect.right + self.compensation[2],
-                        rect.bottom + self.compensation[3],
-                    )
-                )
-            self.restricted_actual_rect = self.get_rect()
-        except Exception as e:  # pylint: disable=broad-except
-            logger.warning("set compensated rect failed: %s", e)
+
+            compensation = self.compensations[container_rect]
+            # compensate the rect to the monitor rect
+            actual_rect = Rect(
+                actual_rect.left + compensation[0],
+                actual_rect.top + compensation[1],
+                actual_rect.right + compensation[2],
+                actual_rect.bottom + compensation[3],
+            )
+            self.relative_rect = Rect(
+                self.relative_rect.left + compensation[0],
+                self.relative_rect.top + compensation[1],
+                self.relative_rect.right + compensation[2],
+                self.relative_rect.bottom + compensation[3],
+            )
+        self.set_rect(actual_rect)
+        self.restricted_rect = actual_rect
 
     def restrict(self):
         """Restrict the window to the restricted rect"""
-        if self.restricted_actual_rect:
-            logger.debug("%s restricting to %s", self, self.restricted_actual_rect)
-            r1 = self.restricted_actual_rect
-            r2 = self.get_rect()
-            if (
-                r1.left == r2.left
-                and r1.top == r2.top
-                and r1.right == r2.right
-                and r1.bottom == r2.bottom
-            ):
-                return
-            self.set_rect(self.compensation or self.restricted_rect)
+        if self.restricted_rect:
+            logger.debug("%s restricting to %s", self, self.restricted_rect)
+            self.set_rect(self.restricted_rect)
 
     def unrestrict(self):
         """Unrestrict the window"""
         self.restricted_rect = None
-        self.restricted_actual_rect = None
 
     def shrink(self, margin: int = 20):
         """Shrink the window by margin"""
@@ -582,6 +578,15 @@ class Window:
         self.show_window(ShowWindowCmd.SW_HIDE)
         self.off = True
 
+    def toggle(self, show: Optional[bool] = None):
+        """Toggle the visibility of the window"""
+        if show is None:
+            show = not self.off
+        if show:
+            self.show()
+        else:
+            self.hide()
+
     @cached_property
     def is_root_window(self) -> bool:
         """Check if window is a root window"""
@@ -597,6 +602,8 @@ class Window:
         print("pid          :", self.pid, file=file)
         print("class name   :", self.class_name, file=file)
         print("exe path     :", self.exe, file=file)
+        print("relative rect:", self.relative_rect, file=file)
+        print("restrict rect:", self.restricted_rect, file=file)
         style = self.get_style()
         style_flags = []
         for s in WindowStyle:

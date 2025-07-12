@@ -427,9 +427,7 @@ class WindowManager(ThreadWorker):
         for virtdesk_state in self.virtdesk_states.values():
             for ms in virtdesk_state.monitor_states.values():
                 for ws in ms.workspaces:
-                    for w in ws.windows:
-                        if w.exists():
-                            ws.toggle_window(w, True)
+                    ws.toggle(True)
 
     def inspect_state(self):
         """Inspect the state of the virtual desktops"""

@@ -107,13 +107,9 @@ class MonitorState:
         """Add new windows to the active workspace of the monitor"""
         if workspace_index is None:
             workspace_index = self.active_workspace_index
-        ws = self.workspaces[workspace_index]
-        ws.windows.add(w)
-        ws.toggle_window(w, ws.showing)
         w.attrs[MONITOR_STATE] = self
-        w.attrs[WORKSPACE_STATE] = ws
-        if not w.off and not w.tilable:
-            self.move_floating_window_in(w)
+        ws = self.workspaces[workspace_index]
+        ws.add_window(w)
         logger.info("added window %s to %s", w, ws)
         for c in w.manageable_children:
             self.add_window(c, workspace_index=workspace_index)
@@ -124,7 +120,7 @@ class MonitorState:
         if not ws:
             logger.warning("window doesn't have workspacke attribute: %s", ws)
             return
-        ws.windows.remove(w)
+        ws.remove_window(w)
         logger.info("removed window %s from %s", w, ws)
         for c in w.manageable_children:
             self.remove_window(c)
@@ -141,7 +137,6 @@ class MonitorState:
         self.workspaces[self.active_workspace_index].toggle(False)
         self.workspaces[workspace_index].toggle(True)
         self.active_workspace_index = workspace_index
-        self.workspace.sync_windows()
 
     def move_to_workspace(
         self, window: Window, workspace_index: int, is_delta: bool = False
@@ -168,22 +163,6 @@ class MonitorState:
         self.remove_window(window)
         self.add_window(window, workspace_index=workspace_index)
         self.workspace.sync_windows()
-
-    def move_floating_window_in(self, window: Window):
-        """Move the floating window into the monitor"""
-        logger.debug("%s move floating window %s in", self, window)
-        wr = window.get_rect()
-        if self.monitor.get_work_rect().contains_rect_center(wr):
-            return
-        mr = self.monitor.get_work_rect()
-        window.set_rect(
-            Rect(
-                left=mr.left + wr.width // 2,
-                top=mr.top + wr.height // 2,
-                right=mr.right - wr.width // 2,
-                bottom=mr.bottom - wr.height // 2,
-            )
-        )
 
     def compute_alter_rect(self, workspace_index: int):
         """Compute the alter rect(window would be moved into when workspace is toggled off) for the workspace,

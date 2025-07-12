@@ -6,7 +6,7 @@ from typing import Iterator, List, Optional, Set, Tuple
 from jigsawwm.w32.monitor import Monitor, get_cursor_pos
 from jigsawwm.w32.window import Rect, Window
 
-from .const import PREFERRED_WINDOW_INDEX, STATIC_WINDOW_INDEX
+from .const import PREFERRED_WINDOW_INDEX, STATIC_WINDOW_INDEX, WORKSPACE_STATE
 from .theme import Theme, mono
 
 logger = logging.getLogger(__name__)
@@ -28,6 +28,7 @@ class WorkspaceState:
     showing: bool = False
     last_active_window: Optional[Window] = None
     tiling_areas: List[Rect] = []
+    dirty: bool = False
 
     def __init__(
         self,
@@ -57,14 +58,28 @@ class WorkspaceState:
         """Toggle all windows in the workspace"""
         logger.debug("%s toggle %s", self, show)
         self.showing = show
+
+        current_rect = self.monitor.get_work_rect() if self.showing else self.alter_rect
+
         for window in self.windows:
-            self.toggle_window(window, show)
-        if show:
-            w = self.last_active_window
-            if not w and self.tiling_windows:
-                w = self.tiling_windows[0]
-            if w and w.exists():
-                w.activate()
+            if not window.relative_rect:
+                logger.warning("%s has no relative rect, skipping toggle", window)
+                continue
+            window.set_rect(window.relative_rect.relative_to(current_rect))
+            window.toggle(show)
+        if self.showing:
+            if self.dirty:
+                self.sync_windows(force_arrange=True)
+            if not self.floating_windows:
+                w = self.last_active_window
+                if not w and self.tiling_windows:
+                    w = self.tiling_windows[0]
+                if w and w.exists():
+                    w.activate()
+                # make floating windows on top of tiling windows
+            else:
+                for w in self.floating_windows:
+                    w.activate()
 
     def set_theme(self, theme: Theme):
         """Set theme for the workspace"""
@@ -89,14 +104,17 @@ class WorkspaceState:
     def sync_windows(self, force_arrange=False) -> bool:
         """Sync the internal windows list to the incoming windows list"""
         logger.debug("%s sync windows", self)
-        tiling_windows, self.floating_windows, self.minimized_windows = (
-            self._group_windows()
-        )
+        for window in self.windows:
+            window.attrs[WORKSPACE_STATE] = self
+        tiling_windows, floating_windows, self.minimized_windows = self._group_windows()
         if self.theme.static_layout:
             tiling_windows = self.sort_by_static_index(tiling_windows)
         if force_arrange or tiling_windows != self.tiling_windows:
             self.tiling_windows = tiling_windows
             self.arrange()
+        if floating_windows != self.floating_windows:
+            self.floating_windows = floating_windows
+            self.arrange_floating_windows()
 
     def sort_by_static_index(
         self, tiling_windows: List[Optional[Window]]
@@ -166,22 +184,59 @@ class WorkspaceState:
         m = n
         if theme.max_tiling_areas > 0:
             m = min(theme.max_tiling_areas, m)
-        self.tiling_areas = list(self.generate_tiling_areas(m))
+        self.tiling_areas = list(self.generate_relative_tiling_areas(m))
+        logger.debug("%s tiling_areas: %s", self, self.tiling_areas)
         # arrange all except the last areaself.theme.
+        work_rect = self.monitor.get_work_rect()
         for i in range(m - 1):
             if windows[i] is not None:
-                windows[i].set_restrict_rect(self.tiling_areas[i])
+                logger.debug(
+                    "set_restricted_rect relative: %s container: %s",
+                    self.tiling_areas[i],
+                    work_rect,
+                )
+                windows[i].set_restricted_rect(self.tiling_areas[i], work_rect)
         # arrange the last area
         overflow = n > m
         if overflow:
-            self._stack_the_rest(self.tiling_areas[-1])
+            self._stack_the_rest(self.tiling_areas[-1], work_rect)
         elif n == m and n > 0:
-            windows[-1].set_restrict_rect(self.tiling_areas[-1])
+            windows[-1].set_restricted_rect(self.tiling_areas[-1], work_rect)
 
-    def generate_tiling_areas(self, num: int) -> Iterator[Rect]:
+    def arrange_floating_windows(self):
+        """Arrange floating windows in the workspace"""
+        work_rect = self.monitor.get_work_rect()
+        for window in self.floating_windows:
+            if not window.relative_rect:
+                # calcuate relative rect if not set
+                work_rect = self.monitor.get_work_rect()
+                window_rect = window.get_rect()
+                if not work_rect.intersected(window_rect):
+                    # if the window is not in the work rect, set its relative rect to the center of the work rect
+                    logger.debug(
+                        "%s is not in work rect %s, setting relative rect to center",
+                        window,
+                        work_rect,
+                    )
+                    relative_rect = window_rect.center_of(
+                        Rect(0, 0, work_rect.width, work_rect.height)
+                    )
+                else:
+                    # or calculate the relative rect based on the work rect
+                    logger.debug(
+                        "%s is in work rect %s, setting relative rect to relative",
+                        window,
+                        work_rect,
+                    )
+                    relative_rect = window_rect.relative_to(work_rect)
+                logger.debug("%s set relative rect %s", window, relative_rect)
+                window.relative_rect = relative_rect
+            window.set_relative_rect(window.relative_rect, work_rect)
+
+    def generate_relative_tiling_areas(self, num: int) -> Iterator[Rect]:
         """Generate tiling areas for current monitor with respect to given number"""
         wr = self.monitor.get_work_rect()
-        work_area = (wr.left, wr.top, wr.right, wr.bottom)
+        work_area = (0, 0, wr.width, wr.height)
         gap = self.theme.gap or 0
         for left, top, right, bottom in self.theme.layout_tiler(work_area, num):
             if gap:
@@ -195,15 +250,16 @@ class WorkspaceState:
                     bottom -= gap
             yield Rect(left + gap, top + gap, right - gap, bottom - gap)
 
-    def _stack_the_rest(self, bound: Rect):
+    def _stack_the_rest(self, bound: Rect, container_rect: Rect):
         """Stack all the rest tiling windows starting from index into the specified bound"""
         # window size
+        windows = self.tiling_windows
         index = len(self.tiling_areas) - 1
-        n = len(self.tiling_windows)
+        n = len(windows)
         w = int(bound.width * self.theme.stacking_window_width)
         h = int(bound.height * self.theme.stacking_window_height)
         # offset between windows
-        n = len(self.tiling_windows)
+        n = len(windows)
         num_rest = n - index - 1
         x_step = (bound.width - w) // num_rest
         y_step = (bound.height - h) // num_rest
@@ -211,7 +267,9 @@ class WorkspaceState:
         for i in range(index, n):
             if not self.tiling_windows[i]:
                 continue
-            self.tiling_windows[i].set_restrict_rect(Rect(left, top, left + w, top + h))
+            windows[i].set_restricted_rect(
+                Rect(left, top, left + w, top + h), container_rect
+            )
             left += x_step
             top += y_step
 
@@ -254,43 +312,41 @@ class WorkspaceState:
             logger.debug("%s already %s", self, "showing" if show else "hiding")
             return
         logger.debug("%s toggle %s showing to %s", self, window, show)
-        src_rect = window.get_rect()
-        work_rect = self.monitor.get_work_rect()
-        dest_container = work_rect if show else self.alter_rect
-        src_container = self.alter_rect if show else work_rect
-        dest_rect = Rect(
-            dest_container.left + (src_rect.left - src_container.left),
-            dest_container.top + (src_rect.top - src_container.top),
-            dest_container.right - (src_container.right - src_rect.right),
-            dest_container.bottom - (src_container.bottom - src_rect.bottom),
-        )
-        # sometimes floating window gets placed out of monitor, move it back to top left
-        # if not window.tilable:
-        #     if r.left < target_rect.left or r.left > target_rect.right:
-        #         r.left = target_rect.left + 300
-        #     if r.right < target_rect.left or r.right > target_rect.right:
-        #         r.right = target_rect.right - 300
-        #     if r.top < target_rect.top or r.top > target_rect.bottom:
-        #         r.top = target_rect.top + 200
-        #     if r.bottom < target_rect.top or r.bottom > target_rect.bottom:
-        #         logger.debug("fixing bottom: %d ")
-        #         r.bottom = target_rect.bottom - 200
-        logger.debug(
-            "%s %s\n  orig: window %s container %s\n  dest: window %s container %s",
-            "show" if show else "hide",
-            window,
-            src_rect,
-            src_container,
-            dest_rect,
-            dest_container,
-        )
-        window.set_rect(dest_rect)
-        if show:
-            window.show()
-        else:
+
+    def add_window(self, window: Window, workspace_index: Optional[int] = None):
+        """Add a window to the workspace"""
+        logger.debug("%s add window %s", self, window)
+        if workspace_index is None:
+            workspace_index = self.index
+        if window in self.windows:
+            logger.warning("%s already in %s", window, self)
+            return
+        self.windows.add(window)
+        window.attrs[WORKSPACE_STATE] = self
+        if not self.showing:
+            # if workspace is not showing, set relative rect to alter_rect
+            window.set_relative_rect(
+                window.relative_rect or window.get_rect(), self.alter_rect
+            )
             window.hide()
+        self.dirty = True
+
+    def remove_window(self, window: Window):
+        """Remove a window from the workspace"""
+        logger.debug("%s remove window %s", self, window)
+        if window not in self.windows:
+            logger.warning("%s not in %s", window, self)
+            return
+        self.windows.remove(window)
+        window.attrs.pop(WORKSPACE_STATE, None)
+        self.dirty = True
 
     def reclaim_hidden_windows(self):
+        """Reclaim windows got hidden by the previous process"""
+        logger.debug("%s reclaim hidden windows", self)
+        for window in self.windows:
+            if window.off:
+                self.toggle_window(window, True)
         """Reclaim windows got hidden by the previous process"""
         logger.debug("%s reclaim hidden windows", self)
         for window in self.windows:

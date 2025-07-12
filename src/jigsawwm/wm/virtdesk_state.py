@@ -92,8 +92,9 @@ class VirtDeskState:
             return
         result = self.window_detector.detect_window_changes()
         if not result.changed:
-            logger.info("no window changes detected")
+            logger.info("no windows change detected")
             return
+        logger.info("windows change detected: %s", result)
         # handle new windows
         monitor_state = self.monitor_state_from_cursor()
         if result.new_windows:
@@ -360,7 +361,8 @@ class VirtDeskState:
         if window and window.exists():
             window.activate()
         else:
-            set_cursor_pos(dstms.rect.center_x, dstms.rect.center_y)
+            r = dstms.monitor.get_rect()
+            set_cursor_pos(r.center_x, r.center_y)
 
     def move_to_monitor(
         self,
