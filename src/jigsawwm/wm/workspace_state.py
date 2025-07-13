@@ -280,8 +280,8 @@ class WorkspaceState:
         # window size
         n = len(windows) - 1
         r = windows[-1].get_rect()
-        x_step = int((bound_rect.width - (w or r.width)) // n)
-        y_step = int((bound_rect.height - (h or r.height)) // n)
+        x_step = int((bound_rect.width - (w or r.width)) // n) if n else 0
+        y_step = int((bound_rect.height - (h or r.height)) // n) if n else 0
         left, top = int(bound_rect.left), int(bound_rect.top)
         for window in windows:
             wr = window.get_rect()
