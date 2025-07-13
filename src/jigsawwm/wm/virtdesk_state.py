@@ -241,6 +241,8 @@ class VirtDeskState:
         ws: WorkspaceState = window.attrs.get(WORKSPACE_STATE)
         if ws:
             ws.sync_windows()
+        else:  # window existed and minimized before JigsawWM
+            self.distribute_new_windows([window])
 
     def monitor_state_from_cursor(self) -> MonitorState:
         """Retrieve monitor_state from current cursor"""
