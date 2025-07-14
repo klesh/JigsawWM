@@ -158,6 +158,7 @@ class ProcessService(Service):
             return False
         if self._process.poll() is None:
             return True
+        return False
 
     def start(self):
         """Start the program in the background"""
