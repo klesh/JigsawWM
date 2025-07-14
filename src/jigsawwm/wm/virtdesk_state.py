@@ -340,6 +340,8 @@ class VirtDeskState:
     def toggle_tilable(self):
         """Toggle window tilable"""
         window = self.window_detector.foreground_window()
+        if not window.manageable:
+            return
         window.tilable = not window.tilable
         if not window.tilable:
             window.shrink()
