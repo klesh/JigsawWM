@@ -82,6 +82,8 @@ daemon.jmk.hotkeys.register_triggers(
         ("Win+c", "RCtrl+c"),
         ("Win+v", "RCtrl+v"),
         ("Win+Shift+v", "RWin+v"),
+        ("Win+Ctrl+w", "RCtrl+RAlt+w"),
+        ("Win+Ctrl+e", "RCtrl+RAlt+e"),
         ("Win+Ctrl+l", "LWin+LCtrl+Right"),
         ("Win+Ctrl+h", "LWin+LCtrl+Left"),
         ("Win+Ctrl+q", daemon.quit_act.triggered.emit),
@@ -140,7 +142,10 @@ daemon.wm.manager.config = WmConfig(
         WmRule(exe="PotPlayerMini64.exe", tilable=False),
         WmRule(exe="openvpn-gui.exe", tilable=False),
         WmRule(exe="Obsidian.exe", preferred_monitor_index=1),
-        WmRule(exe="Feishu.exe", preferred_monitor_index=1),
+        WmRule(exe="Feishu.exe", title="^(?!Feishu Meetings)$", manageable=False),
+        WmRule(
+            exe="Feishu.exe", title="^(Feishu Meetings)$", manageable=True, tilable=True
+        ),
         WmRule(exe="peazip.exe", tilable=False),
         WmRule(exe="clash-verge.exe", manageable=False),
         WmRule(exe="WXWork.exe", manageable=False),

@@ -68,6 +68,7 @@ class WorkspaceState:
                 continue
             window.set_rect(window.relative_rect.relative_to(current_rect))
             window.toggle(show)
+
         if self.showing:
             if self.dirty:
                 self.sync_windows(force_arrange=True)
