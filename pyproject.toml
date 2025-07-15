@@ -1,6 +1,6 @@
 [project]
 name="jigsawwm"
-version="3.0.0"
+version="3.0.1"
 authors=[
   { name="Klesh Wong", email="klesh@qq.com" },
 ]
