@@ -640,7 +640,9 @@ class Window:
         print("is_iconic    :", self.is_iconic, file=file)
         print("is_restored  :", self.is_restored, file=file)
         print("unmanageable :", self.unmanageable_reason, file=file)
+        print("manageable   :", self.manageable, file=file)
         print("untilable    :", self.untilable_reason, file=file)
+        print("tilable      :", self.tilable, file=file)
         print("parent       :", self.parent_handle, file=file)
         print("dpi_awareness:", self.dpi_awareness.name, file=file)
 

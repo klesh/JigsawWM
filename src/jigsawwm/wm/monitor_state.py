@@ -163,6 +163,7 @@ class MonitorState:
         self.remove_window(window)
         self.add_window(window, workspace_index=workspace_index)
         self.workspace.sync_windows()
+        self.workspace.focus_fallback()
 
     def compute_alter_rect(self, workspace_index: int):
         """Compute the alter rect(window would be moved into when workspace is toggled off) for the workspace,

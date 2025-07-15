@@ -73,15 +73,19 @@ class WorkspaceState:
             if self.dirty:
                 self.sync_windows(force_arrange=True)
             if not self.floating_windows:
-                w = self.last_active_window
-                if not w and self.tiling_windows:
-                    w = self.tiling_windows[0]
-                if w and w.exists():
-                    w.activate()
-                # make floating windows on top of tiling windows
+                self.focus_fallback()
             else:
+                # make floating windows on top of tiling windows
                 for w in self.floating_windows:
                     w.activate()
+
+    def focus_fallback(self):
+        """Focus a window"""
+        w = self.last_active_window
+        if (not w or w not in self.windows) and self.tiling_windows:
+            w = self.tiling_windows[0]
+        if w and w.exists():
+            w.activate()
 
     def show_floating_windows(self):
         """Show floating windows in stacking manner"""
