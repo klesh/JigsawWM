@@ -73,6 +73,7 @@ daemon.jmk.core.register_layers(
         },
     ]
 )
+daemon.jmk.sysin.bypass_mouse_event = True
 daemon.jmk.hotkeys.register_triggers(
     [
         ("Win+q", "LAlt+F4"),
@@ -149,6 +150,7 @@ daemon.wm.manager.config = WmConfig(
         WmRule(exe="peazip.exe", tilable=False),
         WmRule(exe="clash-verge.exe", manageable=False),
         WmRule(exe="WXWork.exe", manageable=False),
+        WmRule(exe="vmware.exe", tilable=False),
         # WmRule(
         #     exe="ApplicationFrameHost.exe", title="PDF Reader by Xodo", tilable=True
         # ),

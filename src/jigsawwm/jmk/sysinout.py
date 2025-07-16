@@ -36,20 +36,24 @@ class SystemInput(ThreadWorker, JmkHandler):
     is_running: bool = True
     next_handler_when_disabled: Optional[JmkHandler]
     bypass_exe: Set[str] = None
+    bypass_mouse_event: bool = False
     pressed_evts: Dict[Vk, JmkEvent] = {}
     previous_focused_hwnd: HWND = None
 
     def __init__(
         self,
         bypass_exe: Set[re.Pattern] = None,
+        ybpass_mouse_event: bool = False,
     ):
         self.bypass_exe = {
             "Snipaste.exe",
             "TextInputHost.exe",
-            "vmplayer.exe",
+            # "vmplayer.exe",
+            # "vmware.exe",
         }
         if bypass_exe:
             self.bypass_exe |= bypass_exe
+        self.bypass_mouse_event = ybpass_mouse_event
         self.pressed_evts = {}
         system_event_listener.on_system_resumed.connect(self.on_system_resumed)
 
@@ -157,6 +161,9 @@ class SystemInput(ThreadWorker, JmkHandler):
                 return False
         elif isinstance(msgid, hook.MSLLHOOKMSGID):
             # return False # chrome 126.0.6478.63 select not accepting synthetic mouse events correctly
+            if self.bypass_mouse_event:
+                logger.debug("bypass mouse event %s", msg)
+                return False
             if msgid == hook.MSLLHOOKMSGID.WM_LBUTTONDOWN:
                 vkey = Vk.LBUTTON
                 pressed = True

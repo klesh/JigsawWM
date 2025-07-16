@@ -93,8 +93,9 @@ class WorkspaceState:
         w, h = work_rect.width * 0.618, work_rect.height * 0.618
         left, top = (work_rect.width - w) // 2, (work_rect.height - h) // 2
         bound_rect = Rect(left, top, left + w, top + h)
-        self._stack_windows(work_rect, bound_rect, self.floating_windows)
-        for w in self.floating_windows:
+        windows = list(w for w in self.floating_windows if w and w.exists())
+        self._stack_windows(work_rect, bound_rect, windows)
+        for w in windows:
             time.sleep(0.01)
             w.activate()
 
@@ -195,7 +196,7 @@ class WorkspaceState:
             if window:
                 window.attrs[PREFERRED_WINDOW_INDEX] = i
         theme = self.theme
-        windows = self.tiling_windows
+        windows = list(w for w in self.tiling_windows if w and w.exists())
         # tile the first n windows
         n = len(windows)
         m = n
