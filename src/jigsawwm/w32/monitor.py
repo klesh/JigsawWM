@@ -33,9 +33,10 @@ from dataclasses import dataclass
 from functools import cached_property
 from typing import Generator, Set, Tuple
 
-from lark import logger
-
+import logging
 from .window_structs import Rect
+
+logger = logging.getLogger(__name__)
 
 user32 = WinDLL("user32", use_last_error=True)
 shcore = WinDLL("shcore", use_last_error=True)
