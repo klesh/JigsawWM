@@ -274,8 +274,9 @@ class WindowManager(ThreadWorker):
     def set_theme_splash(self, theme: str) -> Callable:
         """Set theme by name"""
         monitor_state = self.virtdesk_state.monitor_state_from_cursor()
-        theme = self.config.themes.get(theme)
+        theme = next(filter(lambda t: t.name == theme, self.config.themes), None)
         if not theme:
+            logger.warning("theme %s doesn't exist")
             return
         return self.enqueue_splash(monitor_state.workspace.set_theme, theme)
 
@@ -352,10 +353,9 @@ class WindowManager(ThreadWorker):
         return self.switch_theme_splash(+1)
 
     def set_theme(self, theme: str):
-        """Toggle mono theme"""
-        self.enqueue(
-            self.virtdesk_state.monitor_state_from_cursor().workspace.toggle_stack_theme
-        )
+        """Set theme by name"""
+        logger.info("set them to %s", theme)
+        return self.set_theme_splash(theme)
 
     def prev_monitor(self):
         """Switch to previous monitor"""

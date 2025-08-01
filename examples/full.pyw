@@ -143,7 +143,14 @@ daemon.wm.hotkeys = [
     ("Win+Ctrl+p", daemon.wm.manager.inspect_state),
     ([Vk.WIN, Vk.CONTROL, Vk.O], daemon.wm.manager.inspect_active_window),
     ([Vk.WIN, Vk.CONTROL, Vk.M], daemon.wm.manager.toggle_mono),
-    # ([Vk.WIN, Vk.CONTROL, Vk.T], partial(daemon.wm.manager.set_theme, "Stack")),
+    (
+        [Vk.WIN, Vk.CONTROL, Vk.SHIFT, Vk.S],
+        partial(daemon.wm.manager.set_theme, "Stack"),
+    ),
+    (
+        [Vk.WIN, Vk.CONTROL, Vk.SHIFT, Vk.D],
+        partial(daemon.wm.manager.set_theme, "Dwindle"),
+    ),
     ([Vk.CTRL, Vk.ESCAPE], daemon.wm.manager.show_floating_windows),
 ]
 
