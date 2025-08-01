@@ -513,14 +513,18 @@ class Window:
         rect.bottom -= margin
         self.set_rect(rect)
 
+    def center_cursor(self):
+        """Move cursor to the center of the window"""
+        rect = self.get_rect()
+        x = rect.left + (rect.right - rect.left) / 2
+        y = rect.top + (rect.bottom - rect.top) / 2
+        user32.SetCursorPos(int(x), int(y))
+
     def activate(self, cursor_follows=True) -> bool:
         """Brings the thread that created current window into the foreground and activates the window"""
         # move cursor to the center of the window
         if cursor_follows:
-            rect = self.get_rect()
-            x = rect.left + (rect.right - rect.left) / 2
-            y = rect.top + (rect.bottom - rect.top) / 2
-            user32.SetCursorPos(int(x), int(y))
+            self.center_cursor()
         # activation
         # simple way
         if user32.SetForegroundWindow(self.handle):
@@ -742,6 +746,9 @@ if __name__ == "__main__":
             ):
                 print()
                 wd.inspect()
+        elif action == "bottom":
+            w = Window(int(args[0]))
+            w.set_rect(w.get_rect(), 1)
     else:
         time.sleep(2)
         Window(get_foreground_window()).inspect()

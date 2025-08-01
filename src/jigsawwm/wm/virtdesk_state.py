@@ -262,6 +262,7 @@ class VirtDeskState:
         idx: Optional[int] = None,
         workspace: Optional[WorkspaceState] = None,
         activate: bool = True,
+        update_z_order: bool = False,
     ):
         """Reorder windows"""
         if workspace is None:
@@ -278,8 +279,17 @@ class VirtDeskState:
         window = workspace.tiling_windows[idx]
         next_active_window = reorderer(workspace.tiling_windows, idx)
         workspace.arrange()
+        active_window: Window = next_active_window or window
         if activate:
-            (next_active_window or window).activate()
+            active_window.activate()
+        if update_z_order:
+            active_window_idx = workspace.tiling_windows.index(active_window)
+            insert_after = active_window
+            for i, w in enumerate(workspace.tiling_windows):
+                if i != active_window_idx:
+                    logger.info("insert %s after %s", w, insert_after)
+                    w.set_rect(w.get_rect(), insert_after=insert_after.handle)
+                    insert_after = w
 
     def swap_window(
         self,
@@ -323,7 +333,7 @@ class VirtDeskState:
             windows[end_idx - step] = tmp
             return windows[0]
 
-        self.reorder_windows(swap, activate=activate)
+        self.reorder_windows(swap, activate=activate, update_z_order=True)
 
     def set_master(self):
         """Set the active active managed window as the Master back and forth"""
@@ -335,7 +345,7 @@ class VirtDeskState:
             windows[0].attrs["prev_index"] = src_idx
             return windows[0]
 
-        self.reorder_windows(set_master)
+        self.reorder_windows(set_master, update_z_order=True)
 
     def toggle_tilable(self):
         """Toggle window tilable"""
@@ -360,6 +370,8 @@ class VirtDeskState:
         srcms = self.monitor_state_from_cursor()
         dstms = self.monitor_state_from_index(srcms.index + delta)
         window = dstms.workspace.last_active_window
+        if window and not window.exists():
+            window = None
         if not window and dstms.workspace.tiling_windows:
             window = dstms.workspace.tiling_windows[0]
         if window and window.exists():

@@ -40,6 +40,38 @@ def mono(n: int) -> Iterator[FloatRect]:
         yield 0.0, 0.0, 1.0, 1.0
 
 
+def stack(n: int, master_ratio: float = 0.9) -> Iterator[FloatRect]:
+    """The stack Layout
+
+    .. code-block:: text
+
+        +-----------+
+        |2 +--------+--+
+        |  |1          |
+        |  |           |
+        |  |           |
+        |  |           |
+        |  |           |
+        |  |           |
+        +--+           |
+           +-----------+
+
+    :param n: total number of windows
+    :rtype: Iterator[FloatRect]
+    """
+    if n == 1:
+        yield 0.05, 0.05, 0.95, 0.95
+        return
+    left, top, right, bottom = 1.0 - master_ratio, 1.0 - master_ratio, 1.0, 1.0
+    step = (1 - master_ratio) / (n - 1) if n > 1 else 0
+    for _ in range(n):
+        yield left, top, right, bottom
+        left -= step
+        top -= step
+        right -= step
+        bottom -= step
+
+
 def dwindle(n: int, master_ratio: float = 0.5) -> Iterator[FloatRect]:
     """The dwindle Layout
 
@@ -117,34 +149,34 @@ def static_bigscreen_8(n: int) -> Iterator[FloatRect]:
     v2 = 0.45
 
     # one window present
-    if n==1:
+    if n == 1:
         yield 0.25, 0.37, 0.75, 1.00
-    if n==2:
+    if n == 2:
         yield 0.25, 0.37, 0.75, 0.80
         yield 0.25, 0.80, 0.75, 1.00
-    if n==3:
+    if n == 3:
         yield 0.45, 0.37, 0.75, 0.80
         yield 0.30, 0.80, 0.75, 1.00
         yield 0.30, 0.37, 0.45, 0.80
-    if n==4:
+    if n == 4:
         yield 0.45, 0.37, 0.75, 0.80
         yield 0.30, 0.80, 0.75, 1.00
         yield 0.30, 0.37, 0.45, 0.80
         yield 0.75, 0.00, 1.00, 1.00
-    if n==5:
+    if n == 5:
         yield 0.45, 0.37, 0.75, 0.80
         yield 0.30, 0.80, 0.75, 1.00
         yield 0.30, 0.37, 0.45, 0.80
         yield 0.75, 0.00, 1.00, 1.00
         yield 0.00, 0.37, 0.30, 1.00
-    if n==6:
+    if n == 6:
         yield 0.45, 0.37, 0.75, 0.80
         yield 0.30, 0.80, 0.75, 1.00
         yield 0.30, 0.37, 0.45, 0.80
         yield 0.75, 0.00, 1.00, 1.00
         yield 0.00, 0.37, 0.30, 1.00
         yield 0.00, 0.00, 0.25, 0.37
-    if n==7:
+    if n == 7:
         yield 0.45, 0.37, 0.75, 0.80
         yield 0.30, 0.80, 0.75, 1.00
         yield 0.30, 0.37, 0.45, 0.80
@@ -152,7 +184,7 @@ def static_bigscreen_8(n: int) -> Iterator[FloatRect]:
         yield 0.00, 0.37, 0.30, 1.00
         yield 0.00, 0.00, 0.25, 0.37
         yield 0.25, 0.00, 0.50, 0.37
-    if n==8:
+    if n == 8:
         yield 0.45, 0.37, 0.75, 0.80
         yield 0.30, 0.80, 0.75, 1.00
         yield 0.30, 0.37, 0.45, 0.80
@@ -223,9 +255,12 @@ def plug_rect(source: FloatRect, target: NumberRect) -> NumberRect:
 
 if __name__ == "__main__":
     print("dwindle")
-    for n in range(1, 5):
-        print(list(dwindle(n)))
-    print()
-    print("widescreen_dwindle")
-    for n in range(1, 5):
-        print(list(widescreen_dwindle(n)))
+    for i in range(1, 5):
+        print(list(stack(i)))
+    # print("dwindle")
+    # for i in range(1, 5):
+    #     print(list(dwindle(i)))
+    # print()
+    # print("widescreen_dwindle")
+    # for i in range(1, 5):
+    #     print(list(widescreen_dwindle(i)))

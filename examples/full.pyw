@@ -1,6 +1,7 @@
 """An example of setting up all features"""
 
 import os
+import time
 from functools import partial
 
 from jigsawwm.app.daemon import Daemon
@@ -17,7 +18,9 @@ from jigsawwm.jmk.jmk_service import (
     send_today_compact,
 )
 from jigsawwm.w32.powerprofile import suspend_system
-from jigsawwm.w32.window import minimize_active_window
+from jigsawwm.w32.sendinput import send_combination
+from jigsawwm.w32.vk import Vk, parse_combination
+from jigsawwm.w32.window import Window, get_foreground_window, minimize_active_window
 from jigsawwm.wm.config import WmRule
 from jigsawwm.wm.manager import WmConfig
 
@@ -74,6 +77,16 @@ daemon.jmk.core.register_layers(
     ]
 )
 daemon.jmk.sysin.bypass_mouse_event = True
+
+
+def send_comb_then_center_cursor_to_the_active_window(comb: str, delay: float = 0.5):
+    send_combination(*parse_combination(comb))
+    time.sleep(delay)
+    fgw = get_foreground_window()
+    if fgw:
+        Window(fgw).center_cursor()
+
+
 daemon.jmk.hotkeys.register_triggers(
     [
         ("Win+q", "LAlt+F4"),
@@ -83,8 +96,14 @@ daemon.jmk.hotkeys.register_triggers(
         ("Win+c", "RCtrl+c"),
         ("Win+v", "RCtrl+v"),
         ("Win+Shift+v", "RWin+v"),
-        ("Win+Ctrl+w", "RCtrl+RAlt+w"),
-        ("Win+Ctrl+e", "RCtrl+RAlt+e"),
+        (
+            "Win+Ctrl+w",
+            partial(send_comb_then_center_cursor_to_the_active_window, "RCtrl+RAlt+w"),
+        ),
+        (
+            "Win+Ctrl+e",
+            partial(send_comb_then_center_cursor_to_the_active_window, "RCtrl+RAlt+e"),
+        ),
         ("Win+Ctrl+l", "LWin+LCtrl+Right"),
         ("Win+Ctrl+h", "LWin+LCtrl+Left"),
         ("Win+Ctrl+q", daemon.quit_act.triggered.emit),
@@ -124,6 +143,7 @@ daemon.wm.hotkeys = [
     ("Win+Ctrl+p", daemon.wm.manager.inspect_state),
     ([Vk.WIN, Vk.CONTROL, Vk.O], daemon.wm.manager.inspect_active_window),
     ([Vk.WIN, Vk.CONTROL, Vk.M], daemon.wm.manager.toggle_mono),
+    # ([Vk.WIN, Vk.CONTROL, Vk.T], partial(daemon.wm.manager.set_theme, "Stack")),
     ([Vk.CTRL, Vk.ESCAPE], daemon.wm.manager.show_floating_windows),
 ]
 
@@ -161,6 +181,7 @@ daemon.wm.manager.config = WmConfig(
         # ),
         # WmRule(exe="ApplicationFrameHost.exe", tilable=False),
     ],
+    # themes=["Dwindle", "Stack", "Mono"],
 )
 
 daemon.register(

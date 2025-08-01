@@ -10,15 +10,16 @@ The ``tiler`` module is responsible for converting Layout to Physical Coordinate
 
 """
 
-from typing import Callable, Iterator, Tuple
 from functools import partial
+from typing import Callable, Iterator, Tuple
 
 from .layouts import (
     Layout,
     dwindle,
     mono,
-    static_bigscreen_8,
     plug_rect,
+    stack,
+    static_bigscreen_8,
     widescreen_dwindle,
 )
 
@@ -40,6 +41,7 @@ def direct_tiler(layout: Layout, work_area: Rect, total_windows: int) -> Iterato
     :param total_windows: total number of windows
     :rtype: Iterator[Rect]
     """
+    print("total_windows", total_windows)
     rects = layout(total_windows)
     w = work_area[2] - work_area[0]
     h = work_area[3] - work_area[1]
@@ -105,6 +107,11 @@ def obs_tiler(
 def mono_layout_tiler(*args, **kwargs) -> Iterator[Rect]:
     """The dwindle layout tiler"""
     return direct_tiler(mono, *args, **kwargs)
+
+
+def stack_layout_tiler(*args, master_ratio=0.9, **kwargs) -> Iterator[Rect]:
+    """The stack layout tiler"""
+    return direct_tiler(partial(stack, master_ratio=master_ratio), *args, **kwargs)
 
 
 def ratio_dwindle_layout_tiler(*args, master_ratio=0.618, **kwargs) -> Iterator[Rect]:
