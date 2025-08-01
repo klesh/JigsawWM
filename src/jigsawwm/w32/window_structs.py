@@ -256,7 +256,7 @@ class Rect:
             or self.contains(other.right, other.top)
         )
 
-    def relative_to(self, container: "Rect") -> "Rect":
+    def into(self, container: "Rect") -> "Rect":
         """Return a new rectangle relative to the other rectangle."""
         return Rect(
             container.left + self.left,

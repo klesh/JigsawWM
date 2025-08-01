@@ -155,6 +155,9 @@ class Window:
         #
         # feishu meeting window
         # style        : CLIPCHILDREN, CLIPSIBLINGS, GROUP, MAXIMIZEBOX, SIZEBOX, SYSMENU, VISIBLE
+        # feishu meeting popup window (Changing Layout)
+        # style        : CLIPCHILDREN, CLIPSIBLINGS, POPUP, VISIBLE
+        # exstyle      : TOOLWINDOW
         #
         # NOT manage/tilable fusion360 object selector
         # style        : CLIPCHILDREN, CLIPSIBLINGS, POPUP, VISIBLE
@@ -443,7 +446,8 @@ class Window:
     def set_relative_rect(self, rect: Rect, container_rect: Rect):
         """Set the relative rect to the container rect"""
         self.relative_rect = rect
-        actual_rect = self.relative_rect.relative_to(container_rect)
+        actual_rect = self.relative_rect.into(container_rect)
+        logger.info("%s set_relative_rect actual rect %s", self, actual_rect)
         self.set_rect(actual_rect)
 
     def set_restricted_rect(self, rect: Rect, container_rect: Rect):
@@ -451,14 +455,14 @@ class Window:
         if not self.is_restored:
             self.restore()
         self.relative_rect = rect
-        actual_rect = self.relative_rect.relative_to(container_rect)
+        actual_rect = self.relative_rect.into(container_rect)
         if (
             self.enable_bound_compensation
             and self.dpi_awareness
             == process.ProcessDpiAwareness.PROCESS_PER_MONITOR_DPI_AWARE
         ):
             if container_rect not in self.compensations:
-                self.set_rect(self.relative_rect.relative_to(container_rect))
+                self.set_rect(self.relative_rect.into(container_rect))
                 # seems like the `get_extended_frame_bounds` would return physical size
                 # for DPI unware window, skip them for now
                 # TODO: convert physical size to logical size for DPI unware window

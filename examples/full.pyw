@@ -134,6 +134,7 @@ daemon.wm.manager.config = WmConfig(
         WmRule(exe="Flow.Launcher.exe", manageable=False),
         WmRule(exe="msedgewebview2.exe", manageable=False),
         WmRule(exe="WeChat.exe", manageable=False),
+        WmRule(exe="Weixin.exe", manageable=False),
         WmRule(exe="MediaInfo.exe", tilable=False),
         WmRule(exe="Cloudflare WARP.exe", tilable=False),
         WmRule(exe="7zFM.exe", tilable=False),
@@ -144,7 +145,11 @@ daemon.wm.manager.config = WmConfig(
         WmRule(exe="openvpn-gui.exe", tilable=False),
         WmRule(exe="Obsidian.exe", preferred_monitor_index=1),
         WmRule(
-            exe="Feishu.exe", title="Feishu Meetings", manageable=True, tilable=False
+            exe="Feishu.exe",
+            title="(Feishu Meetings|飞书会议)",
+            title_is_literal=False,
+            manageable=True,
+            tilable=False,
         ),
         WmRule(exe="Feishu.exe", manageable=False),
         WmRule(exe="peazip.exe", tilable=False),

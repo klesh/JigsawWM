@@ -66,7 +66,7 @@ class WorkspaceState:
             if not window.relative_rect:
                 logger.warning("%s has no relative rect, skipping toggle", window)
                 continue
-            window.set_rect(window.relative_rect.relative_to(current_rect))
+            window.set_rect(window.relative_rect.into(current_rect))
             window.toggle(show)
 
         if self.showing:
@@ -89,6 +89,7 @@ class WorkspaceState:
 
     def show_floating_windows(self):
         """Show floating windows in stacking manner"""
+        logger.info("show_floating_windows")
         work_rect = self.monitor.get_work_rect()
         w, h = work_rect.width * 0.618, work_rect.height * 0.618
         left, top = (work_rect.width - w) // 2, (work_rect.height - h) // 2
@@ -230,30 +231,39 @@ class WorkspaceState:
         work_rect = self.monitor.get_work_rect()
         for window in self.floating_windows:
             if not window.relative_rect:
-                # calcuate relative rect if not set
-                work_rect = self.monitor.get_work_rect()
-                window_rect = window.get_rect()
-                if not work_rect.intersected(window_rect):
-                    # if the window is not in the work rect, set its relative rect to the center of the work rect
-                    logger.debug(
-                        "%s is not in work rect %s, setting relative rect to center",
-                        window,
-                        work_rect,
-                    )
-                    relative_rect = window_rect.center_of(
-                        Rect(0, 0, work_rect.width, work_rect.height)
-                    )
-                else:
-                    # or calculate the relative rect based on the work rect
-                    logger.debug(
-                        "%s is in work rect %s, setting relative rect to relative",
-                        window,
-                        work_rect,
-                    )
-                    relative_rect = window_rect.relative_to(work_rect)
-                logger.debug("%s set relative rect %s", window, relative_rect)
-                window.relative_rect = relative_rect
-            window.set_relative_rect(window.relative_rect, work_rect)
+                self.update_relative_rect(window)
+            else:
+                window.set_relative_rect(window.relative_rect, work_rect)
+
+    def update_relative_rect(self, window: Window):
+        """Update floating window relative rect when it was moved / resized"""
+        # calcuate relative rect if not set
+        work_rect = self.monitor.get_work_rect()
+        window_rect = window.get_rect()
+        if not work_rect.intersected(window_rect):
+            # if the window is not in the work rect, set its relative rect to the center of the work rect
+            logger.debug(
+                "%s is not in work rect %s, setting relative rect to center",
+                window,
+                work_rect,
+            )
+            relative_rect = window_rect.center_of(
+                Rect(0, 0, work_rect.width, work_rect.height)
+            )
+        else:
+            # or calculate the relative rect based on the work rect
+            logger.debug(
+                "%s is in work rect %s, setting relative rect to relative",
+                window,
+                work_rect,
+            )
+            relative_rect = Rect(
+                window_rect.left - work_rect.left,
+                window_rect.top - work_rect.top,
+                window_rect.right - work_rect.left,
+                window_rect.bottom - work_rect.top,
+            )
+        window.relative_rect = relative_rect
 
     def generate_relative_tiling_areas(self, num: int) -> Iterator[Rect]:
         """Generate tiling areas for current monitor with respect to given number"""
