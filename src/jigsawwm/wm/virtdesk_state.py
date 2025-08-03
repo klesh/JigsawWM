@@ -341,6 +341,8 @@ class VirtDeskState:
         def set_master(windows: List[Window], src_idx: int):
             if src_idx == 0:
                 src_idx = windows[0].attrs.get("prev_index", 1)
+                if src_idx > len(windows):
+                    src_idx = 1
             windows[0], windows[src_idx] = windows[src_idx], windows[0]
             windows[0].attrs["prev_index"] = src_idx
             return windows[0]
