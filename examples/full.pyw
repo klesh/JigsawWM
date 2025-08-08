@@ -80,11 +80,31 @@ daemon.jmk.sysin.bypass_mouse_event = True
 
 
 def send_comb_then_center_cursor_to_the_active_window(comb: str, delay: float = 0.5):
+    """Send a hotkey combination then focus the active window"""
     send_combination(*parse_combination(comb))
     time.sleep(delay)
     fgw = get_foreground_window()
     if fgw:
         Window(fgw).center_cursor()
+
+
+COPY_PASTE = (parse_combination("LCtrl+c"), parse_combination("LCtrl+v"))
+COPY_PASTE_SHIFT = (
+    parse_combination("LCtrl+LShift+c"),
+    parse_combination("LCtrl+LShift+v"),
+)
+
+
+def smart_copy_paste(op: str = "copy"):
+    """Send Ctrl+c/v or Ctrl+Shift+c/v base on the active window"""
+    combs = COPY_PASTE
+    fgwh = get_foreground_window()
+    if fgwh:
+        fgw = Window(fgwh)
+        if fgw.exe_name.lower() in ("windowsterminal.exe", "code.exe"):
+            combs = COPY_PASTE_SHIFT
+    comb = combs[0 if op == "copy" else 1]
+    send_combination(*comb)
 
 
 daemon.jmk.hotkeys.register_triggers(
@@ -93,8 +113,8 @@ daemon.jmk.hotkeys.register_triggers(
         ("Win+s", "RCtrl+s"),
         ("Win+z", "RCtrl+z"),
         ("Win+x", "RCtrl+x"),
-        ("Win+c", "RCtrl+c"),
-        ("Win+v", "RCtrl+v"),
+        ("Win+c", partial(smart_copy_paste, "copy")),
+        ("Win+v", partial(smart_copy_paste, "paste")),
         ("Win+Shift+v", "RWin+v"),
         (
             "Win+Ctrl+w",
@@ -171,13 +191,13 @@ daemon.wm.manager.config = WmConfig(
         WmRule(exe="PotPlayerMini64.exe", tilable=False),
         WmRule(exe="openvpn-gui.exe", tilable=False),
         WmRule(exe="Obsidian.exe", preferred_monitor_index=1),
-        WmRule(
-            exe="Feishu.exe",
-            title="(Feishu Meetings|飞书会议)",
-            title_is_literal=False,
-            manageable=True,
-            tilable=False,
-        ),
+        # WmRule(
+        #     exe="Feishu.exe",
+        #     title="(Feishu Meetings|飞书会议)",
+        #     title_is_literal=False,
+        #     manageable=True,
+        #     tilable=False,
+        # ),
         WmRule(exe="Feishu.exe", manageable=False),
         WmRule(exe="peazip.exe", tilable=False),
         WmRule(exe="clash-verge.exe", manageable=False),
