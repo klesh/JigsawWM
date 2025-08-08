@@ -174,7 +174,7 @@ class VirtDeskState:
                 if ws.alter_rect.contains_rect_center(rect):
                     return ms, ws
 
-    def distribute_new_windows(self, windows: List[Window]):
+    def distribute_new_windows(self, windows: set[Window]):
         """Distribute new windows to the right monitor and workspace - respect rules for windows"""
         logger.info("distributing new windows")
         for w in windows:
@@ -224,6 +224,9 @@ class VirtDeskState:
         if MONITOR_STATE not in window.attrs:
             logger.warning("window %s has no monitor state", window)
             return
+        if WORKSPACE_STATE not in window.attrs:
+            logger.warning("window %s has no workspace state", window)
+            return
         ms: MonitorState = window.attrs[MONITOR_STATE]
         ws: WorkspaceState = window.attrs[WORKSPACE_STATE]
         ws.last_active_window = window
@@ -236,13 +239,17 @@ class VirtDeskState:
                 window,
             )
 
-    def on_minimize_changed(self, window: Window):
+    def on_minimize_changed(self, window: Window, is_minimized: bool):
         """Handle window minimized event"""
+        logger.info("on_minimize_changed: %s %s", window, is_minimized)
         ws: WorkspaceState = window.attrs.get(WORKSPACE_STATE)
         if ws:
             ws.sync_windows()
         else:  # window existed and minimized before JigsawWM
             self.distribute_new_windows([window])
+        if is_minimized:
+            if ws.tiling_windows:
+                ws.tiling_windows[0].activate()
 
     def monitor_state_from_cursor(self) -> MonitorState:
         """Retrieve monitor_state from current cursor"""
@@ -288,7 +295,7 @@ class VirtDeskState:
             for i, w in enumerate(workspace.tiling_windows):
                 if i != active_window_idx:
                     logger.info("insert %s after %s", w, insert_after)
-                    w.set_rect(w.get_rect(), insert_after=insert_after.handle)
+                    w.insert_after(insert_after)
                     insert_after = w
 
     def swap_window(

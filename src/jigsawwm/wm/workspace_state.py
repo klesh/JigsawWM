@@ -1,11 +1,10 @@
 """WorkspaceState maintins the state of a workspace"""
 
 import logging
-import time
 from typing import Iterator, List, Optional, Set, Tuple
 
 from jigsawwm.w32.monitor import Monitor, get_cursor_pos
-from jigsawwm.w32.window import Rect, Window
+from jigsawwm.w32.window import InsertAfter, Rect, Window
 
 from .const import PREFERRED_WINDOW_INDEX, STATIC_WINDOW_INDEX, WORKSPACE_STATE
 from .theme import Theme, mono
@@ -76,8 +75,11 @@ class WorkspaceState:
                 self.focus_fallback()
             else:
                 # make floating windows on top of tiling windows
-                for w in self.floating_windows:
-                    w.activate()
+                p = self.floating_windows[0]
+                p.insert_after(InsertAfter.HWND_TOP)
+                for w in self.floating_windows[1:]:
+                    w.insert_after(p)
+                    p = w
 
     def focus_fallback(self):
         """Focus a window"""
@@ -90,15 +92,20 @@ class WorkspaceState:
     def show_floating_windows(self):
         """Show floating windows in stacking manner"""
         logger.info("show_floating_windows")
-        work_rect = self.monitor.get_work_rect()
-        w, h = work_rect.width * 0.618, work_rect.height * 0.618
-        left, top = (work_rect.width - w) // 2, (work_rect.height - h) // 2
-        bound_rect = Rect(left, top, left + w, top + h)
+        # work_rect = self.monitor.get_work_rect()
+        # w, h = work_rect.width * 0.618, work_rect.height * 0.618
+        # left, top = (work_rect.width - w) // 2, (work_rect.height - h) // 2
+        # bound_rect = Rect(left, top, left + w, top + h)
         windows = list(w for w in self.floating_windows if w and w.exists())
-        self._stack_windows(work_rect, bound_rect, windows)
-        for w in windows:
-            time.sleep(0.01)
-            w.activate()
+        # self._stack_windows(work_rect, bound_rect, windows)
+        p = InsertAfter.HWND_BOTTOM
+        if windows:
+            for w in windows:
+                w.insert_after(p)
+                p = w.handle
+        for w in self.tiling_windows:
+            w.insert_after(p)
+            p = w.handle
 
     def set_theme(self, theme: Theme):
         """Set theme for the workspace"""
@@ -183,8 +190,18 @@ class WorkspaceState:
         )
         if self.theme.new_window_as_master:
             windows_list = new_list + windows_list
+            # set z-orders for stacking layout
+            # if new_list:
+            #     new_list[0].insert_after(InsertAfter.HWND_TOP)
         else:
             windows_list += new_list
+        #     if windows_list and new_list:
+        #         new_list[0].insert_after(windows_list[-1])
+        # if len(new_list) > 1:
+        #     p = new_list[0]
+        #     for w in new_list[1:]:
+        #         w.insert_after(p)
+        #         p = w
         return windows_list
 
     def arrange(self):
@@ -207,6 +224,7 @@ class WorkspaceState:
         logger.debug("%s tiling_areas: %s", self, self.tiling_areas)
         # arrange all except the last areaself.theme.
         work_rect = self.monitor.get_work_rect()
+        insert_after = InsertAfter.HWND_BOTTOM
         for i in range(m - 1):
             if windows[i] is not None:
                 logger.debug(
@@ -214,7 +232,11 @@ class WorkspaceState:
                     self.tiling_areas[i],
                     work_rect,
                 )
-                windows[i].set_restricted_rect(self.tiling_areas[i], work_rect)
+                # windows[i].set_restricted_rect(self.tiling_areas[i], work_rect)
+                windows[i].set_restricted_rect(
+                    self.tiling_areas[i], work_rect, insert_after
+                )
+                insert_after = windows[i].handle
         # arrange the last area
         overflow = n > m
         if overflow:
@@ -224,7 +246,10 @@ class WorkspaceState:
             windows = self.tiling_windows[m - 1 :]
             self._stack_windows(work_rect, bound, windows, w=w, h=h)
         elif n == m and n > 0:
-            windows[-1].set_restricted_rect(self.tiling_areas[-1], work_rect)
+            # windows[-1].set_restricted_rect(self.tiling_areas[-1], work_rect)
+            windows[-1].set_restricted_rect(
+                self.tiling_areas[-1], work_rect, insert_after
+            )
 
     def update_floating_windows_rects(self):
         """Arrange floating windows in the workspace"""

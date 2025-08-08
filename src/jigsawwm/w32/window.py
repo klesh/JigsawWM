@@ -9,7 +9,7 @@ from ctypes.wintypes import *  # pylint: disable=wildcard-import,unused-wildcard
 from dataclasses import dataclass, field
 from functools import cached_property, cmp_to_key
 from os import path
-from typing import Any, Callable, Iterable, Optional, Set
+from typing import Any, Callable, Iterable, Optional, Self, Set
 
 from . import process
 from .monitor import Monitor, monitor_from_window
@@ -423,7 +423,7 @@ class Window:
             return Rect(0, 0, 0, 0)
         return Rect.from_win_rect(rect)
 
-    def set_rect(self, rect: Rect, insert_after: InsertAfter | None = None):
+    def set_rect(self, rect: Rect, insert_after: InsertAfter | HWND | None = None):
         """Sets the dimensions of the bounding rectangle (Call SetWindowPos with RECT)
 
         Ref: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowpos
@@ -443,6 +443,18 @@ class Window:
             raise WinError(get_last_error())
         logger.debug("done %s set rect to %s", self, rect)
 
+    def insert_after(self, insert_after: InsertAfter | HWND | Self):
+        """Set window z order"""
+        # logger.info("insert %s after %s", self, insert_after)
+        self.set_rect(
+            self.get_rect(),
+            insert_after=(
+                insert_after
+                if not isinstance(insert_after, Window)
+                else insert_after.handle
+            ),
+        )
+
     def set_relative_rect(self, rect: Rect, container_rect: Rect):
         """Set the relative rect to the container rect"""
         self.relative_rect = rect
@@ -450,7 +462,9 @@ class Window:
         logger.info("%s set_relative_rect actual rect %s", self, actual_rect)
         self.set_rect(actual_rect)
 
-    def set_restricted_rect(self, rect: Rect, container_rect: Rect):
+    def set_restricted_rect(
+        self, rect: Rect, container_rect: Rect, insert_after: InsertAfter | None = None
+    ):
         """Set the restricted rect"""
         if not self.is_restored:
             self.restore()
@@ -490,7 +504,7 @@ class Window:
                 self.relative_rect.right + compensation[2],
                 self.relative_rect.bottom + compensation[3],
             )
-        self.set_rect(actual_rect)
+        self.set_rect(actual_rect, insert_after=insert_after)
         self.restricted_rect = actual_rect
 
     def restrict(self):
@@ -522,6 +536,8 @@ class Window:
 
     def activate(self, cursor_follows=True) -> bool:
         """Brings the thread that created current window into the foreground and activates the window"""
+        logger.info("activate window %s", self)
+        # traceback.print_stack()
         # move cursor to the center of the window
         if cursor_follows:
             self.center_cursor()
@@ -529,7 +545,30 @@ class Window:
         # simple way
         if user32.SetForegroundWindow(self.handle):
             return
+
         # well, simple way didn't work, we have to make our process Foreground
+        def activate_window():
+            new_fore_window = None
+            retry = 5
+            while new_fore_window != self.handle and retry > 0:
+                send_input(
+                    INPUT(
+                        type=INPUTTYPE.KEYBOARD,
+                        ki=KEYBDINPUT(wVk=Vk.MENU, dwFlags=KEYEVENTF.KEYUP),
+                    ),
+                    INPUT(
+                        type=INPUTTYPE.KEYBOARD,
+                        ki=KEYBDINPUT(wVk=Vk.MENU, dwFlags=KEYEVENTF.KEYUP),
+                    ),
+                )
+                user32.SetForegroundWindow(self.handle)
+                new_fore_window = user32.GetForegroundWindow()
+                retry -= 1
+                time.sleep(0.01)
+
+        self.attch_thread_input(activate_window)
+
+    def attch_thread_input(self, job: callable):
         our_thread_id = kernel32.GetCurrentThreadId()
         fore_thread_id = None
         target_thread_id = user32.GetWindowThreadProcessId(self.handle, None)
@@ -547,28 +586,14 @@ class Window:
                 and fore_thread_id != target_thread_id
             ):
                 ft = user32.AttachThreadInput(fore_thread_id, target_thread_id, True)
-        new_fore_window = None
-        retry = 5
-        while new_fore_window != self.handle and retry > 0:
-            send_input(
-                INPUT(
-                    type=INPUTTYPE.KEYBOARD,
-                    ki=KEYBDINPUT(wVk=Vk.MENU, dwFlags=KEYEVENTF.KEYUP),
-                ),
-                INPUT(
-                    type=INPUTTYPE.KEYBOARD,
-                    ki=KEYBDINPUT(wVk=Vk.MENU, dwFlags=KEYEVENTF.KEYUP),
-                ),
-            )
-            user32.SetForegroundWindow(self.handle)
-            new_fore_window = user32.GetForegroundWindow()
-            retry -= 1
-            time.sleep(0.01)
-        # detach input thread
-        if uf:
-            user32.AttachThreadInput(our_thread_id, fore_thread_id, False)
-        if ft:
-            user32.AttachThreadInput(fore_thread_id, target_thread_id, False)
+        try:
+            job()
+        finally:
+            # detach input thread
+            if uf:
+                user32.AttachThreadInput(our_thread_id, fore_thread_id, False)
+            if ft:
+                user32.AttachThreadInput(fore_thread_id, target_thread_id, False)
 
     def show_window(self, cmd: ShowWindowCmd):
         """Show window"""
@@ -749,6 +774,16 @@ if __name__ == "__main__":
         elif action == "bottom":
             w = Window(int(args[0]))
             w.set_rect(w.get_rect(), 1)
+        elif action == "activate":
+            w = Window(int(args[0]))
+            w.activate()
+        elif action == "getfocus":
+            time.sleep(2)
+
+            def print_focused():
+                print(get_focused_window())
+
+            Window(get_foreground_window()).attch_thread_input(print_focused)
     else:
         time.sleep(2)
         Window(get_foreground_window()).inspect()

@@ -174,7 +174,9 @@ class WindowManager(ThreadWorker):
             event == WinEvent.EVENT_SYSTEM_MINIMIZESTART
             or event == WinEvent.EVENT_SYSTEM_MINIMIZEEND
         ):
-            self.virtdesk_state.on_minimize_changed(window)
+            self.virtdesk_state.on_minimize_changed(
+                window, is_minimized=event == WinEvent.EVENT_SYSTEM_MINIMIZESTART
+            )
 
     def on_move_size_start(self, window: Window):
         """React to EVENT_SYSTEM_MOVESIZESTART event"""
