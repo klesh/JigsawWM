@@ -7,33 +7,33 @@
 # +----------+----------+----------+----------+
 # |          |          |          |          |
 # |          |          |          |          |
-# |     1    |     2    |     3    |          |
+# |     5    |     6    |     7    |          |
 # |          |          |          |          |
 # |          |          |          |          |
 # +----------+--+-----+-+----------+          |
 # |             |     |            |          |
 # |             |     |            |          |
 # |             |     |            |          |
-# |             |     |            |     4    |
-# |             |  6  |      7     |          |
-# |     5       |     |            |          |
+# |             |     |            |     3    |
+# |             |  1  |      0     |          |
+# |     4       |     |            |          |
 # |             |     |            |          |
 # |             |     |            |          |
 # |             +-----+------------|          |
 # |             |                  |          |
-# |             |         8        |          |
+# |             |         2        |          |
 # +-------------+------------------+----------+
 
-# IDX  LAYER1            LAYER2   LAYER3
+# IDX  LAYER1            LAYER2     LAYER3
 # ---------------------------------------------
-# 1    OUTLOOK           TEAMS    SSH / MUTT
-# 2    TOTAL COMMANDER
-# 3    EXCEL PLAN        yED
-# 4    FREEPLANE
-# 5    CHROME
-# 6    NOTEPAD++
-# 7    NEOVIM
-# 8    CMD
+# 0    NEOVIM
+# 1    CMD
+# 2    NOTEPAD++
+# 3    FREEPLANE
+# 4    CHROME
+# 5    TEAMS             OUTLOOK    SSH / MUTT
+# 6    yED
+# 7    EXCEL PLAN        TOTALCMD
 
 
 from functools import partial
@@ -47,21 +47,21 @@ from jigsawwm.wm.config import WmRule
 daemon = Daemon()
 
 daemon.wm.hotkeys = [
-    ([Vk.WIN, Vk.J], daemon.wm.manager.next_window),
-    ([Vk.WIN, Vk.K], daemon.wm.manager.prev_window),
+    ([Vk.WIN, Vk.CTRL, Vk.J], daemon.wm.manager.next_window),
+    ([Vk.WIN, Vk.CTRL, Vk.K], daemon.wm.manager.prev_window),
     ([Vk.WIN, Vk.SHIFT, Vk.J], daemon.wm.manager.swap_next),
     ([Vk.WIN, Vk.SHIFT, Vk.K], daemon.wm.manager.swap_prev),
-    ("Win+/", daemon.wm.manager.set_master),
+    ("Win+Ctrl+/", daemon.wm.manager.set_master),
     ([Vk.WIN, Vk.CONTROL, Vk.SPACE], daemon.wm.manager.next_theme),
     ([Vk.WIN, Vk.U], daemon.wm.manager.prev_monitor),
     ([Vk.WIN, Vk.I], daemon.wm.manager.next_monitor),
     ([Vk.WIN, Vk.SHIFT, Vk.U], daemon.wm.manager.move_to_prev_monitor),
     ([Vk.WIN, Vk.SHIFT, Vk.I], daemon.wm.manager.move_to_next_monitor),
     ([Vk.WIN, Vk.CONTROL, Vk.I], daemon.wm.manager.inspect_active_window),
-    ("Win+Ctrl+a", partial(daemon.wm.manager.switch_workspace, 0)),
-    ("Win+Ctrl+s", partial(daemon.wm.manager.switch_workspace, 1)),
-    ("Win+Ctrl+d", partial(daemon.wm.manager.switch_workspace, 2)),
-    ("Win+Ctrl+f", partial(daemon.wm.manager.switch_workspace, 3)),
+    ("Win+Ctrl+a", partial(daemon.wm.manager.switch_to_workspace, 0)),
+    ("Win+Ctrl+s", partial(daemon.wm.manager.switch_to_workspace, 1)),
+    ("Win+Ctrl+d", partial(daemon.wm.manager.switch_to_workspace, 2)),
+    ("Win+Ctrl+f", partial(daemon.wm.manager.switch_to_workspace, 3)),
     ("Win+Shift+a", partial(daemon.wm.manager.move_to_workspace, 0)),
     ("Win+Shift+s", partial(daemon.wm.manager.move_to_workspace, 1)),
     ("Win+Shift+d", partial(daemon.wm.manager.move_to_workspace, 2)),
@@ -76,16 +76,22 @@ daemon.wm.hotkeys = [
 
 daemon.wm.manager.config = WmConfig(
     rules=[
-        WmRule(exe="cmd.exe", title="nvim", static_window_index=0),  # code editor
-        WmRule(exe="cmd.exe", static_window_index=1),  # debug console
-        WmRule(exe="notepad++.exe", static_window_index=2),  # general text editor
+    
+        # list of application windows to be managed
+        WmRule(exe="cmd.exe", title="nvim", static_window_index=0),
+        WmRule(exe="cmd.exe", static_window_index=1),
+        WmRule(exe="notepad++.exe", static_window_index=2),
         WmRule(
-            exe="javaw.exe", title="freeplane", static_window_index=3
-        ),  # mindmap editor
-        WmRule(exe="chrome.exe", static_window_index=4),  # internet browser
-        WmRule(exe="Teams.exe", static_window_index=5),  # messaging
-        WmRule(exe="yEd.exe", static_window_index=6),  # diagramming
-        WmRule(exe="EXCEL.EXE", static_window_index=7),  # organizational stuff
+            exe="freeplane.exe",
+            title="freeplane",
+            static_window_index=3,
+        ),
+        WmRule(exe="chrome.exe", static_window_index=4),
+        WmRule(exe="ms-teams.exe", static_window_index=5),
+        WmRule(exe="yEd.exe", static_window_index=6),
+        WmRule(exe="EXCEL.EXE", static_window_index=7),
+        
+        # list of application windows not to be regarded
         WmRule(exe="Len.exe", manageable=False),
         WmRule(exe="ApplicationFrameHost.exe", manageable=False),
         WmRule(exe="explorer.exe", manageable=False),
