@@ -290,13 +290,7 @@ class VirtDeskState:
         if activate:
             active_window.activate()
         if update_z_order:
-            active_window_idx = workspace.tiling_windows.index(active_window)
-            insert_after = active_window
-            for i, w in enumerate(workspace.tiling_windows):
-                if i != active_window_idx:
-                    logger.info("insert %s after %s", w, insert_after)
-                    w.insert_after(insert_after)
-                    insert_after = w
+            workspace.show_floating_windows()
 
     def swap_window(
         self,
@@ -348,7 +342,7 @@ class VirtDeskState:
         def set_master(windows: List[Window], src_idx: int):
             if src_idx == 0:
                 src_idx = windows[0].attrs.get("prev_index", 1)
-                if src_idx > len(windows):
+                if src_idx >= len(windows):
                     src_idx = 1
             windows[0], windows[src_idx] = windows[src_idx], windows[0]
             windows[0].attrs["prev_index"] = src_idx

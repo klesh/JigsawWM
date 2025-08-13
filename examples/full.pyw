@@ -207,6 +207,7 @@ daemon.wm.manager.config = WmConfig(
         #     exe="ApplicationFrameHost.exe", title="PDF Reader by Xodo", tilable=True
         # ),
         # WmRule(exe="ApplicationFrameHost.exe", tilable=False),
+        WmRule(exe="YouTube Music.exe", manageable=False),
     ],
     # themes=["Dwindle", "Stack", "Mono"],
 )
