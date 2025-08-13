@@ -628,56 +628,55 @@ class Window:
     def inspect(self, file=sys.stdout):
         """Inspect window and print the information to the file"""
         if not self.exists():
-            print("window doesn't exist anymore")
+            logger.info("window doesn't exist anymore")
             return
-        print(self, file=file)
-        print("title        :", self.title, file=file)
-        print("pid          :", self.pid, file=file)
-        print("class name   :", self.class_name, file=file)
-        print("exe path     :", self.exe, file=file)
-        print("relative rect:", self.relative_rect, file=file)
-        print("restrict rect:", self.restricted_rect, file=file)
+        logger.info(self)
+        logger.info("title        : %s", self.title)
+        logger.info("pid          : %s", self.pid)
+        logger.info("class name   : %s", self.class_name)
+        logger.info("exe path     : %s", self.exe)
+        logger.info("relative rect: %s", self.relative_rect)
+        logger.info("restrict rect: %s", self.restricted_rect)
         style = self.get_style()
         style_flags = []
         for s in WindowStyle:
             if s in style:
                 style_flags.append(s.name)
-        print("overlapped   :", WindowStyle.OVERLAPPEDWINDOW in style, file=file)
-        print("style        :", ", ".join(style_flags), file=file)
+        logger.info("overlapped   : %s", WindowStyle.OVERLAPPEDWINDOW in style)
+        logger.info("style        : %s", ", ".join(style_flags))
         exstyle = self.get_exstyle()
         exstyle_flags = []
         for s in WindowExStyle:
             if s in exstyle:
                 exstyle_flags.append(s.name)
-        print("exstyle      :", ", ".join(exstyle_flags), file=file)
+        logger.info("exstyle      : %s", ", ".join(exstyle_flags))
         for k, v in self.attrs.items():
-            print(f"attr({k}): {v}", file=file)
+            logger.info(f"attr({k}): {v}")
         rect = self.get_rect()
-        print("rect         :", rect.left, rect.top, rect.right, rect.bottom, file=file)
+        logger.info("rect         : left %d top %d right %d bottom %d", rect.left, rect.top, rect.right, rect.bottom)
         bound = self.get_extended_frame_bounds()
-        print(
-            "bound        :",
+        logger.info(
+            "bound        : left %d top %d right %d bottom %d",
             bound.left,
             bound.top,
             bound.right,
             bound.bottom,
-            file=file,
         )
         if self.restricted_rect:
             r = self.restricted_rect
-            print("restricted   :", r.left, r.top, r.right, r.bottom, file=file)
-        print("is_evelated  :", self.is_elevated, file=file)
-        print("is_toplevel  :", self.is_toplevel, file=file)
-        print("is_cloaked   :", self.is_cloaked, file=file)
-        print("is_visible   :", self.is_visible, file=file)
-        print("is_iconic    :", self.is_iconic, file=file)
-        print("is_restored  :", self.is_restored, file=file)
-        print("unmanageable :", self.unmanageable_reason, file=file)
-        print("manageable   :", self.manageable, file=file)
-        print("untilable    :", self.untilable_reason, file=file)
-        print("tilable      :", self.tilable, file=file)
-        print("parent       :", self.parent_handle, file=file)
-        print("dpi_awareness:", self.dpi_awareness.name, file=file)
+            logger.info("restricted   : left %d top %d right %d bottom %d", r.left, r.top, r.right, r.bottom)
+        logger.info("is_evelated  : %s", self.is_elevated)
+        logger.info("is_toplevel  : %s", self.is_toplevel)
+        logger.info("is_cloaked   : %s", self.is_cloaked)
+        logger.info("is_visible   : %s", self.is_visible)
+        logger.info("is_iconic    : %s", self.is_iconic)
+        logger.info("is_restored  : %s", self.is_restored)
+        logger.info("unmanageable : %s", self.unmanageable_reason)
+        logger.info("manageable   : %s", self.manageable)
+        logger.info("untilable    : %s", self.untilable_reason)
+        logger.info("tilable      : %s", self.tilable)
+        logger.info("parent       : %s", self.parent_handle)
+        logger.info("dpi_awareness: %s", self.dpi_awareness.name)
 
 
 def filter_windows(cb: Callable[[HWND], Any]) -> Set[Any]:
