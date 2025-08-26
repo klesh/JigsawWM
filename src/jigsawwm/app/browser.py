@@ -1,14 +1,14 @@
 """Useful functions to access browsers data"""
 
-import time
-import sqlite3
 import json
+import logging
 import os
 import os.path
-import logging
+import sqlite3
+import time
 import urllib.request
-from typing import Callable
 from dataclasses import dataclass
+from typing import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -103,6 +103,18 @@ BROWSER_BOOKMARK_PATHS = {
     ),
     "thorium": BrowserProfile(
         name="thorium",
+        path=os.path.join(
+            os.getenv("LOCALAPPDATA"),
+            "BraveSofware",
+            "Brave-Browser",
+            "User Data",
+            "Default",
+            "Bookmarks",
+        ),
+        entry=open_chrome_fav_folder,
+    ),
+    "brave": BrowserProfile(
+        name="brave",
         path=os.path.join(
             os.getenv("LOCALAPPDATA"),
             "Thorium",

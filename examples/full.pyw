@@ -9,18 +9,14 @@ from jigsawwm.app.job import ProcessService
 from jigsawwm.app.services import CaffeineService
 from jigsawwm.app.tasks import DailyWebsites, WorkdayAutoStart
 from jigsawwm.jmk.core import JmkKey, JmkTapHold, Vk
-from jigsawwm.jmk.jmk_service import (
-    ctrl_shift_w,
-    ctrl_w,
-    send_now,
-    send_now_compact,
-    send_today,
-    send_today_compact,
-)
+from jigsawwm.jmk.jmk_service import (ctrl_shift_w, ctrl_w, send_now,
+                                      send_now_compact, send_today,
+                                      send_today_compact)
 from jigsawwm.w32.powerprofile import suspend_system
 from jigsawwm.w32.sendinput import send_combination
 from jigsawwm.w32.vk import Vk, parse_combination
-from jigsawwm.w32.window import Window, get_foreground_window, minimize_active_window
+from jigsawwm.w32.window import (Window, get_foreground_window,
+                                 minimize_active_window)
 from jigsawwm.wm.config import WmRule
 from jigsawwm.wm.manager import WmConfig
 
@@ -229,7 +225,7 @@ daemon.register(CaffeineService())
 
 daemon.register(
     DailyWebsites(
-        browser_name="thorium",
+        browser_name="brave",
         fav_folder="daily",
         test_url="https://google.com",
         proxy_url="http://localhost:7890",
