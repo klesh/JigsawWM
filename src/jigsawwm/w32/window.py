@@ -15,13 +15,8 @@ from . import process
 from .monitor import Monitor, monitor_from_window
 from .sendinput import INPUT, INPUTTYPE, KEYBDINPUT, KEYEVENTF, send_input
 from .vk import Vk
-from .window_structs import (
-    DwmWindowAttribute,
-    Rect,
-    ShowWindowCmd,
-    WindowExStyle,
-    WindowStyle,
-)
+from .window_structs import (DwmWindowAttribute, Rect, ShowWindowCmd,
+                             WindowExStyle, WindowStyle)
 
 user32 = WinDLL("user32", use_last_error=True)
 kernel32 = WinDLL("kernel32", use_last_error=True)
@@ -625,7 +620,7 @@ class Window:
         """Check if window is a root window"""
         return not self.parent_handle
 
-    def inspect(self, file=sys.stdout):
+    def inspect(self):
         """Inspect window and print the information to the file"""
         if not self.exists():
             logger.info("window doesn't exist anymore")
@@ -671,6 +666,7 @@ class Window:
         logger.info("is_visible   : %s", self.is_visible)
         logger.info("is_iconic    : %s", self.is_iconic)
         logger.info("is_restored  : %s", self.is_restored)
+        logger.info("unapplicable : %s", self.unapplicable_reason)
         logger.info("unmanageable : %s", self.unmanageable_reason)
         logger.info("manageable   : %s", self.manageable)
         logger.info("untilable    : %s", self.untilable_reason)
