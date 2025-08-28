@@ -208,3 +208,13 @@ A tray icon will appear — right-click it to manage services.
 ## 📚 Documentation
 
 👉 [Read the Docs](https://jigsawwm.readthedocs.io/en/latest/)
+
+
+## Debugging
+
+### Inspecting active window information
+
+1. Define a hotkey to trigger the Window Inspection. You can refer to the example here: [Window Inspection Example](https://github.com/klesh/JigsawWM/blob/3dd4520f7a65a53b5364b8eb9289573e92e53ce3/examples/full.pyw#L160).
+2. Switch the problematic window and hit the hotkey.
+3. Open the log file located at `C:\Users\<YourUsername>\AppData\Local\jigsawwm\jigsawwm.log` and scroll to the bottom.
+4. Locate the relevant lines.

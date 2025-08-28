@@ -105,8 +105,7 @@ BROWSER_BOOKMARK_PATHS = {
         name="thorium",
         path=os.path.join(
             os.getenv("LOCALAPPDATA"),
-            "BraveSofware",
-            "Brave-Browser",
+            "Thorium",
             "User Data",
             "Default",
             "Bookmarks",
@@ -117,7 +116,8 @@ BROWSER_BOOKMARK_PATHS = {
         name="brave",
         path=os.path.join(
             os.getenv("LOCALAPPDATA"),
-            "Thorium",
+            "BraveSofware",
+            "Brave-Browser",
             "User Data",
             "Default",
             "Bookmarks",
