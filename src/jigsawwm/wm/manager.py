@@ -16,9 +16,14 @@ from jigsawwm.worker import ThreadWorker
 
 from .config import WmConfig
 from .debug_state import inspect_virtdesk_states
-from .virtdesk_state import (MONITOR_STATE, PREFERRED_WINDOW_INDEX,
-                             WORKSPACE_STATE, MonitorState, VirtDeskState,
-                             WorkspaceState)
+from .virtdesk_state import (
+    MONITOR_STATE,
+    PREFERRED_WINDOW_INDEX,
+    WORKSPACE_STATE,
+    MonitorState,
+    VirtDeskState,
+    WorkspaceState,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -106,9 +111,9 @@ class WindowManager(ThreadWorker):
     def virtdesk_state(self) -> VirtDeskState:
         """Retrieve virtual desktop state"""
         desktop_id = get_current_desktop_id()
-        while not desktop_id:
-            logger.warning("desktop_id is invalid, maybe not fully boot up yet? wait a little bit logger")
-            time.sleep(3)
+        # while not desktop_id:
+        #     logger.warning("desktop_id is invalid, maybe not fully boot up yet? wait a little bit logger")
+        #     time.sleep(3)
         virtdesk_state = self.virtdesk_states.get(desktop_id)
         if virtdesk_state is None:
             # make sure monitor_state for current virtual desktop exists
