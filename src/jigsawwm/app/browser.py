@@ -116,7 +116,7 @@ BROWSER_BOOKMARK_PATHS = {
         name="brave",
         path=os.path.join(
             os.getenv("LOCALAPPDATA"),
-            "BraveSofware",
+            "BraveSoftware",
             "Brave-Browser",
             "User Data",
             "Default",

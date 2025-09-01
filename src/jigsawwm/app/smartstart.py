@@ -1,8 +1,8 @@
 """Launch applications in a smart way, e.g. only once a day, or only if not running"""
 
+import logging
 import os
 import subprocess
-import logging
 from datetime import datetime, time
 from typing import Optional
 
@@ -21,7 +21,8 @@ def is_today_done(task_name: str, day_start: Optional[time] = time(hour=8)):
         return False
     today = now.date()
     last_date = state_manager.getdate("daily", task_name)
-    return last_date != today
+    logger.info("today: %s   last_date: %s", today, last_date)
+    return last_date == today
 
 
 def mark_today_done(task_name: str):

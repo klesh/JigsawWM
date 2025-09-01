@@ -213,9 +213,9 @@ daemon.register(
         name="syncthing",
         args=[
             r"syncthing.exe",
-            "-no-browser",
-            "-no-restart",
-            "-no-upgrade",
+            "--no-browser",
+            "--no-restart",
+            "--no-upgrade",
         ],
         log_path=os.path.join(os.getenv("LOCALAPPDATA"), "syncthing.log"),
     )
