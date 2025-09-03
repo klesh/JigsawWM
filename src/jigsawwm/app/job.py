@@ -208,6 +208,7 @@ class Task(Job):
     def check_launch(self):
         """Check the condition and launch the task"""
         if self.condition():
+            logging.info("%s condition met, launching", self.name)
             self.launch_anyway()
 
     def launch_anyway(self):

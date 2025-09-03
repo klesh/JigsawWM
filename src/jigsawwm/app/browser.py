@@ -187,6 +187,7 @@ def wait_for_network_ready(test_url: str, proxy_url: str = None):
         except:  # pylint: disable=bare-except
             logger.debug("test network by accessing %s", test_url)
             time.sleep(1)
+    logger.info("network is ready")
 
 
 if __name__ == "__main__":

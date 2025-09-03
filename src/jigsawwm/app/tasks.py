@@ -1,5 +1,6 @@
 """Useful tasks"""
 
+import logging
 from datetime import timedelta
 from typing import List
 
@@ -9,6 +10,7 @@ from .browser import open_fav_folder, wait_for_network_ready
 from .job import Task
 from .smartstart import is_today_done, mark_today_done, start_if_not_running
 
+logger = logging.getLogger(__name__)
 
 class DailyWebsites(Task):
     """Open all bookmarks in given fav folder once per day"""
@@ -32,12 +34,14 @@ class DailyWebsites(Task):
         self.proxy_url = proxy_url
 
     def run(self):
+        logger.info("running dailywebsite")
         open_fav_folder(self.browser_name, self.fav_folder)
+        logger.info("marking today done")
         mark_today_done(self.name)
 
     def condition(self):
         wait_for_network_ready(self.test_url, self.proxy_url)
-        return is_today_done(self.name)
+        return not is_today_done(self.name)
 
 
 class WorkdayAutoStart(Task):
