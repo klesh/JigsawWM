@@ -16,14 +16,9 @@ from jigsawwm.worker import ThreadWorker
 
 from .config import WmConfig
 from .debug_state import inspect_virtdesk_states
-from .virtdesk_state import (
-    MONITOR_STATE,
-    PREFERRED_WINDOW_INDEX,
-    WORKSPACE_STATE,
-    MonitorState,
-    VirtDeskState,
-    WorkspaceState,
-)
+from .virtdesk_state import (MONITOR_STATE, PREFERRED_WINDOW_INDEX,
+                             WORKSPACE_STATE, MonitorState, VirtDeskState,
+                             WorkspaceState)
 
 logger = logging.getLogger(__name__)
 
@@ -62,8 +57,6 @@ class WindowManager(ThreadWorker):
     def start(self):
         """Start the WindowManagerCore service"""
         self.start_worker()
-        self.enqueue(self.virtdesk_state.on_monitors_changed)
-        self.enqueue(self.virtdesk_state.on_windows_changed, starting_up=True)
         self.install_hooks()
 
     def stop(self):
@@ -119,6 +112,8 @@ class WindowManager(ThreadWorker):
             # make sure monitor_state for current virtual desktop exists
             virtdesk_state = VirtDeskState(desktop_id, self.config, self.splash)
             self.virtdesk_states[desktop_id] = virtdesk_state
+            self.enqueue(virtdesk_state.on_monitors_changed)
+            self.enqueue(virtdesk_state.on_windows_changed, starting_up=True)
         return virtdesk_state
 
     def sleep_till(self, ts: float):

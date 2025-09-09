@@ -11,14 +11,9 @@ from jigsawwm.w32.window import topo_sort_windows
 from jigsawwm.w32.window_detector import Window, WindowDetector
 
 from .config import WmConfig
-from .const import (
-    MONITOR_STATE,
-    PREFERRED_MONITOR_INDEX,
-    PREFERRED_WINDOW_INDEX,
-    PREFERRED_WORKSPACE_INDEX,
-    STATIC_WINDOW_INDEX,
-    WORKSPACE_STATE,
-)
+from .const import (MONITOR_STATE, PREFERRED_MONITOR_INDEX,
+                    PREFERRED_WINDOW_INDEX, PREFERRED_WORKSPACE_INDEX,
+                    STATIC_WINDOW_INDEX, WORKSPACE_STATE)
 from .monitor_state import MonitorState
 from .workspace_state import WorkspaceState
 
@@ -34,12 +29,13 @@ class VirtDeskState:
 
     desktop_id: bytearray
     config: WmConfig
-    monitor_states: Dict[Monitor, MonitorState] = {}
+    monitor_states: Dict[Monitor, MonitorState] = None
     window_detector: WindowDetector
     monitor_detector: MonitorDetector
     no_ws_switching_untill = 0
 
     def __init__(self, desktop_id: bytearray, config: WmConfig, splash: Splash):
+        self.monitor_states = {}
         self.desktop_id = desktop_id
         self.window_detector = WindowDetector(created=self.apply_rule_to_window)
         self.monitor_detector = MonitorDetector()
