@@ -36,6 +36,8 @@ class Theme:
     stacking_window_width: float = 0.8
     stacking_window_height: float = 0.8
     stacking_max_step: int = 30
+    # reorder window z-indexes
+    reorder: bool = False
 
     # Theme(
     #     name="OBS Dwindle",
@@ -88,6 +90,7 @@ stack = Theme(
     affinity_index=lambda si: (
         10 if si.inch < 20 or (si.width_px == 2048 and si.height_px == 1536) else 0
     ),
+    reorder=True,
 )
 mono = Theme(
     name="Mono",

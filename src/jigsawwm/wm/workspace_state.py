@@ -234,7 +234,7 @@ class WorkspaceState:
                 )
                 # windows[i].set_restricted_rect(self.tiling_areas[i], work_rect)
                 windows[i].set_restricted_rect(
-                    self.tiling_areas[i], work_rect, insert_after
+                    self.tiling_areas[i], work_rect, insert_after if self.theme.reorder else None
                 )
                 insert_after = windows[i].handle
         # arrange the last area
@@ -248,7 +248,7 @@ class WorkspaceState:
         elif n == m and n > 0:
             # windows[-1].set_restricted_rect(self.tiling_areas[-1], work_rect)
             windows[-1].set_restricted_rect(
-                self.tiling_areas[-1], work_rect, insert_after
+                self.tiling_areas[-1], work_rect,  insert_after if self.theme.reorder else None
             )
 
     def update_floating_windows_rects(self):
