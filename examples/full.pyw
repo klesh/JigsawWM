@@ -39,7 +39,6 @@ daemon.jmk.core.register_layers(
             Vk.SPACE: JmkTapHold(tap=Vk.SPACE, hold=Vk.LSHIFT),
             # hold backward mouse button to switch to layer 2
             Vk.XBUTTON1: JmkTapHold(tap=Vk.XBUTTON1, hold=2, term=0.4),
-            Vk.F15: JmkKey(suspend_system),
         },
         {  # layer 1
             # left hand
@@ -123,6 +122,7 @@ daemon.jmk.hotkeys.register_triggers(
         ("Win+Ctrl+l", "LWin+LCtrl+Right"),
         ("Win+Ctrl+h", "LWin+LCtrl+Left"),
         ("Win+Ctrl+q", daemon.quit_act.triggered.emit),
+        ("Win+Ctrl+f1", suspend_system),
         ([Vk.WIN, Vk.N], minimize_active_window),
         ([Vk.RCONTROL, Vk.SLASH], "RCtrl+x"),
         ([Vk.RCONTROL, Vk.PERIOD], "RCtrl+c"),
