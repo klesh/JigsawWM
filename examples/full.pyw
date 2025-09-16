@@ -9,14 +9,17 @@ from jigsawwm.app.job import ProcessService
 from jigsawwm.app.services import CaffeineService
 from jigsawwm.app.tasks import DailyWebsites, WorkdayAutoStart
 from jigsawwm.jmk.core import JmkKey, JmkTapHold, Vk
-from jigsawwm.jmk.jmk_service import (ctrl_shift_w, ctrl_w, send_now,
-                                      send_now_compact, send_today,
-                                      send_today_compact)
-from jigsawwm.w32.powerprofile import suspend_system
+from jigsawwm.jmk.jmk_service import (
+    ctrl_shift_w,
+    ctrl_w,
+    send_now,
+    send_now_compact,
+    send_today,
+    send_today_compact,
+)
 from jigsawwm.w32.sendinput import send_combination
 from jigsawwm.w32.vk import Vk, parse_combination
-from jigsawwm.w32.window import (Window, get_foreground_window,
-                                 minimize_active_window)
+from jigsawwm.w32.window import Window, get_foreground_window, minimize_active_window
 from jigsawwm.wm.config import WmRule
 from jigsawwm.wm.manager import WmConfig
 
@@ -101,13 +104,18 @@ def smart_copy_paste(op: str = "copy"):
     comb = combs[0 if op == "copy" else 1]
     send_combination(*comb)
 
+def system_sleep():
+    send_combination(Vk.LWIN, Vk.X)
+    time.sleep(0.1)
+    send_combination(Vk.U)
+    send_combination(Vk.S)
+
 
 daemon.jmk.hotkeys.register_triggers(
     [
         ("Win+q", "LAlt+F4"),
         ("Win+s", "RCtrl+s"),
         ("Win+z", "RCtrl+z"),
-        ("Win+x", "RCtrl+x"),
         ("Win+c", partial(smart_copy_paste, "copy")),
         ("Win+v", partial(smart_copy_paste, "paste")),
         ("Win+Shift+v", "RWin+v"),
@@ -122,7 +130,7 @@ daemon.jmk.hotkeys.register_triggers(
         ("Win+Ctrl+l", "LWin+LCtrl+Right"),
         ("Win+Ctrl+h", "LWin+LCtrl+Left"),
         ("Win+Ctrl+q", daemon.quit_act.triggered.emit),
-        ("Win+Ctrl+f1", suspend_system),
+        ("Win+Ctrl+f1", system_sleep),
         ([Vk.WIN, Vk.N], minimize_active_window),
         ([Vk.RCONTROL, Vk.SLASH], "RCtrl+x"),
         ([Vk.RCONTROL, Vk.PERIOD], "RCtrl+c"),

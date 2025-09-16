@@ -1,17 +1,16 @@
 """JmkCore is the core of the JMK feature, it handles the key events and dispatches
 them to the registered handlers."""
 
-import logging
 import abc
-import typing
+import logging
 import time
+import typing
 from dataclasses import dataclass, field
 from functools import partial
 from threading import Lock
 
-from jigsawwm.w32.vk import Vk, parse_combination, expand_combination
 from jigsawwm.w32.sendinput import send_combination
-
+from jigsawwm.w32.vk import Vk, expand_combination, parse_combination
 
 logger = logging.getLogger(__name__)
 
@@ -137,6 +136,8 @@ class JmkTriggers(JmkHandler):
         if isinstance(cb, str):
             new_comb = parse_combination(cb)
             cb = partial(send_combination, *new_comb)
+        elif isinstance(cb, Vk):
+            cb = partial(send_combination, cb)
         for keys in self.expand_comb(comb):
             if frozenset(keys) in self.triggers:
                 raise ValueError(f"hotkey {keys} already registered")
