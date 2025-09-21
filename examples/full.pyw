@@ -9,17 +9,13 @@ from jigsawwm.app.job import ProcessService
 from jigsawwm.app.services import CaffeineService
 from jigsawwm.app.tasks import DailyWebsites, WorkdayAutoStart
 from jigsawwm.jmk.core import JmkKey, JmkTapHold, Vk
-from jigsawwm.jmk.jmk_service import (
-    ctrl_shift_w,
-    ctrl_w,
-    send_now,
-    send_now_compact,
-    send_today,
-    send_today_compact,
-)
+from jigsawwm.jmk.jmk_service import (ctrl_shift_w, ctrl_w, send_now,
+                                      send_now_compact, send_today,
+                                      send_today_compact)
 from jigsawwm.w32.sendinput import send_combination
 from jigsawwm.w32.vk import Vk, parse_combination
-from jigsawwm.w32.window import Window, get_foreground_window, minimize_active_window
+from jigsawwm.w32.window import (Window, get_foreground_window,
+                                 minimize_active_window)
 from jigsawwm.wm.config import WmRule
 from jigsawwm.wm.manager import WmConfig
 
@@ -106,7 +102,7 @@ def smart_copy_paste(op: str = "copy"):
 
 def system_sleep():
     send_combination(Vk.LWIN, Vk.X)
-    time.sleep(0.1)
+    time.sleep(0.3)
     send_combination(Vk.U)
     send_combination(Vk.S)
 
