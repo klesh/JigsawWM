@@ -8,7 +8,8 @@ from typing import List
 
 from PySide6.QtCore import QPoint, Qt, Signal, Slot
 from PySide6.QtGui import QCursor, QImage
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout,
+                               QWidget)
 
 from jigsawwm.jmk.core import JmkEvent, Vk
 from jigsawwm.jmk.jmk_service import JmkService
@@ -133,6 +134,8 @@ class Splash(Dialog):
         if self.windows != tiling_windows:
             self.deleteDirectChildren(self.container)
             self.windows = tiling_windows.copy()
+            if monitor_state.workspace.theme.reverse_splash_windows:
+                self.windows = list(reversed(self.windows))
             for window in self.windows:
                 icon = QImage.fromHICON(window.icon_handle)
                 ws_name: QWidget = self.create_row_widget(

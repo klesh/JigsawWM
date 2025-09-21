@@ -38,6 +38,7 @@ class Theme:
     stacking_max_step: int = 30
     # reorder window z-indexes
     reorder: bool = False
+    reverse_splash_windows: bool = False
 
     # Theme(
     #     name="OBS Dwindle",
@@ -91,6 +92,7 @@ stack = Theme(
         10 if si.inch < 20 or (si.width_px == 2048 and si.height_px == 1536) else 0
     ),
     reorder=True,
+    reverse_splash_windows=True,
 )
 mono = Theme(
     name="Mono",
