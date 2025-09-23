@@ -4,8 +4,10 @@ resued between different calls to the same HWND value
 """
 
 from dataclasses import dataclass
-from typing import Set, Optional, Callable, Iterator
-from jigsawwm.objectcache import ObjectCache, ChangeDetector
+from typing import Callable, Iterator, Optional, Set
+
+from jigsawwm.objectcache import ChangeDetector, ObjectCache
+
 from .window import HWND, Window, filter_windows, get_foreground_window
 
 
@@ -59,7 +61,7 @@ class WindowDetector(ObjectCache, ChangeDetector):
 
         def check(hwnd: HWND):
             w = self.get_window(hwnd)
-            return (w.is_visible or w.off) and w.manageable
+            return (w.is_visible or w.off) and w.manageable and not w.is_cloaked
 
         return filter_windows(check)
 
