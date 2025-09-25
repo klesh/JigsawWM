@@ -18,7 +18,7 @@ def is_today_done(task_name: str, day_start: Optional[time] = time(hour=8)):
     now = datetime.now().astimezone()
     if now.time() < day_start:
         logger.info("day has not yet started: %s", day_start)
-        return False
+        return True
     today = now.date()
     last_date = state_manager.getdate("daily", task_name)
     logger.info("today: %s   last_date: %s", today, last_date)

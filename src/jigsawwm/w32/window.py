@@ -15,13 +15,8 @@ from . import process
 from .monitor import Monitor, monitor_from_window
 from .sendinput import INPUT, INPUTTYPE, KEYBDINPUT, KEYEVENTF, send_input
 from .vk import Vk
-from .window_structs import (
-    DwmWindowAttribute,
-    Rect,
-    ShowWindowCmd,
-    WindowExStyle,
-    WindowStyle,
-)
+from .window_structs import (DwmWindowAttribute, Rect, ShowWindowCmd,
+                             WindowExStyle, WindowStyle)
 
 user32 = WinDLL("user32", use_last_error=True)
 kernel32 = WinDLL("kernel32", use_last_error=True)
@@ -430,7 +425,6 @@ class Window:
 
         :param rect: RECT with top/left/bottom/right properties
         """
-        logger.debug("%s set rect to %s insert_after: %s", self, rect, insert_after)
         if not user32.SetWindowPos(
             self.handle,
             insert_after,
@@ -441,7 +435,6 @@ class Window:
             SET_WINDOW_RECT_FLAG,
         ):
             raise WinError(get_last_error())
-        logger.debug("done %s set rect to %s", self, rect)
 
     def insert_after(self, insert_after: InsertAfter | HWND | Self):
         """Set window z order"""

@@ -241,7 +241,8 @@ class WorkspaceState:
                 ia = insert_after if self.theme.reorder and active_handle != w.handle else None
                 w.set_restricted_rect(self.tiling_areas[i], work_rect, ia)
                 insert_after = w.handle
-                time.sleep(0.01)
+                if self.theme.reorder:
+                    time.sleep(0.1)
         # arrange the last area
         overflow = n > m
         if overflow:
@@ -253,7 +254,6 @@ class WorkspaceState:
         elif n == m and n > 0:
             w = windows[-1]
             ia = insert_after if self.theme.reorder and active_handle != w.handle else None
-            time.sleep(0.01)
             w.set_restricted_rect(self.tiling_areas[-1], work_rect,  ia)
 
     def update_floating_windows_rects(self):
