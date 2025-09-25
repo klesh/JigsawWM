@@ -4,7 +4,7 @@ import logging
 from typing import Iterator, List, Optional, Set, Tuple
 
 from jigsawwm.w32.monitor import Monitor, get_cursor_pos
-from jigsawwm.w32.window import InsertAfter, Rect, Window
+from jigsawwm.w32.window import InsertAfter, Rect, Window, get_foreground_window
 
 from .const import PREFERRED_WINDOW_INDEX, STATIC_WINDOW_INDEX, WORKSPACE_STATE
 from .theme import Theme, mono
@@ -98,14 +98,20 @@ class WorkspaceState:
         # bound_rect = Rect(left, top, left + w, top + h)
         windows = list(w for w in self.floating_windows if w and w.exists())
         # self._stack_windows(work_rect, bound_rect, windows)
-        p = InsertAfter.HWND_BOTTOM
+        # p = InsertAfter.HWND_BOTTOM
+        p = None
+        a = None
         if windows:
             for w in windows:
                 w.insert_after(p)
                 p = w.handle
-        for w in self.tiling_windows:
-            w.insert_after(p)
-            p = w.handle
+            a = windows[0]
+        if self.tiling_windows:
+            for w in self.tiling_windows:
+                w.insert_after(p)
+                p = w.handle
+            a = a or self.tiling_windows[0]
+        a.activate()
 
     def set_theme(self, theme: Theme):
         """Set theme for the workspace"""
@@ -224,17 +230,14 @@ class WorkspaceState:
         logger.debug("%s tiling_areas: %s", self, self.tiling_areas)
         # arrange all except the last areaself.theme.
         work_rect = self.monitor.get_work_rect()
-        insert_after = InsertAfter.HWND_BOTTOM
+        # insert_after = InsertAfter.HWND_BOTTOM
+        active_handle = get_foreground_window() 
+        insert_after = active_handle
         for i in range(m - 1):
             if windows[i] is not None:
-                logger.debug(
-                    "set_restricted_rect relative: %s container: %s",
-                    self.tiling_areas[i],
-                    work_rect,
-                )
                 # windows[i].set_restricted_rect(self.tiling_areas[i], work_rect)
                 windows[i].set_restricted_rect(
-                    self.tiling_areas[i], work_rect, insert_after if self.theme.reorder else None
+                    self.tiling_areas[i], work_rect, insert_after if self.theme.reorder and active_handle != windows[i].handle else None
                 )
                 insert_after = windows[i].handle
         # arrange the last area

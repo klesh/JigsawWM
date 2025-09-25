@@ -15,8 +15,13 @@ from . import process
 from .monitor import Monitor, monitor_from_window
 from .sendinput import INPUT, INPUTTYPE, KEYBDINPUT, KEYEVENTF, send_input
 from .vk import Vk
-from .window_structs import (DwmWindowAttribute, Rect, ShowWindowCmd,
-                             WindowExStyle, WindowStyle)
+from .window_structs import (
+    DwmWindowAttribute,
+    Rect,
+    ShowWindowCmd,
+    WindowExStyle,
+    WindowStyle,
+)
 
 user32 = WinDLL("user32", use_last_error=True)
 kernel32 = WinDLL("kernel32", use_last_error=True)
@@ -461,6 +466,13 @@ class Window:
         self, rect: Rect, container_rect: Rect, insert_after: InsertAfter | None = None
     ):
         """Set the restricted rect"""
+        logger.debug(
+            "set_restricted_rect window: %s relative: %s container: %s, after: %s",
+            self,
+            rect,
+            container_rect,
+            insert_after,
+        )
         if not self.is_restored:
             self.restore()
         self.relative_rect = rect
