@@ -1,12 +1,10 @@
 """WorkspaceState maintins the state of a workspace"""
 
 import logging
-import time
 from typing import Iterator, List, Optional, Set, Tuple
 
 from jigsawwm.w32.monitor import Monitor, get_cursor_pos
-from jigsawwm.w32.window import (InsertAfter, Rect, Window,
-                                 get_foreground_window)
+from jigsawwm.w32.window import (InsertAfter, Rect, Window, get_foreground_window)
 
 from .const import PREFERRED_WINDOW_INDEX, STATIC_WINDOW_INDEX, WORKSPACE_STATE
 from .theme import Theme, mono
@@ -232,17 +230,15 @@ class WorkspaceState:
         logger.debug("%s tiling_areas: %s", self, self.tiling_areas)
         # arrange all except the last areaself.theme.
         work_rect = self.monitor.get_work_rect()
-        # insert_after = InsertAfter.HWND_BOTTOM
-        active_handle = get_foreground_window() 
-        insert_after = active_handle
-        for i in range(m - 1):
+        active_handle = get_foreground_window()
+        active_window, active_area = None, None # delay setting the active window position so it can be on top (insert_after won't work)
+        for i in reversed(range(m - 1)):
             w = windows[i]
             if w is not None:
-                ia = insert_after if self.theme.reorder and active_handle != w.handle else None
-                w.set_restricted_rect(self.tiling_areas[i], work_rect, ia)
-                insert_after = w.handle
-                if self.theme.reorder:
-                    time.sleep(0.1)
+                if w.handle == active_handle:
+                    active_window, active_area = w, self.tiling_areas[i]
+                    continue
+                w.set_restricted_rect(self.tiling_areas[i], work_rect)
         # arrange the last area
         overflow = n > m
         if overflow:
@@ -253,8 +249,15 @@ class WorkspaceState:
             self._stack_windows(work_rect, bound, windows, w=w, h=h)
         elif n == m and n > 0:
             w = windows[-1]
-            ia = insert_after if self.theme.reorder and active_handle != w.handle else None
-            w.set_restricted_rect(self.tiling_areas[-1], work_rect,  ia)
+            if w.handle == active_handle:
+                active_window, active_area = w, self.tiling_areas[-1]
+            else:
+                w.set_restricted_rect(self.tiling_areas[-1], work_rect)
+        # bringing active window to the top
+        if active_window and active_area:
+            active_window.set_restricted_rect(active_area, work_rect)
+        elif active_handle:
+            Window(active_handle).insert_after(None)
 
     def update_floating_windows_rects(self):
         """Arrange floating windows in the workspace"""
@@ -414,6 +417,12 @@ class WorkspaceState:
         """Reclaim windows got hidden by the previous process"""
         logger.debug("%s reclaim hidden windows", self)
         for window in self.windows:
+            if window.off:
+                self.toggle_window(window, True)
+        logger.debug("%s reclaim hidden windows", self)
+        for window in self.windows:
+            if window.off:
+                self.toggle_window(window, True)
             if window.off:
                 self.toggle_window(window, True)
         logger.debug("%s reclaim hidden windows", self)

@@ -436,7 +436,7 @@ class Window:
         ):
             raise WinError(get_last_error())
 
-    def insert_after(self, insert_after: InsertAfter | HWND | Self):
+    def insert_after(self, insert_after: InsertAfter | HWND | Self | None):
         """Set window z order"""
         # logger.info("insert %s after %s", self, insert_after)
         self.set_rect(
