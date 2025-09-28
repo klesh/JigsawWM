@@ -114,7 +114,7 @@ def stack_layout_tiler(*args, master_ratio=0.9, **kwargs) -> Iterator[Rect]:
     return direct_tiler(partial(stack, master_ratio=master_ratio), *args, **kwargs)
 
 
-def ratio_dwindle_layout_tiler(*args, master_ratio=0.618, **kwargs) -> Iterator[Rect]:
+def ratio_dwindle_layout_tiler(*args, master_ratio=0.618, master_height=1.0, **kwargs) -> Iterator[Rect]:
     """The dwindle layout tiler"""
     return direct_tiler(partial(dwindle, master_ratio=master_ratio), *args, **kwargs)
 

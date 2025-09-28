@@ -70,17 +70,14 @@ dwindle = Theme(
         lambda si: (4 if si.inch >= 20 else 0) + (5 if 1 < si.ratio < 2 else 0)
     ),
 )
-dwindle_static = Theme(
-    name="Dwindle Static",
-    layout_tiler=tilers.ratio_dwindle_layout_tiler,
-    max_tiling_areas=3,
-    # windows with static index defined in rules would be placed into the specified position
-    static_layout=True,
+obs_dwindle = Theme(
+    name="Obs Dwindle",
+    layout_tiler=tilers.obs_dwindle_layout_tiler,
+    max_tiling_areas=5,
     strict=True,
-    gap=20,
-    new_window_as_master=True,
-    affinity_index=lambda si: (4 if si.inch >= 20 else 0)
-    + (5 if 1 < si.ratio < 2 else 0),
+    gap=4,
+    new_window_as_master=False,
+    affinity_index=lambda _: 0,
 )
 stack = Theme(
     name="Stack",
@@ -117,7 +114,7 @@ widescreen_dwindle = Theme(
 all_themes = [
     static_bigscreen_8,
     dwindle,
-    dwindle_static,
+    obs_dwindle,
     stack,
     mono,
     widescreen_dwindle,
