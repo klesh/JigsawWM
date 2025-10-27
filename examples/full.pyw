@@ -190,7 +190,6 @@ daemon.wm.manager.config = WmConfig(
         WmRule(exe="notepad++.exe", tilable=False),
         WmRule(exe="PotPlayerMini64.exe", tilable=False),
         WmRule(exe="openvpn-gui.exe", tilable=False),
-        WmRule(exe="Obsidian.exe", preferred_monitor_index=1),
         # WmRule(
         #     exe="Feishu.exe",
         #     title="(Feishu Meetings|飞书会议)",
