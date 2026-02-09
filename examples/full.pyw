@@ -9,13 +9,17 @@ from jigsawwm.app.job import ProcessService
 from jigsawwm.app.services import CaffeineService
 from jigsawwm.app.tasks import DailyWebsites, WorkdayAutoStart
 from jigsawwm.jmk.core import JmkKey, JmkTapHold, Vk
-from jigsawwm.jmk.jmk_service import (ctrl_shift_w, ctrl_w, send_now,
-                                      send_now_compact, send_today,
-                                      send_today_compact)
+from jigsawwm.jmk.jmk_service import (
+    ctrl_shift_w,
+    ctrl_w,
+    send_now,
+    send_now_compact,
+    send_today,
+    send_today_compact,
+)
 from jigsawwm.w32.sendinput import send_combination
 from jigsawwm.w32.vk import Vk, parse_combination
-from jigsawwm.w32.window import (Window, get_foreground_window,
-                                 minimize_active_window)
+from jigsawwm.w32.window import Window, get_foreground_window, minimize_active_window
 from jigsawwm.wm.config import WmRule
 from jigsawwm.wm.manager import WmConfig
 
@@ -153,10 +157,10 @@ daemon.wm.hotkeys = [
     ("Win+Ctrl+f", partial(daemon.wm.manager.switch_to_workspace, 3)),
     # ("Win+Ctrl+j", partial(daemon.wm.manager.next_workspace)),
     # ("Win+Ctrl+k", partial(daemon.wm.manager.prev_workspace)),
-    ("Win+Shift+a", partial(daemon.wm.manager.move_to_workspace, 0)),
-    ("Win+Shift+s", partial(daemon.wm.manager.move_to_workspace, 1)),
-    ("Win+Shift+d", partial(daemon.wm.manager.move_to_workspace, 2)),
-    ("Win+Shift+f", partial(daemon.wm.manager.move_to_workspace, 3)),
+    ("Win+Ctrl+Shift+a", partial(daemon.wm.manager.move_to_workspace, 0)),
+    ("Win+Ctrl+Shift+s", partial(daemon.wm.manager.move_to_workspace, 1)),
+    ("Win+Ctrl+Shift+d", partial(daemon.wm.manager.move_to_workspace, 2)),
+    ("Win+Ctrl+Shift+f", partial(daemon.wm.manager.move_to_workspace, 3)),
     ("Win+Ctrl+Shift+j", partial(daemon.wm.manager.move_to_next_workspace)),
     ("Win+Ctrl+Shift+k", partial(daemon.wm.manager.move_to_prev_workspace)),
     ("Win+Shift+Space", daemon.wm.manager.toggle_tilable),
@@ -164,11 +168,11 @@ daemon.wm.hotkeys = [
     ([Vk.WIN, Vk.CONTROL, Vk.O], daemon.wm.manager.inspect_active_window),
     ([Vk.WIN, Vk.CONTROL, Vk.M], daemon.wm.manager.toggle_mono),
     (
-        [Vk.WIN, Vk.CONTROL, Vk.SHIFT, Vk.S],
+        [Vk.WIN, Vk.CONTROL, Vk.ALT, Vk.S],
         partial(daemon.wm.manager.set_theme, "Stack"),
     ),
     (
-        [Vk.WIN, Vk.CONTROL, Vk.SHIFT, Vk.D],
+        [Vk.WIN, Vk.CONTROL, Vk.ALT, Vk.D],
         partial(daemon.wm.manager.set_theme, "Dwindle"),
     ),
     ([Vk.CTRL, Vk.ESCAPE], daemon.wm.manager.show_floating_windows),
@@ -238,7 +242,7 @@ daemon.register(
     WorkdayAutoStart(
         country_code="CN",
         apps=[
-            r"C:\Users\Klesh\AppData\Local\Feishu\Feishu.exe",
+            # r"C:\Users\Klesh\AppData\Local\Feishu\Feishu.exe",
             r"C:\Program Files\Betterbird\betterbird.exe",
             r"C:\Users\Klesh\AppData\Local\Programs\obsidian\Obsidian.exe",
         ],
